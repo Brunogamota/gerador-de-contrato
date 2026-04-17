@@ -13,6 +13,7 @@ import {
 import {
   updateMatrixEntry,
   applyBulkRate,
+  copyBrandRates,
   calculateBrandAverage,
   normalizeMdrInput,
 } from '@/lib/calculations/mdr';
@@ -46,6 +47,7 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
   const [editValue, setEditValue] = useState('');
   const [bulkModal, setBulkModal] = useState<{ brand: BrandName; field: 'mdrBase' | 'anticipationRate' } | null>(null);
   const [bulkValue, setBulkValue] = useState('');
+  const [copyTargets, setCopyTargets] = useState<BrandName[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const validation = validateMatrix(matrix);
@@ -231,9 +233,7 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
           <tbody>
             {INSTALLMENTS.map((inst, rowIdx) => {
               const entry = matrix[selectedBrand][inst as InstallmentNumber];
-              const severity = entry.finalMdr
-                ? getCellSeverity(issues, selectedBrand, inst)
-                : 'empty';
+              const severity = getCellSeverity(issues, selectedBrand, inst, !!entry.finalMdr);
               const cellIssues = issues.filter(
                 (i) => i.brand === selectedBrand && i.installment === inst
               );
@@ -382,20 +382,59 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
 
       {/* Bulk edit row */}
       {!readOnly && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-gray-500">Aplicar em massa para {BRAND_LABELS[selectedBrand]}:</span>
-          <button
-            onClick={() => setBulkModal({ brand: selectedBrand, field: 'mdrBase' })}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-          >
-            Definir MDR Base (todas parcelas)
-          </button>
-          <button
-            onClick={() => setBulkModal({ brand: selectedBrand, field: 'anticipationRate' })}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
-          >
-            Definir Antecipação (todas parcelas)
-          </button>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-gray-500 font-medium">
+              {BRAND_LABELS[selectedBrand]} — aplicar em massa:
+            </span>
+            <button
+              onClick={() => setBulkModal({ brand: selectedBrand, field: 'mdrBase' })}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+            >
+              Definir MDR Base (todas parcelas)
+            </button>
+            <button
+              onClick={() => setBulkModal({ brand: selectedBrand, field: 'anticipationRate' })}
+              className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+            >
+              Definir Antecipação (todas parcelas)
+            </button>
+          </div>
+
+          {/* Copy to other brands */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-gray-500">Copiar taxas de {BRAND_LABELS[selectedBrand]} para:</span>
+            {BRANDS.filter((b) => b !== selectedBrand).map((b) => (
+              <label key={b} className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={copyTargets.includes(b)}
+                  onChange={(e) =>
+                    setCopyTargets((prev) =>
+                      e.target.checked ? [...prev, b] : prev.filter((x) => x !== b)
+                    )
+                  }
+                  className="w-3.5 h-3.5 rounded accent-brand"
+                />
+                <span className="text-xs text-gray-600">{BRAND_LABELS[b]}</span>
+              </label>
+            ))}
+            <button
+              disabled={copyTargets.length === 0}
+              onClick={() => {
+                onChange(copyBrandRates(matrix, selectedBrand, copyTargets));
+                setCopyTargets([]);
+              }}
+              className={cn(
+                'text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
+                copyTargets.length > 0
+                  ? 'bg-brand-600 text-white hover:bg-brand-700'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              )}
+            >
+              Copiar
+            </button>
+          </div>
         </div>
       )}
 

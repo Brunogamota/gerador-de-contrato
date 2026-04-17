@@ -44,9 +44,9 @@ export default async function ContractDetailPage({ params }: { params: { id: str
   const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');
 
   const statusMap: Record<string, { label: string; color: string }> = {
-    draft:  { label: 'Rascunho', color: 'bg-gray-100 text-gray-600' },
-    active: { label: 'Ativo',    color: 'bg-emerald-50 text-emerald-700' },
-    signed: { label: 'Assinado', color: 'bg-blue-50 text-blue-700' },
+    draft:  { label: 'Rascunho', color: 'bg-ink-800/60 text-ink-300 ring-1 ring-ink-700' },
+    active: { label: 'Ativo',    color: 'bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-900' },
+    signed: { label: 'Assinado', color: 'bg-blue-950/60 text-blue-300 ring-1 ring-blue-900' },
   };
   const s = statusMap[contract.status] ?? statusMap.draft;
 
@@ -55,17 +55,17 @@ export default async function ContractDetailPage({ params }: { params: { id: str
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <Link href="/contracts" className="text-sm text-gray-500 hover:text-gray-700">← Contratos</Link>
-            <span className="text-gray-300">/</span>
+            <Link href="/contracts" className="text-sm text-ink-400 hover:text-ink-200 transition-colors">← Contratos</Link>
+            <span className="text-ink-700">/</span>
             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{contract.contratanteNome}</h1>
-          <p className="text-sm text-gray-500 font-mono mt-1">{contract.contractNumber}</p>
+          <h1 className="text-2xl font-bold text-ink-50">{contract.contratanteNome}</h1>
+          <p className="text-sm text-ink-400 font-mono mt-1">{contract.contractNumber}</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => window.print()}
-            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 rounded-xl text-sm font-medium border border-ink-700 bg-ink-800 text-ink-200 hover:bg-ink-700 hover:text-ink-50 transition-colors"
           >
             Imprimir
           </button>

@@ -216,3 +216,20 @@ export function mergePartialMatrix(
     [brand]: { ...base[brand], ...partial },
   };
 }
+
+/**
+ * Copy all entries from sourceBrand to every brand in targetBrands.
+ * Useful when multiple brands share the same rate structure.
+ */
+export function copyBrandRates(
+  matrix: MDRMatrix,
+  sourceBrand: BrandName,
+  targetBrands: BrandName[]
+): MDRMatrix {
+  const result = { ...matrix };
+  for (const target of targetBrands) {
+    if (target === sourceBrand) continue;
+    result[target] = { ...matrix[sourceBrand] };
+  }
+  return result;
+}
