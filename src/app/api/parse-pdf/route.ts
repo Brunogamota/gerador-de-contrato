@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BRANDS, BrandName, INSTALLMENTS } from '@/types/pricing';
 import { createEmptyMatrix, expandGroupedRates, mergePartialMatrix } from '@/lib/calculations/mdr';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const PARSE_PROMPT = `You are a financial data extraction specialist.
 Analyze this payment proposal document and extract MDR (Merchant Discount Rate) data.
 

@@ -4,6 +4,9 @@ import { ContractDataSchema } from '@/types/contract';
 import { MDRMatrix } from '@/types/pricing';
 import { generateContractNumber } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {

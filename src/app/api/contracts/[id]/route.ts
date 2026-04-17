@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const noDb = () => NextResponse.json({ error: 'Database not configured' }, { status: 503 });
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
