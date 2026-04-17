@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Contract {
+  id             String   @id @default(cuid())
+  contractNumber String   @unique
+
+  // Contratante
+  contratanteNome      String
+  contratanteCnpj      String
+  contratanteEndereco  String
+  contratanteEmail     String
+  contratanteTelefone  String
+
+  // Termos
+  dataInicio    String
+  vigenciaMeses Int    @default(12)
+  foro          String @default("São Paulo/SP")
+
+  // Taxas operacionais (stored as string for decimal precision)
+  setup             String @default("0.00")
+  feeTransacao      String @default("0.15")
+  taxaAntifraude    String @default("1.00")
+  taxaPix           String @default("0.45")
+  taxaPixOut        String @default("0.45")
+  taxaSplit         String @default("0.00")
+  taxaEstorno       String @default("2.50")
+  taxaAntecipacao   String @default("1.45")
+  taxaPreChargeback String @default("0.00")
+  taxaChargeback    String @default("65.00")
+  prazoRecebimento  String @default("D0")
+  valorMinimoMensal String @default("0.00")
+
+  // MDR Matrix serialized as JSON
+  mdrMatrix String @default("{}")
+
+  // Status
+  status String @default("draft") // draft | active | signed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
