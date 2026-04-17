@@ -8,6 +8,14 @@ export const ContractDataSchema = z.object({
   contratanteEmail: z.string().email('E-mail inválido'),
   contratanteTelefone: z.string().min(8, 'Telefone obrigatório'),
 
+  // Representante legal (opcional)
+  repLegalNome:     z.string().default(''),
+  repLegalCpf:      z.string().default(''),
+  repLegalRg:       z.string().default(''),
+  repLegalEmail:    z.string().default(''),
+  repLegalTelefone: z.string().default(''),
+  repLegalCargo:    z.string().default(''),
+
   dataInicio: z.string().min(1, 'Data de início obrigatória'),
   vigenciaMeses: z.number().int().min(1).max(60).default(12),
   foro: z.string().default('São Paulo/SP'),
@@ -50,6 +58,12 @@ export const DEFAULT_CONTRACT_DATA: ContractData = {
   contratanteEndereco: '',
   contratanteEmail: '',
   contratanteTelefone: '',
+  repLegalNome: '',
+  repLegalCpf: '',
+  repLegalRg: '',
+  repLegalEmail: '',
+  repLegalTelefone: '',
+  repLegalCargo: '',
   dataInicio: new Date().toLocaleDateString('pt-BR'),
   vigenciaMeses: 12,
   foro: 'São Paulo/SP',

@@ -264,15 +264,15 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={commitEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full text-center rounded border border-brand-400 bg-brand-50 px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="w-full text-center rounded border-2 border-brand-500 bg-white text-gray-900 px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20 placeholder:text-gray-400"
                       />
                     ) : (
                       <button
                         onClick={() => !readOnly && startEdit(selectedBrand, inst, 'mdrBase')}
                         className={cn(
                           'w-full text-center rounded px-2 py-1 text-sm font-mono transition-colors',
-                          'border hover:border-brand-300 hover:bg-brand-50',
-                          entry.mdrBase ? 'text-gray-800 border-gray-200 bg-white' : 'text-gray-300 border-dashed border-gray-200 bg-gray-50/50',
+                          'border hover:border-brand-400 hover:bg-gray-50',
+                          entry.mdrBase ? 'text-gray-800 border-gray-200 bg-white' : 'text-gray-400 border-dashed border-gray-200 bg-gray-50/50',
                           readOnly && 'cursor-default hover:border-gray-200 hover:bg-white'
                         )}
                       >
@@ -294,17 +294,17 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={commitEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full text-center rounded border border-brand-400 bg-brand-50 px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="w-full text-center rounded border-2 border-brand-500 bg-white text-gray-900 px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20 placeholder:text-gray-400"
                       />
                     ) : (
                       <button
                         onClick={() => !readOnly && startEdit(selectedBrand, inst, 'anticipationRate')}
                         className={cn(
                           'w-full text-center rounded px-2 py-1 text-sm font-mono transition-colors',
-                          'border hover:border-brand-300 hover:bg-brand-50',
+                          'border hover:border-brand-400 hover:bg-gray-50',
                           entry.anticipationRate
                             ? 'text-gray-800 border-gray-200 bg-white'
-                            : 'text-gray-300 border-dashed border-gray-200 bg-gray-50/50',
+                            : 'text-gray-400 border-dashed border-gray-200 bg-gray-50/50',
                           readOnly && 'cursor-default hover:border-gray-200 hover:bg-white'
                         )}
                       >

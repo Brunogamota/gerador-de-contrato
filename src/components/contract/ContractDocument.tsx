@@ -58,6 +58,17 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
           <tr><td className={th}>Data de Início</td><td className={td}>{d.dataInicio}</td></tr>
           <tr><td className={th}>Vigência</td><td className={td}>{d.vigenciaMeses} meses, renovação automática</td></tr>
           <tr><td className={th}>Foro</td><td className={td}>Comarca de {d.foro}</td></tr>
+          {d.repLegalNome && (
+            <tr>
+              <td className={th}>Representante Legal</td>
+              <td className={td}>
+                {d.repLegalNome}
+                {d.repLegalCargo ? ` — ${d.repLegalCargo}` : ''}
+                {d.repLegalCpf ? ` | CPF: ${d.repLegalCpf}` : ''}
+                {d.repLegalRg ? ` | RG: ${d.repLegalRg}` : ''}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
@@ -287,8 +298,18 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
             <div className="border-t border-gray-800 pt-2 mt-12">
               <p className="text-xs font-bold">{d.contratanteNome}</p>
               <p className="text-xs text-gray-600">CNPJ: {d.contratanteCnpj}</p>
-              <p className="text-xs mt-1">&nbsp;</p>
-              <p className="text-xs text-gray-600">Representante Legal</p>
+              {d.repLegalNome ? (
+                <>
+                  <p className="text-xs mt-1">{d.repLegalNome}</p>
+                  <p className="text-xs text-gray-600">{d.repLegalCargo || 'Representante Legal'}</p>
+                  {d.repLegalCpf && <p className="text-xs text-gray-600">CPF: {d.repLegalCpf}</p>}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs mt-1">&nbsp;</p>
+                  <p className="text-xs text-gray-600">Representante Legal</p>
+                </>
+              )}
             </div>
           </div>
         </div>

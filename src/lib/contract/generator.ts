@@ -1,85 +1,109 @@
 'use client';
 
-import { ContractData } from '@/types/contract';
-import { MDRMatrix } from '@/types/pricing';
-
-export async function exportContractToPdf(elementId: string, contractNumber: string): Promise<void> {
-  const { default: jsPDF } = await import('jspdf');
-  const { default: html2canvas } = await import('html2canvas');
-
+/**
+ * Opens a dedicated print window with all app CSS loaded,
+ * proper A4 @page rules, and page-break directives applied.
+ * The user saves as PDF via the browser's native print dialog.
+ *
+ * Replaces the html2canvas/jsPDF approach which produced a single
+ * giant bitmap page with incorrect pagination and tiny text.
+ */
+export async function exportContractToPdf(
+  elementId: string,
+  contractNumber: string
+): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) throw new Error('Contract element not found');
 
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff',
-  });
-
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
-
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-  const imgWidth = canvas.width;
-  const imgHeight = canvas.height;
-  const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-  const imgX = (pdfWidth - imgWidth * ratio) / 2;
-  const pageHeightPx = pdfHeight / ratio;
-
-  let heightLeft = imgHeight;
-  let position = 0;
-
-  pdf.addImage(imgData, 'PNG', imgX, 0, imgWidth * ratio, imgHeight * ratio);
-  heightLeft -= pageHeightPx;
-
-  while (heightLeft > 0) {
-    position = heightLeft - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, 'PNG', imgX, position * ratio, imgWidth * ratio, imgHeight * ratio);
-    heightLeft -= pageHeightPx;
+  const win = window.open('', '_blank');
+  if (!win) {
+    window.print();
+    return;
   }
 
-  pdf.save(`contrato-${contractNumber}.pdf`);
+  // Mirror all stylesheets from the current page so Tailwind classes resolve.
+  const linkTags = Array.from(
+    document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+  )
+    .map((l) => `<link rel="stylesheet" href="${l.href}">`)
+    .join('\n');
+
+  const inlineStyleTags = Array.from(document.querySelectorAll('style'))
+    .map((s) => `<style>${s.innerHTML}</style>`)
+    .join('\n');
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contrato ${contractNumber ? contractNumber : 'RebornPay'}</title>
+  ${linkTags}
+  ${inlineStyleTags}
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm 25mm 20mm 30mm;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    html, body {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    header, nav, footer, .no-print { display: none !important; }
+
+    #contract-document {
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      font-size: 10pt !important;
+    }
+
+    .break-before-page {
+      break-before: page !important;
+      page-break-before: always !important;
+    }
+
+    .break-inside-avoid {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    p, li { orphans: 3; widows: 3; }
+    table { break-inside: avoid; }
+    thead { display: table-header-group; }
+  </style>
+</head>
+<body>
+  ${element.outerHTML}
+  <script>
+    function triggerPrint() {
+      if (document.fonts) {
+        document.fonts.ready.then(function() { window.print(); });
+      } else {
+        setTimeout(function() { window.print(); }, 800);
+      }
+    }
+    if (document.readyState === 'complete') {
+      triggerPrint();
+    } else {
+      window.addEventListener('load', triggerPrint);
+    }
+  </script>
+</body>
+</html>`);
+
+  win.document.close();
 }
 
 export function printContract(elementId: string): void {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Contrato RebornPay</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Times New Roman', serif; font-size: 10pt; color: #000; }
-        @page { margin: 20mm 20mm 20mm 30mm; }
-        @media print {
-          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      ${element.innerHTML}
-    </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 500);
+  exportContractToPdf(elementId, '');
 }

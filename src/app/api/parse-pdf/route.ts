@@ -84,9 +84,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      console.error('Anthropic API error:', err);
-      return NextResponse.json({ error: 'AI parsing failed' }, { status: 502 });
+      const errBody = await response.text();
+      console.error('Anthropic API error:', response.status, errBody);
+      let detail = 'AI parsing failed';
+      try {
+        const j = JSON.parse(errBody);
+        if (j?.error?.message) detail = j.error.message;
+      } catch { /* keep default */ }
+      return NextResponse.json(
+        { error: detail, status: response.status },
+        { status: 502 }
+      );
     }
 
     const aiResult = await response.json();

@@ -39,6 +39,14 @@ model Contract {
   prazoRecebimento  String @default("D0")
   valorMinimoMensal String @default("0.00")
 
+  // Representante legal (opcional)
+  repLegalNome     String? @default("")
+  repLegalCpf      String? @default("")
+  repLegalRg       String? @default("")
+  repLegalEmail    String? @default("")
+  repLegalTelefone String? @default("")
+  repLegalCargo    String? @default("")
+
   // MDR Matrix serialized as JSON
   mdrMatrix String @default("{}")
 
