@@ -34,6 +34,85 @@ Rules:
 - If anticipation is not separate, set anticipationRate to "0.00"
 - If a brand is not present, omit it from rates array`;
 
+async function callGemini(base64: string, mimeType: string, apiKey: string): Promise<string> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mimeType, data: base64 } },
+            { text: PARSE_PROMPT },
+          ],
+        }],
+        generationConfig: { maxOutputTokens: 2048, temperature: 0 },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    let msg = `Gemini ${res.status}`;
+    try { msg = JSON.parse(err)?.error?.message ?? msg; } catch { /* keep */ }
+    throw new Error(msg);
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+}
+
+async function callOpenAI(base64: string, mimeType: string, apiKey: string): Promise<string> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'authorization': `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: { url: `data:${mimeType};base64,${base64}` },
+          },
+          { type: 'text', text: PARSE_PROMPT },
+        ],
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    let msg = `OpenAI ${res.status}`;
+    try { msg = JSON.parse(err)?.error?.message ?? msg; } catch { /* keep */ }
+    throw new Error(msg);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? '';
+}
+
+function parseAiText(text: string): {
+  rates: Array<{
+    brand: BrandName;
+    installmentFrom: number;
+    installmentTo: number;
+    mdrBase: string;
+    anticipationRate?: string;
+  }>;
+  fees?: { anticipationRate?: string; chargebackFee?: string };
+  confidence: string;
+  missingData: string[];
+} {
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -43,116 +122,81 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (!geminiKey && !openaiKey) {
       return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY not configured. Set it in .env to enable AI parsing.' },
+        { error: 'Nenhuma API key configurada. Adicione GEMINI_API_KEY ou OPENAI_API_KEY nas variáveis de ambiente.' },
         { status: 503 }
       );
     }
 
-    // Validate file size (Anthropic limit: 32 MB)
-    if (file.size > 32 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Arquivo muito grande. Limite: 32 MB.' }, { status: 413 });
+    if (file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Arquivo muito grande. Limite: 20 MB.' }, { status: 413 });
     }
 
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString('base64');
 
-    // Detect PDF by MIME type OR file extension (file.type can be wrong on some browsers)
-    const isPdf =
-      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-
-    const mediaType = isPdf
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const mimeType = isPdf
       ? 'application/pdf'
       : file.type.startsWith('image/')
       ? file.type
       : 'image/jpeg';
 
-    const fileBlock = isPdf
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
-      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+    let rawText = '';
+    let usedProvider = '';
+    const errors: string[] = [];
 
-    // anthropic-beta 'pdfs-2024-09-25' is only required for document blocks
-    const extraHeaders: Record<string, string> = isPdf
-      ? { 'anthropic-beta': 'pdfs-2024-09-25' }
-      : {};
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-        ...extraHeaders,
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2048,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              fileBlock,
-              { type: 'text', text: PARSE_PROMPT },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.error('Anthropic API error:', response.status, errBody);
-      let detail = `Anthropic API error ${response.status}`;
+    // 1. Try Gemini first (supports PDF + images natively)
+    if (geminiKey) {
       try {
-        const j = JSON.parse(errBody);
-        detail = j?.error?.message ?? j?.message ?? errBody.slice(0, 300);
-      } catch {
-        detail = errBody.slice(0, 300) || detail;
+        rawText = await callGemini(base64, mimeType, geminiKey);
+        usedProvider = 'gemini';
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`Gemini: ${msg}`);
+        console.error('Gemini failed:', msg);
       }
+    }
+
+    // 2. Fallback to OpenAI (supports images; PDFs sent as image_url — works with gpt-4o)
+    if (!rawText && openaiKey) {
+      try {
+        rawText = await callOpenAI(base64, mimeType, openaiKey);
+        usedProvider = 'openai';
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`OpenAI: ${msg}`);
+        console.error('OpenAI failed:', msg);
+      }
+    }
+
+    if (!rawText) {
       return NextResponse.json(
-        { error: detail, httpStatus: response.status },
+        { error: errors.join(' | ') || 'Todos os provedores falharam.' },
         { status: 502 }
       );
     }
 
-    const aiResult = await response.json();
-    const text = aiResult.content?.[0]?.text ?? '';
-
-    let parsed: {
-      rates: Array<{
-        brand: BrandName;
-        installmentFrom: number;
-        installmentTo: number;
-        mdrBase: string;
-        anticipationRate?: string;
-      }>;
-      fees?: { anticipationRate?: string; chargebackFee?: string };
-      confidence: string;
-      missingData: string[];
-    };
-
+    let parsed: ReturnType<typeof parseAiText>;
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      parsed = parseAiText(rawText);
     } catch {
-      return NextResponse.json({ error: 'Failed to parse AI response', raw: text }, { status: 422 });
+      return NextResponse.json({ error: 'Resposta da IA não é JSON válido.', raw: rawText }, { status: 422 });
     }
 
-    // Build matrix from parsed rates
     let matrix = createEmptyMatrix();
-
     for (const rate of parsed.rates ?? []) {
       if (!BRANDS.includes(rate.brand)) continue;
-      const partial = expandGroupedRates([
-        {
-          from: rate.installmentFrom,
-          to: rate.installmentTo,
-          mdrBase: rate.mdrBase,
-          anticipationRate: rate.anticipationRate ?? '0.00',
-        },
-      ]);
+      const partial = expandGroupedRates([{
+        from: rate.installmentFrom,
+        to: rate.installmentTo,
+        mdrBase: rate.mdrBase,
+        anticipationRate: rate.anticipationRate ?? '0.00',
+      }]);
       matrix = mergePartialMatrix(matrix, rate.brand, partial);
     }
 
@@ -161,6 +205,7 @@ export async function POST(req: NextRequest) {
       fees: parsed.fees ?? {},
       confidence: parsed.confidence,
       missingData: parsed.missingData ?? [],
+      provider: usedProvider,
     });
   } catch (err) {
     console.error('parse-pdf error:', err);
