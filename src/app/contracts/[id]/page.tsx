@@ -1,11 +1,15 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { getPrisma } from '@/lib/db';
 import { MDRMatrix } from '@/types/pricing';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
+import { PrintButton } from '@/components/contract/PrintButton';
+
+export const dynamic = 'force-dynamic';
 
 async function getContract(id: string) {
+  const prisma = getPrisma();
   if (!prisma) return null;
   try {
     return await prisma.contract.findUnique({ where: { id } });
@@ -63,12 +67,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
           <p className="text-sm text-gray-500 font-mono mt-1">{contract.contractNumber}</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-          >
-            Imprimir
-          </button>
+          <PrintButton />
         </div>
       </div>
 

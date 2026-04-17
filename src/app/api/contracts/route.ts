@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { getPrisma } from '@/lib/db';
 import { ContractDataSchema } from '@/types/contract';
 import { MDRMatrix } from '@/types/pricing';
 import { generateContractNumber } from '@/lib/utils';
@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
+  const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const contracts = await prisma.contract.findMany({
@@ -20,6 +21,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const body = await req.json();

@@ -1,7 +1,10 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { getPrisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 async function getStats() {
+  const prisma = getPrisma();
   if (!prisma) return { total: 0, draft: 0, active: 0 };
   try {
     const [total, draft, active] = await Promise.all([
@@ -16,6 +19,7 @@ async function getStats() {
 }
 
 async function getRecent() {
+  const prisma = getPrisma();
   if (!prisma) return [];
   try {
     return await prisma.contract.findMany({

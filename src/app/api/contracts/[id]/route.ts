@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { getPrisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 const noDb = () => NextResponse.json({ error: 'Database not configured' }, { status: 503 });
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+  const prisma = getPrisma();
   if (!prisma) return noDb();
   try {
     const contract = await prisma.contract.findUnique({ where: { id: params.id } });
@@ -18,6 +19,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const prisma = getPrisma();
   if (!prisma) return noDb();
   try {
     const body = await req.json();
@@ -32,6 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+  const prisma = getPrisma();
   if (!prisma) return noDb();
   try {
     await prisma.contract.delete({ where: { id: params.id } });

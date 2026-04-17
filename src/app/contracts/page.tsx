@@ -1,7 +1,10 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { getPrisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 async function getContracts() {
+  const prisma = getPrisma();
   if (!prisma) return [];
   try {
     return await prisma.contract.findMany({
