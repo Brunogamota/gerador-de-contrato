@@ -5,6 +5,7 @@ import { MDRMatrix } from '@/types/pricing';
 import { generateContractNumber } from '@/lib/utils';
 
 export async function GET() {
+  if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const contracts = await prisma.contract.findMany({
       orderBy: { createdAt: 'desc' },
@@ -16,6 +17,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const body = await req.json();
     const { data, mdrMatrix, contractNumber } = body as {

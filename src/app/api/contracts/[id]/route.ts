@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+const noDb = () => NextResponse.json({ error: 'Database not configured' }, { status: 503 });
+
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+  if (!prisma) return noDb();
   try {
     const contract = await prisma.contract.findUnique({ where: { id: params.id } });
     if (!contract) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -12,6 +15,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!prisma) return noDb();
   try {
     const body = await req.json();
     const contract = await prisma.contract.update({
@@ -25,6 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+  if (!prisma) return noDb();
   try {
     await prisma.contract.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });

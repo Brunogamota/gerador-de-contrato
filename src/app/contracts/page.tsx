@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 
 async function getContracts() {
+  if (!prisma) return [];
   try {
     return await prisma.contract.findMany({
       orderBy: { createdAt: 'desc' },

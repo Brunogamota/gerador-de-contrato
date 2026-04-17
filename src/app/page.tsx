@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 
 async function getStats() {
+  if (!prisma) return { total: 0, draft: 0, active: 0 };
   try {
     const [total, draft, active] = await Promise.all([
       prisma.contract.count(),
@@ -15,6 +16,7 @@ async function getStats() {
 }
 
 async function getRecent() {
+  if (!prisma) return [];
   try {
     return await prisma.contract.findMany({
       orderBy: { createdAt: 'desc' },

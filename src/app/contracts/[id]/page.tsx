@@ -6,6 +6,7 @@ import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
 
 async function getContract(id: string) {
+  if (!prisma) return null;
   try {
     return await prisma.contract.findUnique({ where: { id } });
   } catch {
