@@ -155,8 +155,10 @@ export function getIssuesForCell(
 export function getCellSeverity(
   issues: ValidationIssue[],
   brand: BrandName,
-  installment: number
+  installment: number,
+  hasFinalMdr?: boolean
 ): 'error' | 'warning' | 'ok' | 'empty' {
+  if (hasFinalMdr === false) return 'empty';
   const cellIssues = getIssuesForCell(issues, brand, installment);
   if (cellIssues.some((i) => i.type === 'error')) return 'error';
   if (cellIssues.some((i) => i.type === 'warning')) return 'warning';
