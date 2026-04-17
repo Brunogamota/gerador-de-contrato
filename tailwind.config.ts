@@ -28,6 +28,7 @@ const config: Config = {
         brand: {
           deep:    '#771339',
           DEFAULT: '#f72662',
+          800:     '#80102f',   // added — used in active/pressed states
           700:     '#a00e3a',   // added — used in hover states
           600:     '#c9184a',   // added — used in active/pressed states
           500:     '#f72662',

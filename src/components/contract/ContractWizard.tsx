@@ -99,20 +99,20 @@ export function ContractWizard() {
               className={cn(
                 'flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium transition-colors',
                 currentStep === step.id
-                  ? 'text-brand-700 bg-brand-50'
+                  ? 'text-brand bg-brand/10'
                   : idx < stepIndex
-                  ? 'text-gray-600 hover:text-gray-900 cursor-pointer'
-                  : 'text-gray-400 cursor-default'
+                  ? 'text-ink-300 hover:text-ink-100 cursor-pointer'
+                  : 'text-ink-600 cursor-default'
               )}
             >
               <span
                 className={cn(
                   'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0',
                   currentStep === step.id
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-brand text-white'
                     : idx < stepIndex
                     ? 'bg-emerald-500 text-white'
-                    : 'bg-gray-200 text-gray-500'
+                    : 'bg-ink-800 text-ink-500'
                 )}
               >
                 {idx < stepIndex ? '✓' : idx + 1}
@@ -120,7 +120,7 @@ export function ContractWizard() {
               <span className="hidden sm:block">{step.shortLabel}</span>
             </button>
             {idx < STEPS.length - 1 && (
-              <div className={cn('flex-1 h-px mx-2', idx < stepIndex ? 'bg-emerald-300' : 'bg-gray-200')} />
+              <div className={cn('flex-1 h-px mx-2', idx < stepIndex ? 'bg-emerald-700' : 'bg-ink-800')} />
             )}
           </div>
         ))}
@@ -157,8 +157,8 @@ export function ContractWizard() {
             className={cn(
               'px-5 py-2.5 rounded-xl text-sm font-medium transition-colors',
               stepIndex === 0
-                ? 'text-gray-300 cursor-default'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'text-ink-700 cursor-default'
+                : 'text-ink-400 hover:text-ink-100 hover:bg-ink-800'
             )}
           >
             ← Voltar
@@ -166,7 +166,7 @@ export function ContractWizard() {
 
           <div className="flex items-center gap-3">
             {currentStep === 'mdr' && !mdrValidation.canGenerateContract && (
-              <p className="text-sm text-amber-600">
+              <p className="text-sm text-amber-400">
                 Preencha ao menos uma bandeira completa para continuar
               </p>
             )}
