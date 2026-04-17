@@ -12,6 +12,7 @@ import { generateContractNumber } from '@/lib/utils';
 import { ClientInfoStep } from './steps/ClientInfoStep';
 import { MDRStep } from './steps/MDRStep';
 import { FeesStep } from './steps/FeesStep';
+import { ExtractedFees } from '@/components/mdr/PDFImportModal';
 import { PreviewStep } from './steps/PreviewStep';
 import { cn } from '@/lib/utils';
 
@@ -82,6 +83,11 @@ export function ContractWizard() {
 
   const mdrValidation = validateMatrix(mdrMatrix);
 
+  function handleFeesExtracted(fees: ExtractedFees) {
+    if (fees.anticipationRate) form.setValue('taxaAntecipacao', fees.anticipationRate);
+    if (fees.chargebackFee) form.setValue('taxaChargeback', fees.chargebackFee);
+  }
+
   return (
     <div className="flex flex-col gap-6 min-h-screen pb-12">
       {/* Step indicator */}
@@ -124,7 +130,11 @@ export function ContractWizard() {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 md:p-8">
         {currentStep === 'client' && <ClientInfoStep form={form} />}
         {currentStep === 'mdr' && (
-          <MDRStep matrix={mdrMatrix} onChange={setMdrMatrix} />
+          <MDRStep
+            matrix={mdrMatrix}
+            onChange={setMdrMatrix}
+            onFeesExtracted={handleFeesExtracted}
+          />
         )}
         {currentStep === 'fees' && <FeesStep form={form} />}
         {currentStep === 'preview' && (
