@@ -203,14 +203,14 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
       </Clause>
 
       {/* ANEXO I */}
-      <div className="mt-8 pt-6 border-t-2 border-gray-400">
+      <div className="mt-8 pt-6 border-t-2 border-gray-400 break-before-page">
         <p className="font-bold text-center text-xs uppercase mb-4">ANEXO I – SERVIÇOS DE GATEWAY/ORQUESTRADOR E ANTIFRAUDE</p>
         <p className="mb-2 text-xs">Os serviços incluem: (i) Gateway de Pagamento com suporte a cartão de crédito, débito, PIX e boleto; (ii) Orquestração de pagamentos com múltiplos adquirentes; (iii) Solução Antifraude integrada; (iv) Dashboard de gestão e relatórios; (v) Split de pagamentos; (vi) Suporte técnico conforme Cláusula 10.</p>
         <p className="text-xs font-semibold mb-1">SLA de Disponibilidade: 99,5% mensal (excluindo manutenções programadas)</p>
       </div>
 
       {/* ANEXO II - Remuneração */}
-      <div className="mt-8 pt-6 border-t-2 border-gray-400">
+      <div className="mt-8 pt-6 border-t-2 border-gray-400 break-before-page">
         <p className="font-bold text-center text-xs uppercase mb-4">ANEXO II – REMUNERAÇÃO</p>
 
         <p className="font-semibold text-xs mb-2">1. TABELA DE MDR (Merchant Discount Rate)</p>
@@ -270,7 +270,7 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
       </div>
 
       {/* Assinaturas */}
-      <div className="mt-10 pt-6 border-t-2 border-gray-400">
+      <div className="mt-10 pt-6 border-t-2 border-gray-400 break-before-page">
         <p className="text-xs mb-6">E, por estarem assim justas e contratadas, as PARTES assinam o presente Contrato em 2 (duas) vias de igual teor e forma.</p>
         <p className="text-xs mb-8">São Paulo/SP, {d.dataInicio}</p>
 
@@ -303,7 +303,7 @@ function Section({ title }: { title: string }) {
 
 function Clause({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-3">
+    <div className="mb-3 break-inside-avoid">
       <p className="font-bold text-xs uppercase mb-1">{title}</p>
       {children}
     </div>
