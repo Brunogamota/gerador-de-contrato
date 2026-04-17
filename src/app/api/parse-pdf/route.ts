@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         ...extraHeaders,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
         messages: [
           {
@@ -104,13 +104,15 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const errBody = await response.text();
       console.error('Anthropic API error:', response.status, errBody);
-      let detail = 'AI parsing failed';
+      let detail = `Anthropic API error ${response.status}`;
       try {
         const j = JSON.parse(errBody);
-        if (j?.error?.message) detail = j.error.message;
-      } catch { /* keep default */ }
+        detail = j?.error?.message ?? j?.message ?? errBody.slice(0, 300);
+      } catch {
+        detail = errBody.slice(0, 300) || detail;
+      }
       return NextResponse.json(
-        { error: detail, status: response.status },
+        { error: detail, httpStatus: response.status },
         { status: 502 }
       );
     }
