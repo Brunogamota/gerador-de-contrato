@@ -2,29 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
+/* ─── CSS Design Tokens ─────────────────────────────────────────── */
+:root {
+  --color-bg:          #f7f7fb;
+  --color-surface:     #ffffff;
+  --color-border:      #e4e2ec;
+  --color-border-subtle: #ededf7;
+
+  --color-text:        #201d24;
+  --color-text-muted:  #6e6a78;
+  --color-text-subtle: #928e9c;
+
+  --color-brand:       #f72662;
+  --color-brand-deep:  #771339;
+  --color-brand-light: #ff73a2;
+
+  --color-ink-950:     #161419;
+  --color-ink-900:     #201d24;
+  --color-ink-800:     #2d2933;
+
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  18px;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────── */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
 
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-ink-50 text-ink-900;
+    font-feature-settings: 'cv11', 'ss01';
   }
+
+  h1,h2,h3,h4,h5,h6 { @apply font-semibold tracking-tight text-ink-950; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-ink-200 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-ink-300; }
 }
 
+/* ─── Component utilities ───────────────────────────────────────── */
 @layer utilities {
   .font-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-feature-settings: 'tnum';
+  }
+
+  .text-balance { text-wrap: balance; }
+
+  .brand-ring {
+    @apply ring-2 ring-brand ring-offset-2;
   }
 }
 
+/* ─── Print styles ──────────────────────────────────────────────── */
 @media print {
-  body { background: white !important; }
+  body { background: white !important; color: black !important; }
   .no-print { display: none !important; }
-  #contract-document { padding: 0 !important; }
+  header, footer, nav { display: none !important; }
+  #contract-document {
+    padding: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+  @page { margin: 20mm 25mm 20mm 30mm; size: A4; }
 }

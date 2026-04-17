@@ -1,44 +1,66 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { RebornMark } from '@/components/brand/RebornLogo';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'RebornPay · Gerador de Contratos',
-  description: 'Plataforma de contratos e pricing engine para infraestrutura de pagamentos',
+  title: 'RebornPay · Contratos',
+  description: 'Plataforma de contratos e pricing engine — RebornPay',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
       <body>
-        <div className="min-h-screen flex flex-col">
-          <header className="border-b border-gray-200 bg-white sticky top-0 z-30">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-              <a href="/" className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">R</span>
-                </div>
-                <span className="font-semibold text-gray-900 text-sm">RebornPay</span>
-                <span className="text-gray-300 text-sm">·</span>
-                <span className="text-gray-500 text-sm">Contratos</span>
-              </a>
-              <nav className="flex items-center gap-1">
-                <a href="/" className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                  Dashboard
-                </a>
-                <a href="/contracts" className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+        <div className="min-h-screen flex flex-col bg-ink-50">
+          {/* ── Top navigation (dark branded) ──────────────────── */}
+          <header className="bg-ink-950 border-b border-ink-800 sticky top-0 z-40">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+              {/* Brand */}
+              <Link href="/" className="flex items-center gap-2.5 group" aria-label="RebornPay">
+                <RebornMark size={28} color="#f72662" />
+                <span className="text-white font-bold text-sm tracking-tight">rebornpay</span>
+                <span
+                  className="hidden sm:inline text-xs font-medium px-2 py-0.5 rounded-full ml-1"
+                  style={{ background: 'rgba(247,38,98,0.15)', color: '#ff73a2' }}
+                >
                   Contratos
-                </a>
-                <a href="/contracts/new" className="ml-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors">
-                  + Novo Contrato
-                </a>
+                </span>
+              </Link>
+
+              {/* Nav links */}
+              <nav className="flex items-center gap-1">
+                <Link
+                  href="/"
+                  className="px-3 py-1.5 rounded-lg text-sm text-ink-300 hover:text-white hover:bg-ink-800 transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/contracts"
+                  className="px-3 py-1.5 rounded-lg text-sm text-ink-300 hover:text-white hover:bg-ink-800 transition-colors"
+                >
+                  Contratos
+                </Link>
+                <Link
+                  href="/contracts/new"
+                  className="ml-3 px-4 py-1.5 rounded-lg text-sm font-semibold text-white transition-all"
+                  style={{ background: 'linear-gradient(135deg,#f72662,#771339)', boxShadow: '0 0 12px rgba(247,38,98,0.35)' }}
+                >
+                  + Novo
+                </Link>
               </nav>
             </div>
           </header>
+
+          {/* ── Page content ───────────────────────────────────── */}
           <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </main>
-          <footer className="border-t border-gray-200 bg-white py-4">
-            <p className="text-center text-xs text-gray-400">
+
+          {/* ── Footer ─────────────────────────────────────────── */}
+          <footer className="border-t border-ink-100 bg-white py-4 mt-4">
+            <p className="text-center text-xs text-ink-400">
               © {new Date().getFullYear()} Reborn Tecnologia e Serviços Ltda · CNPJ 59.627.567/0001-35
             </p>
           </footer>

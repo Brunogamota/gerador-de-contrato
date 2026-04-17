@@ -2,6 +2,7 @@
 
 import { ContractData } from '@/types/contract';
 import { MDRMatrix, BRANDS, INSTALLMENTS, BRAND_LABELS, BrandName, InstallmentNumber } from '@/types/pricing';
+import { ContractLetterhead } from './ContractLetterhead';
 
 interface ContractDocumentProps {
   contractData: ContractData;
@@ -30,15 +31,9 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
       className="bg-white font-serif text-xs text-gray-900 leading-relaxed p-10 max-w-4xl mx-auto"
       style={{ fontFamily: 'Times New Roman, serif', fontSize: '10pt', lineHeight: '1.6' }}
     >
-      {/* Header */}
-      <div className="text-center mb-6 border-b-2 border-gray-800 pb-4">
-        <p className="font-bold text-sm uppercase tracking-widest">REBORNPAY.IO</p>
-        <p className="font-bold text-xs mt-1">REBORN TECNOLOGIA E SERVIÇOS LTDA</p>
-        <p className="text-xs text-gray-600">CNPJ 59.627.567/0001-35</p>
-        <p className="text-xs text-gray-600">Av. Brg. Faria Lima, 1572, Sala 1022 - Ed. Barão de Rothschild</p>
-        <p className="text-xs text-gray-600">Jardim Paulistano, São Paulo/SP, CEP 01451-917</p>
-        <p className="text-xs text-gray-600">juridico@rebornpay.io | 011 97420-5761</p>
-      </div>
+      {/* Letterhead */}
+      <ContractLetterhead forPrint />
+
 
       <p className="text-center font-bold text-sm uppercase tracking-wide mb-6">
         CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INFRA DE PAGAMENTOS E ANTIFRAUDE
