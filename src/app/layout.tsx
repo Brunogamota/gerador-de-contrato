@@ -10,11 +10,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body>
-        <div className="min-h-screen flex flex-col bg-ink-50">
+    <html lang="pt-BR" className="dark">
+      <body className="bg-ink-950 text-ink-50">
+        <div className="min-h-screen flex flex-col bg-ink-950">
           {/* ── Top navigation (dark branded) ──────────────────── */}
-          <header className="bg-ink-950 border-b border-ink-800 sticky top-0 z-40">
+          <header className="bg-ink-900 border-b border-brand/20 sticky top-0 z-40">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
               {/* Brand */}
               <Link href="/" className="flex items-center gap-2.5 group" aria-label="RebornPay">
@@ -59,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
 
           {/* ── Footer ─────────────────────────────────────────── */}
-          <footer className="border-t border-ink-100 bg-white py-4 mt-4">
+          <footer className="border-t border-ink-800 bg-ink-900/50 py-4 mt-4">
             <p className="text-center text-xs text-ink-400">
               © {new Date().getFullYear()} Reborn Tecnologia e Serviços Ltda · CNPJ 59.627.567/0001-35
             </p>
