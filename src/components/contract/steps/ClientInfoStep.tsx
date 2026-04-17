@@ -36,7 +36,6 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
         <div className="md:col-span-2">
           <Input
             label="Razão Social / Nome"
-            required
             placeholder="Ex: WHITE PAY LTDA"
             error={errors.contratanteNome?.message}
             {...register('contratanteNome')}
@@ -45,7 +44,6 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
 
         <Input
           label="CNPJ / CPF"
-          required
           placeholder="00.000.000/0001-00"
           error={errors.contratanteCnpj?.message}
           value={watch('contratanteCnpj')}
@@ -54,7 +52,6 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
 
         <Input
           label="Telefone"
-          required
           placeholder="(11) 99999-9999"
           error={errors.contratanteTelefone?.message}
           value={watch('contratanteTelefone')}
@@ -64,7 +61,6 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
         <div className="md:col-span-2">
           <Input
             label="Endereço Completo"
-            required
             placeholder="Rua, número, complemento, bairro, cidade/UF, CEP"
             error={errors.contratanteEndereco?.message}
             {...register('contratanteEndereco')}
@@ -73,7 +69,6 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
 
         <Input
           label="E-mail"
-          required
           type="email"
           placeholder="contato@empresa.com.br"
           error={errors.contratanteEmail?.message}
@@ -161,13 +156,12 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <Input
           label="Data de Início"
-          required
           placeholder="DD/MM/AAAA"
           error={errors.dataInicio?.message}
           {...register('dataInicio')}
         />
 
-        <Select label="Vigência" required {...register('vigenciaMeses', { valueAsNumber: true })}>
+        <Select label="Vigência" {...register('vigenciaMeses', { valueAsNumber: true })}>
           <option value={6}>6 meses</option>
           <option value={12}>12 meses</option>
           <option value={24}>24 meses</option>

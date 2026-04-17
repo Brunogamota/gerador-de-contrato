@@ -2,11 +2,11 @@ import { z } from 'zod';
 import { MDRMatrix } from './pricing';
 
 export const ContractDataSchema = z.object({
-  contratanteNome: z.string().min(2, 'Nome obrigatório'),
-  contratanteCnpj: z.string().min(14, 'CNPJ inválido'),
-  contratanteEndereco: z.string().min(5, 'Endereço obrigatório'),
-  contratanteEmail: z.string().email('E-mail inválido'),
-  contratanteTelefone: z.string().min(8, 'Telefone obrigatório'),
+  contratanteNome: z.string().default(''),
+  contratanteCnpj: z.string().default(''),
+  contratanteEndereco: z.string().default(''),
+  contratanteEmail: z.string().default(''),
+  contratanteTelefone: z.string().default(''),
 
   // Representante legal (opcional)
   repLegalNome:     z.string().default(''),
@@ -16,7 +16,7 @@ export const ContractDataSchema = z.object({
   repLegalTelefone: z.string().default(''),
   repLegalCargo:    z.string().default(''),
 
-  dataInicio: z.string().min(1, 'Data de início obrigatória'),
+  dataInicio: z.string().default(''),
   vigenciaMeses: z.number().int().min(1).max(60).default(12),
   foro: z.string().default('São Paulo/SP'),
 
