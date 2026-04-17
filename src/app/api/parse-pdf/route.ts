@@ -51,25 +51,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate file size (Anthropic limit: 32 MB)
+    if (file.size > 32 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Arquivo muito grande. Limite: 32 MB.' }, { status: 413 });
+    }
+
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString('base64');
-    const mediaType = file.type || 'image/jpeg';
-    const isPdf = mediaType === 'application/pdf';
+
+    // Detect PDF by MIME type OR file extension (file.type can be wrong on some browsers)
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    const mediaType = isPdf
+      ? 'application/pdf'
+      : file.type.startsWith('image/')
+      ? file.type
+      : 'image/jpeg';
 
     const fileBlock = isPdf
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
       : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+
+    // anthropic-beta 'pdfs-2024-09-25' is only required for document blocks
+    const extraHeaders: Record<string, string> = isPdf
+      ? { 'anthropic-beta': 'pdfs-2024-09-25' }
+      : {};
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'pdfs-2024-09-25',
         'content-type': 'application/json',
+        ...extraHeaders,
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-7',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2048,
         messages: [
           {
