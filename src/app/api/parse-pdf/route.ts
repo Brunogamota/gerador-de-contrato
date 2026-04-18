@@ -372,6 +372,13 @@ export async function POST(req: NextRequest) {
   const logs: string[] = [];
   const lg = (m: string) => { console.log(`[parse-pdf] ${m}`); logs.push(m); };
 
+  // ── Provider availability (runtime proof — no keys exposed) ──────────────
+  console.log('[parse-pdf] env check:', {
+    hasOpenAI:    !!process.env.OPENAI_API_KEY,
+    hasGemini:    !!process.env.GEMINI_API_KEY,
+    hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
+  });
+
   let file: File | null = null;
   try {
     const fd = await req.formData();
