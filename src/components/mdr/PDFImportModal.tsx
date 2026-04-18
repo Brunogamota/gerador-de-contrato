@@ -346,14 +346,6 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                 </p>
               </div>
 
-              {/* Debug: bypass AI with deterministic mock */}
-              <button
-                type="button"
-                onClick={handleUseMock}
-                className="text-xs text-gray-500 hover:text-gray-800 underline underline-offset-2 self-start"
-              >
-                🧪 Usar dados mockados (debug — bypassa IA)
-              </button>
             </div>
           )}
 
@@ -594,12 +586,24 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
 
         {/* Footer actions */}
         <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Cancelar
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            {/* Always visible: bypass AI with deterministic mock data */}
+            {step !== 'processing' && (
+              <button
+                type="button"
+                onClick={handleUseMock}
+                className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2"
+              >
+                🧪 Usar mock (debug)
+              </button>
+            )}
+          </div>
           <div className="flex gap-2">
             {step === 'upload' && (
               <button
