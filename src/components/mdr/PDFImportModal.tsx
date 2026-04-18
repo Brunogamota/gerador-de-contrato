@@ -16,7 +16,10 @@ interface ParsedResult {
   matrix: MDRMatrix;
   fees: ExtractedFees;
   confidence: 'high' | 'medium' | 'low';
+  confidenceScore?: number;
   missingData: string[];
+  partial?: boolean;
+  debug?: { logs: string[]; provider: string };
 }
 
 interface PDFImportModalProps {
@@ -273,16 +276,32 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
           {/* REVIEW */}
           {step === 'review' && parsed && (
             <div className="flex flex-col gap-5">
-              {/* Confidence + missing */}
+              {/* Confidence + missing + debug */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full', CONFIDENCE_LABEL[parsed.confidence].color)}>
                   {CONFIDENCE_LABEL[parsed.confidence].label}
+                  {parsed.confidenceScore != null && ` (${parsed.confidenceScore}%)`}
                 </span>
+                {parsed.partial && (
+                  <span className="text-xs text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full ring-1 ring-orange-200">
+                    ⚠ Extração parcial — revise os valores
+                  </span>
+                )}
                 {parsed.missingData.length > 0 && (
                   <span className="text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full ring-1 ring-amber-200">
-                    ⚠ Não encontrado: {parsed.missingData.slice(0, 3).join(', ')}
+                    ⚠ Dados não encontrados: {parsed.missingData.slice(0, 3).join(', ')}
                     {parsed.missingData.length > 3 && ` +${parsed.missingData.length - 3}`}
                   </span>
+                )}
+                {parsed.debug && (
+                  <details className="w-full mt-1">
+                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                      Debug — provider: {parsed.debug.provider}
+                    </summary>
+                    <pre className="mt-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded p-2 max-h-28 overflow-auto font-mono">
+                      {parsed.debug.logs.join('\n')}
+                    </pre>
+                  </details>
                 )}
               </div>
 
