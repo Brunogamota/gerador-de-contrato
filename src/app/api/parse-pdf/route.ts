@@ -21,16 +21,15 @@ function normalizeMime(m: string): string {
   return m === 'image/jpg' ? 'image/jpeg' : m;
 }
 
-// Simple matrix format — much easier for AI to fill correctly
 const PARSE_PROMPT = `You are extracting an MDR rate table from a Brazilian payment proposal image.
 
-## WHAT TO OUTPUT
-A single raw JSON object. No markdown, no code fences, no explanation, just the JSON.
+TASK: Read the table carefully. Output ONLY the JSON block below, wrapped between ===JSON_START=== and ===JSON_END===. Nothing else.
 
-## JSON STRUCTURE
+===JSON_START===
 {
-  "anticipationRate": "1.78",
-  "ratesIncludeAnticipation": true,
+  "anticipationRate": "0.00",
+  "ratesIncludeAnticipation": false,
+  "combinedAmexHipercard": false,
   "table": {
     "visa":       {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""},
     "mastercard": {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""},
@@ -42,20 +41,31 @@ A single raw JSON object. No markdown, no code fences, no explanation, just the 
   "confidence": "high",
   "missingData": []
 }
+===JSON_END===
 
-## HOW TO FILL
-1. anticipationRate: look for text like "Acréscimo de X%" or "Taxa de antecipação: X%" near the table. Extract X as a decimal string like "1.78". If not found, use "0.00".
-2. ratesIncludeAnticipation: true if the header says the rates already include anticipation (e.g. "Antecipação D+2 · Acréscimo de 1,78%"). Otherwise false.
-3. table: fill EVERY cell for rows 1 through 12 and all brands that appear in the document.
-   - Each value is the percentage shown in that cell as a decimal string: "3.95" (use dot, not comma)
-   - If the document has a column "Amex/Hiper/Outras" or "Amex/Hiper" or "Outras", use those same values for BOTH "amex" and "hipercard"
-   - If a brand is completely absent from the document, leave all its cells as ""
-   - DO NOT leave any row empty for a brand that has data — fill all 12 rows
-4. chargebackFee: chargeback fee in BRL if visible (e.g. "65.00"), else "0.00"
-5. confidence: "high" if clearly readable, "medium" if some values uncertain, "low" if mostly guessing
-6. missingData: list any brand or row you could not read`;
+INSTRUCTIONS — fill in the JSON above:
 
-// Raw parsed structure from AI
+1. anticipationRate: Look for text like "Acréscimo de X,XX%" or "Taxa de antecipação X%". Extract X as "X.XX". If absent: "0.00".
+
+2. ratesIncludeAnticipation: true ONLY if the header or title explicitly says rates already include anticipation (e.g. "Antecipação D+2 · Acréscimo de 1,78%" right above the table means the rates include that anticipation). Otherwise false.
+
+3. combinedAmexHipercard: true if the document has a single column for both Amex and Hipercard (e.g. column header "Amex/Hiper/Outras" or "Amex/Hiper"). If true, copy those column values into BOTH "amex" and "hipercard" keys.
+
+4. table: Fill every cell for rows 1 through 12. Rules:
+   - Replace "" with the percentage value as a decimal string using a dot: "3.95" NOT "3,95"
+   - Read the table row by row: first row 1x, then 2x, then 3x, ... up to 12x
+   - For each row, read each brand column left to right
+   - If a brand column is absent from the document, leave all cells as ""
+   - DO NOT leave cells blank if the brand appears in the document
+
+5. chargebackFee: if visible (e.g. "R$ 65,00 por chargeback"), output "65.00". Otherwise "0.00".
+
+6. confidence: "high" if all values clearly readable, "medium" if some uncertain, "low" if mostly guessing.
+
+7. missingData: list any brand or row you genuinely could not find/read.
+
+CRITICAL: You must read ALL 12 rows for each brand that appears in the document. Do not stop after row 1.`;
+
 type RawTable = {
   [brand: string]: { [inst: string]: string };
 };
@@ -63,6 +73,7 @@ type RawTable = {
 type RawParsed = {
   anticipationRate: string;
   ratesIncludeAnticipation: boolean;
+  combinedAmexHipercard: boolean;
   table: RawTable;
   chargebackFee?: string;
   confidence: 'high' | 'medium' | 'low';
@@ -70,23 +81,27 @@ type RawParsed = {
 };
 
 function extractJson(raw: string): RawParsed {
-  const text = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-  const start = text.indexOf('{');
-  if (start === -1) throw new Error('No JSON object found');
+  // 1. Try to extract between our explicit markers
+  const markerMatch = raw.match(/===JSON_START===\s*([\s\S]*?)\s*===JSON_END===/);
+  let jsonStr = markerMatch ? markerMatch[1].trim() : '';
 
-  let depth = 0;
-  let end = -1;
-  for (let i = start; i < text.length; i++) {
-    if (text[i] === '{') depth++;
-    else if (text[i] === '}') {
-      depth--;
-      if (depth === 0) { end = i; break; }
+  // 2. Fallback: strip markdown fences and use balanced-brace extraction
+  if (!jsonStr) {
+    const cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+    const start = cleaned.indexOf('{');
+    if (start === -1) throw new Error('No JSON found');
+
+    let depth = 0, end = -1;
+    for (let i = start; i < cleaned.length; i++) {
+      if (cleaned[i] === '{') depth++;
+      else if (cleaned[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
     }
+    if (end === -1) throw new Error('Unclosed JSON');
+    jsonStr = cleaned.slice(start, end + 1);
   }
 
-  if (end === -1) throw new Error('Unclosed JSON object');
-  const parsed = JSON.parse(text.slice(start, end + 1));
-  if (!parsed.table || typeof parsed.table !== 'object') throw new Error('Missing table object');
+  const parsed = JSON.parse(jsonStr);
+  if (!parsed.table || typeof parsed.table !== 'object') throw new Error('Missing table');
   return parsed as RawParsed;
 }
 
@@ -102,12 +117,11 @@ async function callGemini(base64: string, mimeType: string): Promise<string> {
   if (!apiKey) throw new Error('NO_KEY');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  // Use Pro for better table reading accuracy
+  // Flash is more reliable for vision + structured output than Pro with responseMimeType
   const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-1.5-flash',
     generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.1,
+      temperature: 0.05,
       maxOutputTokens: 4096,
     },
   });
@@ -131,8 +145,7 @@ async function callOpenAI(base64: string, mimeType: string, isPdf: boolean): Pro
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
     max_tokens: 4096,
-    temperature: 0.1,
-    response_format: { type: 'json_object' },
+    temperature: 0.05,
     messages: [
       {
         role: 'user',
@@ -225,7 +238,7 @@ export async function POST(req: NextRequest) {
   for (const provider of providers) {
     try {
       rawText = await provider.fn();
-      console.log(`[parse-pdf] ${provider.name} OK (${rawText.length} chars)`);
+      console.log(`[parse-pdf] ${provider.name} OK — ${rawText.length} chars`);
       break;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -248,20 +261,34 @@ export async function POST(req: NextRequest) {
   try {
     parsed = extractJson(rawText);
   } catch (e) {
-    console.error('[parse-pdf] JSON parse failed. Raw (1000 chars):', rawText.slice(0, 1000));
+    console.error('[parse-pdf] Parse failed. Raw response:', rawText.slice(0, 2000));
     console.error('[parse-pdf] Error:', e);
     return NextResponse.json(
-      { error: 'A IA retornou um formato inesperado. Tente com uma imagem mais nítida.' },
+      { error: 'A IA retornou um formato inesperado. Tente novamente ou use uma imagem mais nítida.' },
       { status: 422 }
     );
   }
 
-  // ── Build MDR matrix from flat table ─────────────────────────────────────
+  // ── Server-side: copy amex → hipercard if document had combined column ────
+  if (parsed.combinedAmexHipercard && parsed.table.amex) {
+    parsed.table.hipercard = { ...parsed.table.amex };
+    console.log('[parse-pdf] Copied amex → hipercard (combined column detected)');
+  }
+
+  // ── Also: if hipercard is all empty but amex has data, auto-copy ──────────
+  // (fallback for when AI correctly identifies combined column but forgets the flag)
+  const hipercardHasData = Object.values(parsed.table.hipercard ?? {}).some(v => v !== '');
+  const amexHasData = Object.values(parsed.table.amex ?? {}).some(v => v !== '');
+  if (!hipercardHasData && amexHasData) {
+    parsed.table.hipercard = { ...parsed.table.amex };
+    console.log('[parse-pdf] Auto-copied amex → hipercard (hipercard was empty)');
+  }
+
+  // ── Build MDR matrix ──────────────────────────────────────────────────────
   const antRate = safeNum(parsed.anticipationRate);
   const includesAnt = parsed.ratesIncludeAnticipation === true && antRate > 0;
 
   let matrix = createEmptyMatrix();
-  const missingBrands: string[] = [...(parsed.missingData ?? [])];
 
   for (const brand of BRANDS) {
     const brandData = parsed.table[brand];
@@ -281,39 +308,31 @@ export async function POST(req: NextRequest) {
       let entryAntRate: number;
 
       if (includesAnt) {
-        // CET já antecipado: subtrair taxa de antecipação para obter base
-        mdrBase = Math.max(0, displayed - antRate);
+        // CET já antecipado: subtrair taxa para obter base
+        mdrBase = Math.max(0, Math.round((displayed - antRate) * 10000) / 10000);
         entryAntRate = antRate;
       } else {
         mdrBase = displayed;
         entryAntRate = 0;
       }
 
-      const mdrBaseStr = mdrBase.toFixed(4);
-      const antRateStr = entryAntRate.toFixed(4);
-      const finalMdr = (mdrBase + entryAntRate).toFixed(4);
-
       partial[inst] = {
-        mdrBase: mdrBaseStr,
-        anticipationRate: antRateStr,
-        finalMdr,
+        mdrBase: mdrBase.toFixed(4),
+        anticipationRate: entryAntRate.toFixed(4),
+        finalMdr: (mdrBase + entryAntRate).toFixed(4),
         isManualOverride: false,
       };
     }
 
     if (hasAnyValue) {
       matrix = mergePartialMatrix(matrix, brand as BrandName, partial);
-    } else if (!missingBrands.includes(brand)) {
-      // Only flag as missing if not already reported
-      // (leave it out — it may simply not be in the document)
     }
   }
 
   const fees: { anticipationRate?: string; chargebackFee?: string } = {};
   if (antRate > 0) fees.anticipationRate = antRate.toFixed(2);
-  if (parsed.chargebackFee && safeNum(parsed.chargebackFee) > 0) {
-    fees.chargebackFee = parsed.chargebackFee;
-  }
+  const cbFee = safeNum(parsed.chargebackFee);
+  if (cbFee > 0) fees.chargebackFee = cbFee.toFixed(2);
 
   return NextResponse.json({
     matrix,
