@@ -65,30 +65,23 @@ async function runOCRPipeline(
   rawBuffer: Buffer,
   mimeType: string,
   logs: string[]
-): Promise<ParsedTable | null> {
+): Promise<{ result: ParsedTable | null; preprocessedBuffer: Buffer | null }> {
   const lg = (m: string) => { console.log(`[ocr-pipeline] ${m}`); logs.push(m); };
 
   if (mimeType === 'application/pdf') {
     lg('OCR pipeline: skipping for PDF (use vision LLM instead)');
-    return null;
+    return { result: null, preprocessedBuffer: null };
   }
 
   // ── Preprocess ─────────────────────────────────────────────────────────────
   lg('Preprocessing image for OCR (upscale + normalize + sharpen)...');
-  let preprocessed: Buffer;
-  let upscaleFactor = 1;
-  let originalWidth = 0;
-  let processedWidth = 0;
+  let preprocessed: Buffer = rawBuffer;
   try {
-    const result = await preprocessForOCR(rawBuffer);
-    preprocessed = result.buffer;
-    upscaleFactor = result.upscaleFactor;
-    originalWidth = result.originalWidth;
-    processedWidth = result.processedWidth;
-    lg(`Preprocess done: ${originalWidth}px → ${processedWidth}px (×${upscaleFactor}), mimeType=image/png`);
+    const r = await preprocessForOCR(rawBuffer);
+    preprocessed = r.buffer;
+    lg(`Preprocess done: ${r.originalWidth}px → ${r.processedWidth}px (×${r.upscaleFactor})`);
   } catch (err) {
     lg(`Preprocess failed: ${err} — using raw buffer`);
-    preprocessed = rawBuffer;
   }
 
   // ── OCR ────────────────────────────────────────────────────────────────────
@@ -97,27 +90,30 @@ async function runOCRPipeline(
     ocrResult = await ocrExtractTable(preprocessed, logs);
   } catch (err) {
     lg(`OCR failed: ${err}`);
-    return null;
+    return { result: null, preprocessedBuffer: preprocessed };
   }
 
   lg(`OCR raw text (first 600):\n${ocrResult.rawText.slice(0, 600)}`);
   lg(`OCR filled: ${ocrResult.filledTotal}/60`);
 
   if (ocrResult.filledTotal < 5) {
-    lg('OCR result insufficient (< 5 cells) — skipping');
-    return null;
+    lg('OCR result insufficient (< 5 cells) — skipping, but preprocessed image available for LLM');
+    return { result: null, preprocessedBuffer: preprocessed };
   }
 
   return {
-    meta: {
-      anticipation_rate: 0,
-      rates_include_anticipation: false,
-      combined_amex_hipercard: false,
-      confidence: Math.min(95, ocrResult.confidence),
-      chargeback_fee: 0,
+    result: {
+      meta: {
+        anticipation_rate: 0,
+        rates_include_anticipation: false,
+        combined_amex_hipercard: false,
+        confidence: Math.min(95, ocrResult.confidence),
+        chargeback_fee: 0,
+      },
+      table: ocrResult.table,
+      source: 'ocr',
     },
-    table: ocrResult.table,
-    source: 'ocr',
+    preprocessedBuffer: preprocessed,
   };
 }
 
@@ -202,22 +198,33 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
   const brands = ['visa', 'mastercard', 'elo', 'amex', 'hipercard'];
   const table: Record<string, BrandArray> = {};
 
+  // Merge chain-of-thought rows + JSON block:
+  // ROW lines take priority per cell; JSON fills gaps (with 0 discarded as "unread")
   for (const brand of brands) {
     const arr: (number | null)[] = Array(12).fill(null);
-    if (readRows.size >= 4) {
-      for (let i = 1; i <= 12; i++) {
-        const row = readRows.get(i);
-        if (row && brand in row) arr[i - 1] = row[brand];
-      }
-    } else if (jsonTable && Array.isArray(jsonTable[brand])) {
+
+    // First: apply JSON block values (lowest priority, 0 = unread → null)
+    if (jsonTable && Array.isArray(jsonTable[brand])) {
       const src = jsonTable[brand];
       for (let i = 0; i < 12 && i < src.length; i++) {
-        // Explicitly discard 0 values — treat as "not read"
-        arr[i] = src[i] === 0 ? null : src[i];
+        const v = src[i];
+        arr[i] = (v != null && v !== 0) ? v : null;
       }
     }
+
+    // Then: override with ROW lines (always preferred — model committed to a value)
+    // Use ANY ROW lines present, even just 1 — never discard real reads for JSON zeros
+    for (let i = 1; i <= 12; i++) {
+      const row = readRows.get(i);
+      if (row && brand in row) {
+        // null from ROW line is also authoritative (explicitly unreadable)
+        arr[i - 1] = row[brand];
+      }
+    }
+
     table[brand] = arr;
-    lg(`  ${brand}: [${arr.map(v => v ?? 'null').join(', ')}]`);
+    const filled = arr.filter(v => v != null && v > 0).length;
+    lg(`  ${brand}: ${filled}/12 — [${arr.map(v => v ?? 'null').join(', ')}]`);
   }
 
   if (table.amex.some(v => v != null) && table.hipercard.every(v => v == null)) {
@@ -393,11 +400,14 @@ export async function POST(req: NextRequest) {
   // ═══════════════════════════════════════════════════════════════════════════
   let bestParsed: ParsedTable | null = null;
   let bestQuality: QualityReport | null = null;
+  let preprocessedBuffer: Buffer | null = null; // reused for vision LLM
 
   if (!isPdf) {
     lg('=== STAGE 1: OCR pipeline ===');
     try {
-      const ocrResult = await runOCRPipeline(fileBuffer, mimeType, logs);
+      const { result: ocrResult, preprocessedBuffer: ppBuf } =
+        await runOCRPipeline(fileBuffer, mimeType, logs);
+      preprocessedBuffer = ppBuf; // always keep, even if OCR insufficient
       if (ocrResult) {
         const q = checkQuality(ocrResult);
         lg(`OCR quality: valid=${q.valid}, total=${q.totalFilled}, perBrand=${JSON.stringify(q.perBrand)}`);
@@ -407,7 +417,7 @@ export async function POST(req: NextRequest) {
           if (q.valid) {
             lg('OCR: ✓ accepted as final result (skipping vision LLM)');
           } else {
-            lg(`OCR: partial (${q.totalFilled} cells) — will try vision LLM for missing data`);
+            lg(`OCR: partial (${q.totalFilled} cells) — will try vision LLM`);
           }
         }
       }
@@ -418,25 +428,33 @@ export async function POST(req: NextRequest) {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STAGE 2: Vision LLM — run if OCR wasn't good enough
-  // Also used to reconcile metadata (anticipation rate, combined columns)
+  // Send the PREPROCESSED image (3× upscaled, high-contrast PNG) to get better
+  // cell-value reading from vision models, not the original compressed file.
   // ═══════════════════════════════════════════════════════════════════════════
   let bestRaw = '';
   let usedProvider = bestParsed?.source ?? '';
 
-  const needsLLM = !bestQuality?.valid; // run LLM if OCR insufficient or PDF
+  const needsLLM = !bestQuality?.valid;
 
   if (needsLLM) {
     lg('=== STAGE 2: Vision LLM fallback ===');
 
+    // Use preprocessed image for LLM if available — significantly better for
+    // reading individual cell values (upscaled + normalized + sharpened)
+    const llmBuffer = (!isPdf && preprocessedBuffer) ? preprocessedBuffer : fileBuffer;
+    const llmBase64 = llmBuffer.toString('base64');
+    const llmMime = (!isPdf && preprocessedBuffer) ? 'image/png' : mimeType;
+    lg(`Vision LLM image: ${llmMime}, ${(llmBuffer.length / 1024).toFixed(0)}KB`);
+
     const providers = isPdf
       ? [
-          { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
-          { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
+          { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
+          { name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) },
         ]
       : [
-          { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType) },
-          { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
-          { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
+          { name: 'OpenAI',    fn: () => callOpenAI(llmBase64, llmMime) },
+          { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
+          { name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) },
         ];
 
     for (const provider of providers) {

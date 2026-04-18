@@ -32,9 +32,12 @@ export async function preprocessForOCR(
 
   const buffer = await pipeline
     .grayscale()
-    .normalize()                         // stretch histogram to 0-255
+    .normalize()                             // stretch histogram to full 0-255
     .sharpen({ sigma: 1.5, m1: 1, m2: 3 }) // crisp edges on digits
-    .png({ compressionLevel: 1 })        // lossless, minimal CPU waste
+    // Threshold creates pure black/white — removes cell background colors and
+    // subtle gradients that confuse Tesseract on styled financial tables.
+    .threshold(140)
+    .png({ compressionLevel: 1 })           // lossless, fast decode
     .toBuffer();
 
   return {
