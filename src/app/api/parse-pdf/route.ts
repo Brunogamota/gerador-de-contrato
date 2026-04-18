@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BRANDS, BrandName, InstallmentNumber } from '@/types/pricing';
+import { BRANDS, BrandName, InstallmentNumber, MDREntry } from '@/types/pricing';
 import { createEmptyMatrix, mergePartialMatrix } from '@/lib/calculations/mdr';
-import { MDREntry } from '@/types/pricing';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
+import { preprocessForOCR } from '@/lib/ocr/preprocess';
+import { ocrExtractTable } from '@/lib/ocr/extract';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60; // seconds — needed for Tesseract init + OCR
 
 const ACCEPTED_MIME = new Set([
   'application/pdf', 'image/jpeg', 'image/jpg',
@@ -17,7 +19,7 @@ function normalizeMime(m: string) {
   return m === 'image/jpg' ? 'image/jpeg' : m;
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Shared types ─────────────────────────────────────────────────────────────
 
 type BrandArray = (number | null)[];
 
@@ -30,177 +32,18 @@ type ParsedTable = {
     chargeback_fee: number;
   };
   table: Record<string, BrandArray>;
+  source: string; // 'ocr' | 'llm-<provider>'
 };
 
-// ─── Chain-of-thought prompt ──────────────────────────────────────────────────
-// Forces model to read row-by-row BEFORE outputting JSON.
-// This is the only reliable way to get all 12 rows from vision models.
-
-const PARSE_PROMPT = `You are reading a Brazilian payment proposal image to extract an MDR rate table.
-
-Follow these steps in order:
-
-## STEP 1 — Read the table header
-Identify each brand column (Visa, Master/Mastercard, Elo, Amex, Hipercard, or combined "Amex/Hiper/Outras").
-Also look for anticipation rate text near the title, like "Antecipação D+2 · Acréscimo de 1,78%".
-
-## STEP 2 — Read every row from top to bottom
-For EACH installment row from 1x to 12x, write one line in this format:
-ROW 1: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 2: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 3: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 4: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 5: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 6: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 7: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 8: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 9: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 10: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 11: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-ROW 12: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
-
-Rules:
-- Replace X.XX with the actual decimal number from the image (use dot, not comma: 2.69 not 2,69)
-- If a brand column does not exist, write null for that brand
-- If "Amex/Hiper/Outras" is a single combined column, use the same value for both amex and hiper
-
-## STEP 3 — Output metadata line
-METADATA: anticipation_rate=X.XX includes_anticipation=true|false combined_amex_hiper=true|false chargeback_fee=X.XX confidence=0-100
-
-## STEP 4 — Output JSON between <json> tags
-<json>
-{"meta":{"anticipation_rate":0,"rates_include_anticipation":false,"combined_amex_hipercard":false,"confidence":0,"chargeback_fee":0},"table":{"visa":[v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12],"mastercard":[...],"elo":[...],"amex":[...],"hipercard":[...]}}
-</json>
-
-The JSON must use the values you listed in Step 2. Arrays must have exactly 12 values each.`;
-
-// ─── Response parser ──────────────────────────────────────────────────────────
-
-function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
-  const lg = (m: string) => logs.push(m);
-
-  // ── Extract ROW lines (chain-of-thought section) ─────────────────────────
-  const rowPattern = /ROW\s+(\d+)\s*:\s*(.+)/gi;
-  const readRows: Map<number, Record<string, number | null>> = new Map();
-  let match: RegExpExecArray | null;
-
-  while ((match = rowPattern.exec(raw)) !== null) {
-    const rowNum = parseInt(match[1], 10);
-    if (rowNum < 1 || rowNum > 12) continue;
-
-    const valueStr = match[2];
-    const brandValues: Record<string, number | null> = {};
-
-    // Parse key=value pairs on this line
-    const kvPattern = /(\w+)\s*=\s*([\d.,]+|null)/gi;
-    let kv: RegExpExecArray | null;
-    while ((kv = kvPattern.exec(valueStr)) !== null) {
-      const key = kv[1].toLowerCase();
-      const val = kv[2].toLowerCase() === 'null' ? null : parseFloat(kv[2].replace(',', '.'));
-      // Normalize brand aliases
-      const brand = key === 'master' ? 'mastercard' : key === 'hiper' ? 'hipercard' : key;
-      brandValues[brand] = isNaN(val as number) ? null : val;
-    }
-    readRows.set(rowNum, brandValues);
-  }
-
-  lg(`Chain-of-thought rows found: ${readRows.size} (expected 12)`);
-  if (readRows.size > 0) {
-    readRows.forEach((vals, rowNum) => {
-      lg(`  ROW ${rowNum}: ${JSON.stringify(vals)}`);
-    });
-  }
-
-  // ── Extract metadata line ─────────────────────────────────────────────────
-  const metaPattern = /METADATA:\s*(.+)/i;
-  const metaMatch = raw.match(metaPattern);
-  let antRate = 0;
-  let includesAnt = false;
-  let combinedAmexHiper = false;
-  let chargebackFee = 0;
-  let confidence = 70;
-
-  if (metaMatch) {
-    const metaStr = metaMatch[1];
-    const extract = (key: string) => {
-      const m = metaStr.match(new RegExp(`${key}\\s*=\\s*([\\d.,]+|true|false)`, 'i'));
-      return m ? m[1] : '';
-    };
-    antRate = parseFloat(extract('anticipation_rate').replace(',', '.')) || 0;
-    includesAnt = extract('includes_anticipation').toLowerCase() === 'true';
-    combinedAmexHiper = extract('combined_amex_hiper').toLowerCase() === 'true';
-    chargebackFee = parseFloat(extract('chargeback_fee').replace(',', '.')) || 0;
-    confidence = parseInt(extract('confidence'), 10) || 70;
-    lg(`Metadata: antRate=${antRate}, includesAnt=${includesAnt}, combined=${combinedAmexHiper}, confidence=${confidence}`);
-  }
-
-  // ── Try to extract <json> block as well (use as supplementary data) ───────
-  let jsonTable: Record<string, BrandArray> | null = null;
-  const jsonBlockMatch = raw.match(/<json>\s*([\s\S]*?)\s*<\/json>/i);
-  if (jsonBlockMatch) {
-    try {
-      const jsonStr = jsonBlockMatch[1].trim();
-      const jsonParsed = JSON.parse(jsonStr);
-      if (jsonParsed?.table) {
-        jsonTable = jsonParsed.table;
-        lg(`JSON block parsed: ${JSON.stringify(Object.fromEntries(Object.entries(jsonTable!).map(([k, v]) => [k, v.length])))}`);
-      }
-      // Also extract meta from JSON if metadata line wasn't found
-      if (!metaMatch && jsonParsed?.meta) {
-        antRate = jsonParsed.meta.anticipation_rate ?? 0;
-        includesAnt = jsonParsed.meta.rates_include_anticipation ?? false;
-        combinedAmexHiper = jsonParsed.meta.combined_amex_hipercard ?? false;
-        chargebackFee = jsonParsed.meta.chargeback_fee ?? 0;
-        confidence = jsonParsed.meta.confidence ?? 70;
-      }
-    } catch (e) {
-      lg(`JSON block parse failed: ${e}`);
-    }
-  }
-
-  // ── Build final table ─────────────────────────────────────────────────────
-  // Priority: chain-of-thought rows > JSON block
-  const brands = ['visa', 'mastercard', 'elo', 'amex', 'hipercard'];
-  const table: Record<string, BrandArray> = {};
-
-  for (const brand of brands) {
-    const arr: (number | null)[] = Array(12).fill(null);
-
-    if (readRows.size >= 6) {
-      // Use chain-of-thought data (most reliable)
-      for (let inst = 1; inst <= 12; inst++) {
-        const rowData = readRows.get(inst) ?? null;
-        if (rowData && brand in rowData) {
-          arr[inst - 1] = rowData[brand];
-        }
-      }
-    } else if (jsonTable && Array.isArray(jsonTable[brand])) {
-      // Fall back to JSON block
-      const src = jsonTable[brand];
-      for (let i = 0; i < 12 && i < src.length; i++) {
-        arr[i] = src[i];
-      }
-    }
-
-    table[brand] = arr;
-    lg(`  ${brand}: [${arr.map(v => v ?? 'null').join(', ')}]`);
-  }
-
-  // If combined amex/hiper column, ensure hipercard matches amex
-  if (combinedAmexHiper || (table.amex.some(v => v != null) && table.hipercard.every(v => v == null))) {
-    table.hipercard = [...table.amex];
-    lg('Copied amex → hipercard (combined column)');
-  }
-
-  return {
-    meta: { anticipation_rate: antRate, rates_include_anticipation: includesAnt, combined_amex_hipercard: combinedAmexHiper, confidence, chargeback_fee: chargebackFee },
-    table,
-  };
-}
+type QualityReport = {
+  valid: boolean;
+  totalFilled: number;
+  perBrand: Record<string, number>;
+  reason?: string;
+};
 
 // ─── Quality check ────────────────────────────────────────────────────────────
-
-type QualityReport = { valid: boolean; totalFilled: number; perBrand: Record<string, number>; reason?: string };
+// Only values > 0 count — treat 0 as "not read"
 
 function checkQuality(parsed: ParsedTable): QualityReport {
   const perBrand: Record<string, number> = {};
@@ -211,61 +54,224 @@ function checkQuality(parsed: ParsedTable): QualityReport {
     totalFilled += count;
   }
   const max = Math.max(...Object.values(perBrand));
-  if (max < 2) return { valid: false, totalFilled, perBrand, reason: `Max rows per brand=${max}` };
+  if (max < 2) return { valid: false, totalFilled, perBrand, reason: `max per brand=${max}` };
   if (totalFilled < 10) return { valid: false, totalFilled, perBrand, reason: `totalFilled=${totalFilled}` };
   return { valid: true, totalFilled, perBrand };
 }
 
-// ─── Provider calls ───────────────────────────────────────────────────────────
+// ─── OCR PIPELINE ─────────────────────────────────────────────────────────────
+
+async function runOCRPipeline(
+  rawBuffer: Buffer,
+  mimeType: string,
+  logs: string[]
+): Promise<ParsedTable | null> {
+  const lg = (m: string) => { console.log(`[ocr-pipeline] ${m}`); logs.push(m); };
+
+  if (mimeType === 'application/pdf') {
+    lg('OCR pipeline: skipping for PDF (use vision LLM instead)');
+    return null;
+  }
+
+  // ── Preprocess ─────────────────────────────────────────────────────────────
+  lg('Preprocessing image for OCR (upscale + normalize + sharpen)...');
+  let preprocessed: Buffer;
+  let upscaleFactor = 1;
+  let originalWidth = 0;
+  let processedWidth = 0;
+  try {
+    const result = await preprocessForOCR(rawBuffer);
+    preprocessed = result.buffer;
+    upscaleFactor = result.upscaleFactor;
+    originalWidth = result.originalWidth;
+    processedWidth = result.processedWidth;
+    lg(`Preprocess done: ${originalWidth}px → ${processedWidth}px (×${upscaleFactor}), mimeType=image/png`);
+  } catch (err) {
+    lg(`Preprocess failed: ${err} — using raw buffer`);
+    preprocessed = rawBuffer;
+  }
+
+  // ── OCR ────────────────────────────────────────────────────────────────────
+  let ocrResult: Awaited<ReturnType<typeof ocrExtractTable>>;
+  try {
+    ocrResult = await ocrExtractTable(preprocessed, logs);
+  } catch (err) {
+    lg(`OCR failed: ${err}`);
+    return null;
+  }
+
+  lg(`OCR raw text (first 600):\n${ocrResult.rawText.slice(0, 600)}`);
+  lg(`OCR filled: ${ocrResult.filledTotal}/60`);
+
+  if (ocrResult.filledTotal < 5) {
+    lg('OCR result insufficient (< 5 cells) — skipping');
+    return null;
+  }
+
+  return {
+    meta: {
+      anticipation_rate: 0,
+      rates_include_anticipation: false,
+      combined_amex_hipercard: false,
+      confidence: Math.min(95, ocrResult.confidence),
+      chargeback_fee: 0,
+    },
+    table: ocrResult.table,
+    source: 'ocr',
+  };
+}
+
+// ─── Vision LLM prompt (chain-of-thought) ─────────────────────────────────────
+// Used as FALLBACK after OCR. Also reconciles metadata (anticipation rate, etc.)
+
+const RECONCILE_PROMPT = `You are reading a Brazilian payment MDR proposal.
+
+Your task:
+1. Read the anticipation rate (Acréscimo / Antecipação) in the header text if present.
+   Output: METADATA: anticipation_rate=X.XX includes_anticipation=true|false chargeback_fee=X.XX confidence=0-100
+
+2. Read every row of the MDR table from 1x to 12x. For each row, output exactly:
+ROW 1: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
+ROW 2: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
+...
+ROW 12: visa=X.XX master=X.XX elo=X.XX amex=X.XX hiper=X.XX
+
+Rules:
+- Use the actual decimal NUMBER visible in the cell (e.g. 2.69, not 0)
+- If you cannot read a number clearly, write null — DO NOT write 0
+- If a column does not exist, write null for all its rows
+- If Amex and Hipercard share one column, write the same value for both`;
+
+function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
+  const lg = (m: string) => logs.push(m);
+
+  const rowPattern = /ROW\s+(\d+)\s*:\s*(.+)/gi;
+  const readRows = new Map<number, Record<string, number | null>>();
+  let match: RegExpExecArray | null;
+
+  while ((match = rowPattern.exec(raw)) !== null) {
+    const rowNum = parseInt(match[1], 10);
+    if (rowNum < 1 || rowNum > 12) continue;
+    const brandValues: Record<string, number | null> = {};
+    const kvPattern = /(\w+)\s*=\s*([\d.,]+|null)/gi;
+    let kv: RegExpExecArray | null;
+    while ((kv = kvPattern.exec(match[2])) !== null) {
+      const key = kv[1].toLowerCase();
+      const raw2 = kv[2].toLowerCase();
+      const val = raw2 === 'null' ? null : parseFloat(raw2.replace(',', '.'));
+      const brand = key === 'master' ? 'mastercard' : key === 'hiper' ? 'hipercard' : key;
+      brandValues[brand] = (val == null || isNaN(val) || val === 0) ? null : val;
+    }
+    readRows.set(rowNum, brandValues);
+  }
+
+  lg(`LLM chain-of-thought rows: ${readRows.size}`);
+  readRows.forEach((vals, n) => lg(`  ROW ${n}: ${JSON.stringify(vals)}`));
+
+  // Metadata
+  const metaMatch = raw.match(/METADATA:\s*(.+)/i);
+  let antRate = 0, includesAnt = false, chargebackFee = 0, confidence = 60;
+  if (metaMatch) {
+    const s = metaMatch[1];
+    const ex = (k: string) => {
+      const m2 = s.match(new RegExp(`${k}\\s*=\\s*([\\d.,]+|true|false)`, 'i'));
+      return m2 ? m2[1] : '';
+    };
+    antRate = parseFloat(ex('anticipation_rate').replace(',', '.')) || 0;
+    includesAnt = ex('includes_anticipation').toLowerCase() === 'true';
+    chargebackFee = parseFloat(ex('chargeback_fee').replace(',', '.')) || 0;
+    confidence = parseInt(ex('confidence'), 10) || 60;
+  }
+
+  // JSON fallback
+  let jsonTable: Record<string, BrandArray> | null = null;
+  const jsonMatch = raw.match(/<json>\s*([\s\S]*?)\s*<\/json>/i);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[1].trim());
+      if (parsed?.table) jsonTable = parsed.table;
+      if (!metaMatch && parsed?.meta) {
+        antRate = parsed.meta.anticipation_rate ?? 0;
+        includesAnt = parsed.meta.rates_include_anticipation ?? false;
+        chargebackFee = parsed.meta.chargeback_fee ?? 0;
+        confidence = parsed.meta.confidence ?? 60;
+      }
+    } catch { /* ignored */ }
+  }
+
+  const brands = ['visa', 'mastercard', 'elo', 'amex', 'hipercard'];
+  const table: Record<string, BrandArray> = {};
+
+  for (const brand of brands) {
+    const arr: (number | null)[] = Array(12).fill(null);
+    if (readRows.size >= 4) {
+      for (let i = 1; i <= 12; i++) {
+        const row = readRows.get(i);
+        if (row && brand in row) arr[i - 1] = row[brand];
+      }
+    } else if (jsonTable && Array.isArray(jsonTable[brand])) {
+      const src = jsonTable[brand];
+      for (let i = 0; i < 12 && i < src.length; i++) {
+        // Explicitly discard 0 values — treat as "not read"
+        arr[i] = src[i] === 0 ? null : src[i];
+      }
+    }
+    table[brand] = arr;
+    lg(`  ${brand}: [${arr.map(v => v ?? 'null').join(', ')}]`);
+  }
+
+  if (table.amex.some(v => v != null) && table.hipercard.every(v => v == null)) {
+    table.hipercard = [...table.amex];
+    lg('Copied amex → hipercard');
+  }
+
+  return {
+    meta: { anticipation_rate: antRate, rates_include_anticipation: includesAnt, combined_amex_hipercard: false, confidence, chargeback_fee: chargebackFee },
+    table,
+    source: 'llm',
+  };
+}
+
+// ─── Vision LLM providers (fallback after OCR) ────────────────────────────────
 
 async function callOpenAI(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
-
   const client = new OpenAI({ apiKey });
-
-  // NO json_object mode — we need the chain-of-thought text
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
     max_tokens: 4096,
     temperature: 0,
     messages: [
-      {
-        role: 'system',
-        content: 'You are a precise OCR engine. Follow the steps exactly. Do not skip any row.',
-      },
+      { role: 'system', content: 'You are a precise OCR engine. When you cannot read a number clearly, write null — never write 0 as a placeholder.' },
       {
         role: 'user',
         content: [
           { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' } },
-          { type: 'text', text: PARSE_PROMPT },
+          { type: 'text', text: RECONCILE_PROMPT },
         ],
       },
     ],
   });
-
   const raw = response.choices[0]?.message?.content ?? '';
   const finish = response.choices[0]?.finish_reason;
   if (!raw) throw new Error('Empty OpenAI response');
-  if (finish === 'length') throw new Error(`OpenAI truncated (finish_reason=length) — got ${raw.length} chars`);
+  if (finish === 'length') throw new Error(`OpenAI truncated (finish_reason=length)`);
   return raw;
 }
 
 async function callGemini(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
-
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
     model: 'gemini-1.5-flash',
     generationConfig: { temperature: 0, maxOutputTokens: 4096 },
   });
-
   const result = await model.generateContent([
     { inlineData: { data: base64, mimeType } },
-    { text: PARSE_PROMPT },
+    { text: RECONCILE_PROMPT },
   ]);
-
   const raw = result.response.text();
   if (!raw) throw new Error('Empty Gemini response');
   return raw;
@@ -295,15 +301,62 @@ async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): 
     body: JSON.stringify({
       model: 'claude-opus-4-7',
       max_tokens: 4096,
-      messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: PARSE_PROMPT }] }],
+      messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: RECONCILE_PROMPT }] }],
     }),
   });
-
   if (!res.ok) throw new Error(`ANTHROPIC_${res.status}`);
   const json = await res.json();
   const raw = json.content?.[0]?.text ?? '';
   if (!raw) throw new Error('Empty Anthropic response');
   return raw;
+}
+
+// ─── Matrix builder ───────────────────────────────────────────────────────────
+
+function buildMatrix(
+  table: Record<string, BrandArray>,
+  antRate: number,
+  includesAnt: boolean,
+  logs: string[]
+) {
+  const lg = (m: string) => logs.push(m);
+  const perBrand: Record<BrandName, Partial<Record<InstallmentNumber, MDREntry>>> = {
+    visa: {}, mastercard: {}, elo: {}, amex: {}, hipercard: {},
+  };
+
+  for (const brand of BRANDS) {
+    const arr = table[brand] ?? [];
+    let filled = 0;
+    for (let i = 0; i < 12; i++) {
+      const displayed = arr[i];
+      // 0 is treated as "not read" — skip it
+      if (displayed == null || displayed === 0) continue;
+
+      const inst = (i + 1) as InstallmentNumber;
+      let mdrBase = displayed;
+      let entryAnt = 0;
+
+      if (includesAnt && antRate > 0) {
+        mdrBase = Math.round(Math.max(0, displayed - antRate) * 10000) / 10000;
+        entryAnt = antRate;
+      }
+
+      perBrand[brand][inst] = {
+        mdrBase: mdrBase.toFixed(4),
+        anticipationRate: entryAnt.toFixed(4),
+        finalMdr: (mdrBase + entryAnt).toFixed(4),
+        isManualOverride: false,
+      };
+      filled++;
+    }
+    lg(`  ${brand}: ${filled}/12 filled`);
+  }
+
+  let matrix = createEmptyMatrix();
+  for (const brand of BRANDS) {
+    matrix = mergePartialMatrix(matrix, brand, perBrand[brand] as Parameters<typeof mergePartialMatrix>[2]);
+  }
+  return matrix;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -328,133 +381,173 @@ export async function POST(req: NextRequest) {
   }
 
   const isPdf = mimeType === 'application/pdf';
-  const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
-  lg(`File: ${file.name}, mime=${mimeType}, ${(file.size / 1024).toFixed(0)}KB`);
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const base64 = fileBuffer.toString('base64');
+  lg(`File: ${file.name}, mime=${mimeType}, ${(file.size / 1024).toFixed(0)}KB, isPdf=${isPdf}`);
 
-  // Provider order: OpenAI first for images (better vision), Gemini first for PDFs
-  const providers = isPdf
-    ? [
-        { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
-        { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
-      ]
-    : [
-        { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType) },
-        { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
-        { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
-      ];
+  // ── Debug: keep base64 of original for UI ─────────────────────────────────
+  const originalImageB64 = !isPdf ? `data:${mimeType};base64,${base64.slice(0, 200)}…` : null;
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 1: OCR PIPELINE (images only)
+  // ═══════════════════════════════════════════════════════════════════════════
   let bestParsed: ParsedTable | null = null;
   let bestQuality: QualityReport | null = null;
-  let bestRaw = '';
-  let usedProvider = '';
 
-  for (const provider of providers) {
-    let raw: string;
+  if (!isPdf) {
+    lg('=== STAGE 1: OCR pipeline ===');
     try {
-      lg(`${provider.name}: calling...`);
-      raw = await provider.fn();
-      lg(`${provider.name}: got ${raw.length} chars`);
+      const ocrResult = await runOCRPipeline(fileBuffer, mimeType, logs);
+      if (ocrResult) {
+        const q = checkQuality(ocrResult);
+        lg(`OCR quality: valid=${q.valid}, total=${q.totalFilled}, perBrand=${JSON.stringify(q.perBrand)}`);
+        if (q.totalFilled > 0) {
+          bestParsed = ocrResult;
+          bestQuality = q;
+          if (q.valid) {
+            lg('OCR: ✓ accepted as final result (skipping vision LLM)');
+          } else {
+            lg(`OCR: partial (${q.totalFilled} cells) — will try vision LLM for missing data`);
+          }
+        }
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg === 'NO_KEY' || msg === 'PDF_UNSUPPORTED') { lg(`${provider.name}: skipped (${msg})`); continue; }
-      lg(`${provider.name}: ERROR — ${msg}`);
-      continue;
+      lg(`OCR stage error: ${err}`);
     }
+  }
 
-    lg(`${provider.name} raw (first 500): ${raw.slice(0, 500)}`);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 2: Vision LLM — run if OCR wasn't good enough
+  // Also used to reconcile metadata (anticipation rate, combined columns)
+  // ═══════════════════════════════════════════════════════════════════════════
+  let bestRaw = '';
+  let usedProvider = bestParsed?.source ?? '';
 
-    let parsed: ParsedTable;
-    try {
-      parsed = parseChainOfThought(raw, logs);
-    } catch (e) {
-      lg(`${provider.name}: parse error — ${e}`);
-      continue;
-    }
+  const needsLLM = !bestQuality?.valid; // run LLM if OCR insufficient or PDF
 
-    const quality = checkQuality(parsed);
-    lg(`${provider.name}: quality — valid=${quality.valid}, total=${quality.totalFilled}, perBrand=${JSON.stringify(quality.perBrand)}${quality.reason ? ` (${quality.reason})` : ''}`);
+  if (needsLLM) {
+    lg('=== STAGE 2: Vision LLM fallback ===');
 
-    if (quality.valid) {
-      bestParsed = parsed;
-      bestQuality = quality;
+    const providers = isPdf
+      ? [
+          { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
+          { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
+        ]
+      : [
+          { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType) },
+          { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
+          { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
+        ];
+
+    for (const provider of providers) {
+      let raw: string;
+      try {
+        lg(`${provider.name}: calling...`);
+        raw = await provider.fn();
+        lg(`${provider.name}: ${raw.length} chars received`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (no key)`); continue; }
+        lg(`${provider.name}: ERROR — ${msg}`);
+        continue;
+      }
+
+      lg(`${provider.name} raw (first 500):\n${raw.slice(0, 500)}`);
+
+      let parsed: ParsedTable;
+      try {
+        parsed = parseChainOfThought(raw, logs);
+        parsed.source = `llm-${provider.name.toLowerCase()}`;
+      } catch (err) {
+        lg(`${provider.name}: parse error — ${err}`);
+        continue;
+      }
+
+      const q = checkQuality(parsed);
+      lg(`${provider.name}: quality valid=${q.valid}, total=${q.totalFilled}`);
+
+      // Merge OCR table with LLM table: prefer whichever has more data per brand
+      if (bestParsed && bestQuality) {
+        lg('Merging OCR + LLM results (best per brand)...');
+        const merged: Record<string, BrandArray> = {};
+        for (const brand of BRANDS) {
+          const ocrArr = bestParsed.table[brand] ?? Array(12).fill(null);
+          const llmArr = parsed.table[brand] ?? Array(12).fill(null);
+          const ocrCount = ocrArr.filter(v => v != null && v > 0).length;
+          const llmCount = llmArr.filter(v => v != null && v > 0).length;
+          merged[brand] = ocrCount >= llmCount ? ocrArr : llmArr;
+          lg(`  ${brand}: OCR=${ocrCount} LLM=${llmCount} → using ${ocrCount >= llmCount ? 'OCR' : 'LLM'}`);
+        }
+        // Take metadata from LLM (more reliable for text fields)
+        bestParsed = { ...parsed, table: merged, source: `ocr+llm-${provider.name.toLowerCase()}` };
+        bestQuality = checkQuality(bestParsed);
+      } else {
+        // No prior OCR result — use LLM directly
+        if (!bestParsed || q.totalFilled > (bestQuality?.totalFilled ?? 0)) {
+          bestParsed = parsed;
+          bestQuality = q;
+          bestRaw = raw;
+          usedProvider = parsed.source;
+        }
+      }
+
       bestRaw = raw;
-      usedProvider = provider.name;
-      lg(`${provider.name}: ✓ accepted as final result`);
-      break;
-    }
+      usedProvider = bestParsed.source;
 
-    if (!bestParsed || quality.totalFilled > (bestQuality?.totalFilled ?? 0)) {
-      bestParsed = parsed;
-      bestQuality = quality;
-      bestRaw = raw;
-      usedProvider = provider.name;
-      lg(`${provider.name}: partial result kept (${quality.totalFilled} cells)`);
+      if (bestQuality?.valid) {
+        lg(`${provider.name}: ✓ accepted`);
+        break;
+      }
+      lg(`${provider.name}: partial, continuing...`);
     }
   }
 
   if (!bestParsed) {
-    return NextResponse.json({ error: 'Nenhum provider retornou dados válidos. Verifique as chaves de API.', debug: { logs } }, { status: 503 });
+    return NextResponse.json({
+      error: 'Nenhum dado extraído. Verifique se as chaves de API (GEMINI_API_KEY / OPENAI_API_KEY) estão configuradas.',
+      debug: { logs },
+    }, { status: 503 });
   }
 
-  const isPartial = !bestQuality?.valid;
-
-  // ── Build MDR matrix ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 3: Build MDR matrix
+  // ═══════════════════════════════════════════════════════════════════════════
+  lg('=== STAGE 3: Build matrix ===');
   const { meta, table } = bestParsed;
   const antRate = meta.anticipation_rate ?? 0;
   const includesAnt = meta.rates_include_anticipation && antRate > 0;
+  lg(`antRate=${antRate}, includesAnt=${includesAnt}`);
 
-  lg(`Building matrix: includesAnt=${includesAnt}, antRate=${antRate}`);
+  const matrix = buildMatrix(table, antRate, includesAnt, logs);
 
-  const perBrand: Record<BrandName, Partial<Record<InstallmentNumber, MDREntry>>> = {
-    visa: {}, mastercard: {}, elo: {}, amex: {}, hipercard: {},
-  };
-
+  // ── Proof: count what's in the final matrix ────────────────────────────────
+  const finalCounts: Record<string, number> = {};
   for (const brand of BRANDS) {
-    const arr = table[brand] ?? [];
-    for (let i = 0; i < 12; i++) {
-      const displayed = arr[i];
-      if (displayed == null) continue;
-
-      const inst = (i + 1) as InstallmentNumber;
-      let mdrBase = displayed;
-      let entryAnt = 0;
-
-      if (includesAnt) {
-        mdrBase = Math.round(Math.max(0, displayed - antRate) * 10000) / 10000;
-        entryAnt = antRate;
-      }
-
-      perBrand[brand][inst] = {
-        mdrBase: mdrBase.toFixed(4),
-        anticipationRate: entryAnt.toFixed(4),
-        finalMdr: (mdrBase + entryAnt).toFixed(4),
-        isManualOverride: false,
-      };
+    let c = 0;
+    for (let i = 1; i <= 12; i++) {
+      if (matrix[brand][i as InstallmentNumber]?.mdrBase) c++;
     }
-    const filledCount = Object.keys(perBrand[brand]).length;
-    lg(`  ${brand}: ${filledCount}/12 installments filled`);
+    finalCounts[brand] = c;
   }
-
-  let matrix = createEmptyMatrix();
-  for (const brand of BRANDS) {
-    matrix = mergePartialMatrix(matrix, brand, perBrand[brand] as Parameters<typeof mergePartialMatrix>[2]);
-  }
+  lg(`Final matrix counts: ${JSON.stringify(finalCounts)}`);
 
   const fees: { anticipationRate?: string; chargebackFee?: string } = {};
   if (antRate > 0) fees.anticipationRate = antRate.toFixed(2);
   if (meta.chargeback_fee > 0) fees.chargebackFee = meta.chargeback_fee.toFixed(2);
 
+  const isPartial = !bestQuality?.valid;
+
   const missingData: string[] = [];
   for (const brand of BRANDS) {
-    const filled = bestQuality?.perBrand[brand] ?? 0;
-    if (filled === 0) missingData.push(brand);
-    else if (filled < 12) missingData.push(`${brand} (${filled}/12)`);
+    const n = finalCounts[brand];
+    if (n === 0) missingData.push(brand);
+    else if (n < 12) missingData.push(`${brand} (${n}/12)`);
   }
 
   const confLabel: 'high' | 'medium' | 'low' =
     meta.confidence >= 80 ? 'high' : meta.confidence >= 50 ? 'medium' : 'low';
 
-  lg(`DONE: provider=${usedProvider}, partial=${isPartial}, confidence=${meta.confidence}`);
+  lg(`DONE: source=${usedProvider}, partial=${isPartial}, confidence=${meta.confidence}`);
 
   return NextResponse.json({
     matrix,
@@ -466,9 +559,10 @@ export async function POST(req: NextRequest) {
     debug: {
       logs,
       provider: usedProvider,
-      quality: bestQuality,
-      rawFull: bestRaw,              // COMPLETE raw AI response, no truncation
-      parsedTable: bestParsed.table, // Parsed arrays before matrix conversion
+      quality: { totalFilled: Object.values(finalCounts).reduce((a, b) => a + b, 0), perBrand: finalCounts },
+      rawFull: bestRaw,
+      parsedTable: table,
+      originalImageB64,
     },
   });
 }
