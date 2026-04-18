@@ -372,13 +372,10 @@ export async function POST(req: NextRequest) {
   const logs: string[] = [];
   const lg = (m: string) => { console.log(`[parse-pdf] ${m}`); logs.push(m); };
 
-  console.log('AI providers runtime check', {
-    hasOpenAI:    !!process.env.OPENAI_API_KEY,
-    hasGemini:    !!process.env.GEMINI_API_KEY,
-    hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
-    openaiLen:    process.env.OPENAI_API_KEY?.length || 0,
-    geminiLen:    process.env.GEMINI_API_KEY?.length || 0,
-    anthropicLen: process.env.ANTHROPIC_API_KEY?.length || 0,
+  console.log('ENV CHECK', {
+    OPENAI:    process.env.OPENAI_API_KEY    ? 'OK' : 'MISSING',
+    GEMINI:    process.env.GEMINI_API_KEY    ? 'OK' : 'MISSING',
+    ANTHROPIC: process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING',
   });
 
   let file: File | null = null;
