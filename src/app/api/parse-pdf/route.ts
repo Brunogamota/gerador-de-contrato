@@ -3,12 +3,10 @@ import { BRANDS, BrandName, InstallmentNumber, MDREntry } from '@/types/pricing'
 import { createEmptyMatrix, mergePartialMatrix } from '@/lib/calculations/mdr';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
-import { preprocessForOCR } from '@/lib/ocr/preprocess';
-import { ocrExtractTable } from '@/lib/ocr/extract';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 60; // seconds — needed for Tesseract init + OCR
+export const maxDuration = 60;
 
 const ACCEPTED_MIME = new Set([
   'application/pdf', 'image/jpeg', 'image/jpg',
@@ -32,7 +30,7 @@ type ParsedTable = {
     chargeback_fee: number;
   };
   table: Record<string, BrandArray>;
-  source: string; // 'ocr' | 'llm-<provider>'
+  source: string;
 };
 
 type QualityReport = {
@@ -43,7 +41,6 @@ type QualityReport = {
 };
 
 // ─── Quality check ────────────────────────────────────────────────────────────
-// Only values > 0 count — treat 0 as "not read"
 
 function checkQuality(parsed: ParsedTable): QualityReport {
   const perBrand: Record<string, number> = {};
@@ -59,70 +56,7 @@ function checkQuality(parsed: ParsedTable): QualityReport {
   return { valid: true, totalFilled, perBrand };
 }
 
-// ─── OCR PIPELINE ─────────────────────────────────────────────────────────────
-
-async function runOCRPipeline(
-  rawBuffer: Buffer,
-  mimeType: string,
-  logs: string[]
-): Promise<{ result: ParsedTable | null; preprocessedBuffer: Buffer | null }> {
-  const lg = (m: string) => { console.log(`[ocr-pipeline] ${m}`); logs.push(m); };
-
-  if (mimeType === 'application/pdf') {
-    lg('OCR pipeline: skipping for PDF (use vision LLM instead)');
-    return { result: null, preprocessedBuffer: null };
-  }
-
-  // ── Preprocess ─────────────────────────────────────────────────────────────
-  lg('Preprocessing image for OCR (upscale + normalize + sharpen)...');
-  let preprocessed: Buffer = rawBuffer;
-  try {
-    const r = await preprocessForOCR(rawBuffer);
-    preprocessed = r.buffer;
-    lg(`Preprocess done: ${r.originalWidth}px → ${r.processedWidth}px (×${r.upscaleFactor})`);
-  } catch (err) {
-    lg(`Preprocess failed: ${err} — using raw buffer`);
-  }
-
-  // ── OCR ────────────────────────────────────────────────────────────────────
-  // Tesseract downloads lang model from CDN on first run — timeout if unreachable
-  let ocrResult: Awaited<ReturnType<typeof ocrExtractTable>>;
-  try {
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('OCR timeout — CDN unreachable, skipping to LLM')), 12000)
-    );
-    ocrResult = await Promise.race([ocrExtractTable(preprocessed, logs), timeout]);
-  } catch (err) {
-    lg(`OCR failed: ${err}`);
-    return { result: null, preprocessedBuffer: preprocessed };
-  }
-
-  lg(`OCR raw text (first 600):\n${ocrResult.rawText.slice(0, 600)}`);
-  lg(`OCR filled: ${ocrResult.filledTotal}/60`);
-
-  if (ocrResult.filledTotal < 5) {
-    lg('OCR result insufficient (< 5 cells) — skipping, but preprocessed image available for LLM');
-    return { result: null, preprocessedBuffer: preprocessed };
-  }
-
-  return {
-    result: {
-      meta: {
-        anticipation_rate: 0,
-        rates_include_anticipation: false,
-        combined_amex_hipercard: false,
-        confidence: Math.min(95, ocrResult.confidence),
-        chargeback_fee: 0,
-      },
-      table: ocrResult.table,
-      source: 'ocr',
-    },
-    preprocessedBuffer: preprocessed,
-  };
-}
-
 // ─── Vision LLM prompt (chain-of-thought) ─────────────────────────────────────
-// Used as FALLBACK after OCR. Also reconciles metadata (anticipation rate, etc.)
 
 const RECONCILE_PROMPT = `You are reading a Brazilian payment MDR proposal.
 
@@ -166,9 +100,7 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
   }
 
   lg(`LLM chain-of-thought rows: ${readRows.size}`);
-  readRows.forEach((vals, n) => lg(`  ROW ${n}: ${JSON.stringify(vals)}`));
 
-  // Metadata
   const metaMatch = raw.match(/METADATA:\s*(.+)/i);
   let antRate = 0, includesAnt = false, chargebackFee = 0, confidence = 60;
   if (metaMatch) {
@@ -183,7 +115,6 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
     confidence = parseInt(ex('confidence'), 10) || 60;
   }
 
-  // JSON fallback
   let jsonTable: Record<string, BrandArray> | null = null;
   const jsonMatch = raw.match(/<json>\s*([\s\S]*?)\s*<\/json>/i);
   if (jsonMatch) {
@@ -202,12 +133,9 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
   const brands = ['visa', 'mastercard', 'elo', 'amex', 'hipercard'];
   const table: Record<string, BrandArray> = {};
 
-  // Merge chain-of-thought rows + JSON block:
-  // ROW lines take priority per cell; JSON fills gaps (with 0 discarded as "unread")
   for (const brand of brands) {
     const arr: (number | null)[] = Array(12).fill(null);
 
-    // First: apply JSON block values (lowest priority, 0 = unread → null)
     if (jsonTable && Array.isArray(jsonTable[brand])) {
       const src = jsonTable[brand];
       for (let i = 0; i < 12 && i < src.length; i++) {
@@ -216,19 +144,14 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
       }
     }
 
-    // Then: override with ROW lines (always preferred — model committed to a value)
-    // Use ANY ROW lines present, even just 1 — never discard real reads for JSON zeros
     for (let i = 1; i <= 12; i++) {
       const row = readRows.get(i);
-      if (row && brand in row) {
-        // null from ROW line is also authoritative (explicitly unreadable)
-        arr[i - 1] = row[brand];
-      }
+      if (row && brand in row) arr[i - 1] = row[brand];
     }
 
     table[brand] = arr;
     const filled = arr.filter(v => v != null && v > 0).length;
-    lg(`  ${brand}: ${filled}/12 — [${arr.map(v => v ?? 'null').join(', ')}]`);
+    lg(`  ${brand}: ${filled}/12`);
   }
 
   if (table.amex.some(v => v != null) && table.hipercard.every(v => v == null)) {
@@ -243,7 +166,7 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
   };
 }
 
-// ─── Vision LLM providers (fallback after OCR) ────────────────────────────────
+// ─── Vision LLM providers ─────────────────────────────────────────────────────
 
 async function callOpenAI(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -265,9 +188,8 @@ async function callOpenAI(base64: string, mimeType: string): Promise<string> {
     ],
   });
   const raw = response.choices[0]?.message?.content ?? '';
-  const finish = response.choices[0]?.finish_reason;
   if (!raw) throw new Error('Empty OpenAI response');
-  if (finish === 'length') throw new Error(`OpenAI truncated (finish_reason=length)`);
+  if (response.choices[0]?.finish_reason === 'length') throw new Error('OpenAI truncated (finish_reason=length)');
   return raw;
 }
 
@@ -340,18 +262,14 @@ function buildMatrix(
     let filled = 0;
     for (let i = 0; i < 12; i++) {
       const displayed = arr[i];
-      // 0 is treated as "not read" — skip it
       if (displayed == null || displayed === 0) continue;
-
       const inst = (i + 1) as InstallmentNumber;
       let mdrBase = displayed;
       let entryAnt = 0;
-
       if (includesAnt && antRate > 0) {
         mdrBase = Math.round(Math.max(0, displayed - antRate) * 10000) / 10000;
         entryAnt = antRate;
       }
-
       perBrand[brand][inst] = {
         mdrBase: mdrBase.toFixed(4),
         anticipationRate: entryAnt.toFixed(4),
@@ -376,12 +294,6 @@ export async function POST(req: NextRequest) {
   const logs: string[] = [];
   const lg = (m: string) => { console.log(`[parse-pdf] ${m}`); logs.push(m); };
 
-  console.log('ENV CHECK', {
-    OPENAI:    process.env.OPENAI_API_KEY    ? 'OK' : 'MISSING',
-    GEMINI:    process.env.GEMINI_API_KEY    ? 'OK' : 'MISSING',
-    ANTHROPIC: process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING',
-  });
-
   let file: File | null = null;
   try {
     const fd = await req.formData();
@@ -402,163 +314,89 @@ export async function POST(req: NextRequest) {
   const base64 = fileBuffer.toString('base64');
   lg(`File: ${file.name}, mime=${mimeType}, ${(file.size / 1024).toFixed(0)}KB, isPdf=${isPdf}`);
 
-  // ── Debug: keep base64 of original for UI ─────────────────────────────────
-  const originalImageB64 = !isPdf ? `data:${mimeType};base64,${base64.slice(0, 200)}…` : null;
+  // ── Provider availability check ──────────────────────────────────────────────
+  const hasOpenAI    = !!process.env.OPENAI_API_KEY;
+  const hasGemini    = !!process.env.GEMINI_API_KEY;
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  lg(`Providers: OpenAI=${hasOpenAI}, Gemini=${hasGemini}, Anthropic=${hasAnthropic}`);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 1: OCR PIPELINE (images only)
-  // ═══════════════════════════════════════════════════════════════════════════
-  let bestParsed: ParsedTable | null = null;
-  let bestQuality: QualityReport | null = null;
-  let preprocessedBuffer: Buffer | null = null; // reused for vision LLM
-
-  if (!isPdf) {
-    lg('=== STAGE 1: OCR pipeline ===');
-    try {
-      const { result: ocrResult, preprocessedBuffer: ppBuf } =
-        await runOCRPipeline(fileBuffer, mimeType, logs);
-      preprocessedBuffer = ppBuf; // always keep, even if OCR insufficient
-      if (ocrResult) {
-        const q = checkQuality(ocrResult);
-        lg(`OCR quality: valid=${q.valid}, total=${q.totalFilled}, perBrand=${JSON.stringify(q.perBrand)}`);
-        if (q.totalFilled > 0) {
-          bestParsed = ocrResult;
-          bestQuality = q;
-          if (q.valid) {
-            lg('OCR: ✓ accepted as final result (skipping vision LLM)');
-          } else {
-            lg(`OCR: partial (${q.totalFilled} cells) — will try vision LLM`);
-          }
-        }
-      }
-    } catch (err) {
-      lg(`OCR stage error: ${err}`);
-    }
+  if (!hasOpenAI && !hasGemini && !hasAnthropic) {
+    return NextResponse.json({
+      error: 'Nenhum provider de IA configurado. Configure OPENAI_API_KEY ou GEMINI_API_KEY no painel do Vercel.',
+      debug: { logs, preview: logs.join('\n') },
+    }, { status: 503 });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 2: Vision LLM — run if OCR wasn't good enough
-  // Send the PREPROCESSED image (3× upscaled, high-contrast PNG) to get better
-  // cell-value reading from vision models, not the original compressed file.
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Provider chain: OpenAI → Gemini → Anthropic (only if key set) ────────────
+  const providers = [
+    { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType) },
+    { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
+    ...(hasAnthropic
+      ? [{ name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) }]
+      : []),
+  ];
+  lg(`Provider order: ${providers.map(p => p.name).join(' → ')}`);
+
+  let bestParsed: ParsedTable | null = null;
+  let bestQuality: QualityReport | null = null;
   let bestRaw = '';
-  let usedProvider = bestParsed?.source ?? '';
+  let usedProvider = '';
 
-  const needsLLM = !bestQuality?.valid;
-
-  if (needsLLM) {
-    lg('=== STAGE 2: Vision LLM ===');
-
-    // ── Provider availability check ──────────────────────────────────────────
-    const hasOpenAI    = !!process.env.OPENAI_API_KEY;
-    const hasGemini    = !!process.env.GEMINI_API_KEY;
-    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-    lg(`Providers configured: OpenAI=${hasOpenAI}, Gemini=${hasGemini}, Anthropic=${hasAnthropic}`);
-
-    if (!hasOpenAI && !hasGemini && !hasAnthropic) {
-      return NextResponse.json({
-        error: 'Nenhum provider de IA configurado. Configure OPENAI_API_KEY ou GEMINI_API_KEY no .env.local.',
-        debug: { logs, preview: logs.join('\n') },
-      }, { status: 503 });
+  for (const provider of providers) {
+    let raw: string;
+    try {
+      lg(`${provider.name}: calling...`);
+      raw = await provider.fn();
+      lg(`${provider.name}: ✓ ${raw.length} chars received`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (key not set)`); continue; }
+      const hasNext = providers.indexOf(provider) < providers.length - 1;
+      lg(`${provider.name}: failed — ${msg}${hasNext ? ' → trying next provider' : ''}`);
+      continue;
     }
 
-    // ── Build provider chain: OpenAI → Gemini → Anthropic (only if key set) ─
-    const llmBuffer = (!isPdf && preprocessedBuffer) ? preprocessedBuffer : fileBuffer;
-    const llmBase64 = llmBuffer.toString('base64');
-    const llmMime   = (!isPdf && preprocessedBuffer) ? 'image/png' : mimeType;
-    lg(`LLM input: ${llmMime}, ${(llmBuffer.length / 1024).toFixed(0)}KB`);
+    let parsed: ParsedTable;
+    try {
+      parsed = parseChainOfThought(raw, logs);
+      parsed.source = `llm-${provider.name.toLowerCase()}`;
+    } catch (err) {
+      lg(`${provider.name}: parse error — ${err}`);
+      continue;
+    }
 
-    const providers = [
-      { name: 'OpenAI',    fn: () => callOpenAI(llmBase64, llmMime) },
-      { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
-      ...(hasAnthropic
-        ? [{ name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) }]
-        : []),
-    ];
-    lg(`Provider order: ${providers.map(p => p.name).join(' → ')}`);
+    const q = checkQuality(parsed);
+    lg(`${provider.name}: quality valid=${q.valid}, total=${q.totalFilled}`);
 
-    for (const provider of providers) {
-      let raw: string;
-      try {
-        lg(`${provider.name}: calling...`);
-        raw = await provider.fn();
-        lg(`${provider.name}: ✓ ${raw.length} chars received`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (key not set)`); continue; }
-        lg(`${provider.name}: failed — ${msg}${providers.indexOf(provider) < providers.length - 1 ? ' → trying next provider' : ''}`);
-        continue;
-      }
-
-      lg(`${provider.name} raw (first 500):\n${raw.slice(0, 500)}`);
-
-      let parsed: ParsedTable;
-      try {
-        parsed = parseChainOfThought(raw, logs);
-        parsed.source = `llm-${provider.name.toLowerCase()}`;
-      } catch (err) {
-        lg(`${provider.name}: parse error — ${err}`);
-        continue;
-      }
-
-      const q = checkQuality(parsed);
-      lg(`${provider.name}: quality valid=${q.valid}, total=${q.totalFilled}`);
-
-      // Merge OCR table with LLM table: prefer whichever has more data per brand
-      if (bestParsed && bestQuality) {
-        lg('Merging OCR + LLM results (best per brand)...');
-        const merged: Record<string, BrandArray> = {};
-        for (const brand of BRANDS) {
-          const ocrArr = bestParsed.table[brand] ?? Array(12).fill(null);
-          const llmArr = parsed.table[brand] ?? Array(12).fill(null);
-          const ocrCount = ocrArr.filter(v => v != null && v > 0).length;
-          const llmCount = llmArr.filter(v => v != null && v > 0).length;
-          merged[brand] = ocrCount >= llmCount ? ocrArr : llmArr;
-          lg(`  ${brand}: OCR=${ocrCount} LLM=${llmCount} → using ${ocrCount >= llmCount ? 'OCR' : 'LLM'}`);
-        }
-        // Take metadata from LLM (more reliable for text fields)
-        bestParsed = { ...parsed, table: merged, source: `ocr+llm-${provider.name.toLowerCase()}` };
-        bestQuality = checkQuality(bestParsed);
-      } else {
-        // No prior OCR result — use LLM directly
-        if (!bestParsed || q.totalFilled > (bestQuality?.totalFilled ?? 0)) {
-          bestParsed = parsed;
-          bestQuality = q;
-          bestRaw = raw;
-          usedProvider = parsed.source;
-        }
-      }
-
+    if (!bestParsed || q.totalFilled > (bestQuality?.totalFilled ?? 0)) {
+      bestParsed = parsed;
+      bestQuality = q;
       bestRaw = raw;
-      usedProvider = bestParsed.source;
-
-      if (bestQuality?.valid) {
-        lg(`${provider.name}: ✓ accepted`);
-        break;
-      }
-      lg(`${provider.name}: partial, continuing...`);
+      usedProvider = parsed.source;
     }
+
+    if (q.valid) {
+      lg(`${provider.name}: ✓ accepted`);
+      break;
+    }
+    lg(`${provider.name}: partial result, trying next provider...`);
   }
 
   if (!bestParsed) {
     return NextResponse.json({
-      error: 'Nenhum dado extraído. Verifique se as chaves de API (GEMINI_API_KEY / OPENAI_API_KEY) estão configuradas.',
-      debug: { logs },
+      error: 'Não foi possível extrair dados. Verifique se OPENAI_API_KEY ou GEMINI_API_KEY estão configuradas no Vercel.',
+      debug: { logs, preview: logs.join('\n') },
     }, { status: 503 });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 3: Build MDR matrix
-  // ═══════════════════════════════════════════════════════════════════════════
-  lg('=== STAGE 3: Build matrix ===');
+  // ── Build MDR matrix ─────────────────────────────────────────────────────────
+  lg('Building matrix...');
   const { meta, table } = bestParsed;
   const antRate = meta.anticipation_rate ?? 0;
   const includesAnt = meta.rates_include_anticipation && antRate > 0;
-  lg(`antRate=${antRate}, includesAnt=${includesAnt}`);
 
   const matrix = buildMatrix(table, antRate, includesAnt, logs);
 
-  // ── Proof: count what's in the final matrix ────────────────────────────────
   const finalCounts: Record<string, number> = {};
   for (const brand of BRANDS) {
     let c = 0;
@@ -574,7 +412,6 @@ export async function POST(req: NextRequest) {
   if (meta.chargeback_fee > 0) fees.chargebackFee = meta.chargeback_fee.toFixed(2);
 
   const isPartial = !bestQuality?.valid;
-
   const missingData: string[] = [];
   for (const brand of BRANDS) {
     const n = finalCounts[brand];
@@ -600,7 +437,6 @@ export async function POST(req: NextRequest) {
       quality: { totalFilled: Object.values(finalCounts).reduce((a, b) => a + b, 0), perBrand: finalCounts },
       rawFull: bestRaw,
       parsedTable: table,
-      originalImageB64,
     },
   });
 }
