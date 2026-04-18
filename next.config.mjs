@@ -14,12 +14,19 @@ const nextConfig = {
       'tesseract.js',
     ],
   },
-  webpack(config, { isServer }) {
+  webpack(config, { dev, isServer }) {
     if (!isServer) {
-      // Force ESM build of react-hook-form to avoid CJS interop __webpack_require__.n error
       config.resolve.alias['react-hook-form'] =
         path.resolve(__dirname, 'node_modules/react-hook-form/dist/index.esm.mjs');
     }
+
+    // In dev mode, keep the webpack runtime in a single chunk so __webpack_require__.n
+    // is always present when CJS modules (React, react-hook-form) are loaded during
+    // client-side navigation.
+    if (dev && !isServer) {
+      config.optimization.runtimeChunk = false;
+    }
+
     return config;
   },
 };
