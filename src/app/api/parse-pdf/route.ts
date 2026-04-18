@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BRANDS, BrandName } from '@/types/pricing';
 import { createEmptyMatrix, expandGroupedRates, mergePartialMatrix } from '@/lib/calculations/mdr';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -44,25 +46,117 @@ Rules:
 - If a brand is not present in the document, omit it from the rates array
 - Extract all installment tiers you can find (1x, 2x, ... 12x)`;
 
-type AnthropicContent =
-  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
-  | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
-  | { type: 'text'; text: string };
+type ParsedRates = {
+  rates: Array<{
+    brand: BrandName;
+    installmentFrom: number;
+    installmentTo: number;
+    mdrBase: string;
+    anticipationRate?: string;
+  }>;
+  fees?: { anticipationRate?: string; chargebackFee?: string };
+  confidence: 'high' | 'medium' | 'low';
+  missingData: string[];
+};
 
-export async function POST(req: NextRequest) {
-  // ── 1. Validate API key ──────────────────────────────────────────────────────
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        error: 'ANTHROPIC_API_KEY não configurada.',
-        hint: 'Adicione ANTHROPIC_API_KEY ao seu arquivo .env.local e reinicie o servidor.',
-      },
-      { status: 503 }
-    );
+function extractJson(text: string): ParsedRates {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON in response');
+  return JSON.parse(match[0]);
+}
+
+// ── Gemini ──────────────────────────────────────────────────────────────────
+async function callGemini(base64: string, mimeType: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('NO_KEY');
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+  const result = await model.generateContent([
+    { inlineData: { data: base64, mimeType } },
+    PARSE_PROMPT,
+  ]);
+
+  return result.response.text();
+}
+
+// ── OpenAI ───────────────────────────────────────────────────────────────────
+async function callOpenAI(base64: string, mimeType: string, isPdf: boolean): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('NO_KEY');
+
+  const client = new OpenAI({ apiKey });
+
+  if (isPdf) {
+    // OpenAI doesn't support PDF vision — upload as file then use Assistants or just pass as text hint
+    // Fallback: treat as unsupported and throw so Anthropic is tried
+    throw new Error('PDF_UNSUPPORTED');
   }
 
-  // ── 2. Parse form data ───────────────────────────────────────────────────────
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o',
+    max_tokens: 2048,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: { url: `data:${mimeType};base64,${base64}` },
+          },
+          { type: 'text', text: PARSE_PROMPT },
+        ],
+      },
+    ],
+  });
+
+  return response.choices[0]?.message?.content ?? '';
+}
+
+// ── Anthropic ────────────────────────────────────────────────────────────────
+async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('NO_KEY');
+
+  type AnthropicBlock =
+    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+    | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
+    | { type: 'text'; text: string };
+
+  const fileBlock: AnthropicBlock = isPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+    : { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } };
+
+  const headers: Record<string, string> = {
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+    'content-type': 'application/json',
+    ...(isPdf ? { 'anthropic-beta': 'pdfs-2024-09-25' } : {}),
+  };
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: 'claude-opus-4-7',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: PARSE_PROMPT }] }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`ANTHROPIC_${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  const json = await res.json();
+  return json.content?.[0]?.text ?? '';
+}
+
+// ── Main handler ─────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  // 1. Parse form data
   let file: File | null = null;
   try {
     const formData = await req.formData();
@@ -71,128 +165,69 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Falha ao ler o arquivo enviado.' }, { status: 400 });
   }
 
-  if (!file) {
-    return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
-  }
+  if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
 
   const mimeType = file.type || 'application/octet-stream';
-
   if (!ACCEPTED_MIME.has(mimeType)) {
     return NextResponse.json(
-      { error: `Tipo de arquivo não suportado: ${mimeType}. Use PDF, PNG, JPG ou WebP.` },
+      { error: `Tipo não suportado: ${mimeType}. Use PDF, PNG, JPG ou WebP.` },
       { status: 415 }
     );
   }
 
-  // ── 3. Encode file ───────────────────────────────────────────────────────────
+  const isPdf = mimeType === 'application/pdf';
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString('base64');
 
-  // ── 4. Build Anthropic content block ────────────────────────────────────────
-  // PDFs require type:"document" — the image block only accepts image/* MIME types.
-  const fileBlock: AnthropicContent =
-    mimeType === 'application/pdf'
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
-      : { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } };
-
-  const content: AnthropicContent[] = [
-    fileBlock,
-    { type: 'text', text: PARSE_PROMPT },
+  // 2. Try providers in order: Gemini → OpenAI → Anthropic
+  const providers = [
+    { name: 'Gemini', fn: () => callGemini(base64, mimeType) },
+    { name: 'OpenAI', fn: () => callOpenAI(base64, mimeType, isPdf) },
+    { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
   ];
 
-  // ── 5. Call Anthropic API ────────────────────────────────────────────────────
-  const headers: Record<string, string> = {
-    'x-api-key': apiKey,
-    'anthropic-version': '2023-06-01',
-    'content-type': 'application/json',
-  };
+  let lastError = '';
+  let rawText = '';
 
-  // PDF document blocks require the beta header
-  if (mimeType === 'application/pdf') {
-    headers['anthropic-beta'] = 'pdfs-2024-09-25';
+  for (const provider of providers) {
+    try {
+      rawText = await provider.fn();
+      console.log(`[parse-pdf] Success via ${provider.name}`);
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === 'NO_KEY' || msg === 'PDF_UNSUPPORTED') {
+        continue; // skip silently — key not configured or format not supported
+      }
+      console.warn(`[parse-pdf] ${provider.name} failed:`, msg);
+      lastError = msg;
+    }
   }
 
-  let aiResponse: Response;
+  if (!rawText) {
+    const hint = lastError.includes('401')
+      ? 'Verifique se as chaves de API estão corretas no Vercel.'
+      : lastError.includes('429')
+      ? 'Limite de requisições atingido. Aguarde e tente novamente.'
+      : 'Configure ao menos uma chave de API (GEMINI_API_KEY, OPENAI_API_KEY ou ANTHROPIC_API_KEY).';
+
+    return NextResponse.json({ error: `Nenhum provider disponível. ${hint}` }, { status: 503 });
+  }
+
+  // 3. Parse JSON
+  let parsed: ParsedRates;
   try {
-    aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: 'claude-opus-4-7',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content }],
-      }),
-    });
-  } catch (err) {
-    console.error('[parse-pdf] Network error calling Anthropic:', err);
-    return NextResponse.json(
-      { error: 'Falha de rede ao contatar a IA. Verifique sua conexão.' },
-      { status: 502 }
-    );
-  }
-
-  if (!aiResponse.ok) {
-    const body = await aiResponse.text();
-    console.error(`[parse-pdf] Anthropic ${aiResponse.status}:`, body);
-
-    // Surface actionable errors instead of hiding them
-    if (aiResponse.status === 401) {
-      return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY inválida. Verifique o valor no .env.local.' },
-        { status: 401 }
-      );
-    }
-    if (aiResponse.status === 429) {
-      return NextResponse.json(
-        { error: 'Limite de requisições da IA atingido. Aguarde alguns segundos e tente novamente.' },
-        { status: 429 }
-      );
-    }
-    if (aiResponse.status === 413 || body.includes('too large')) {
-      return NextResponse.json(
-        { error: 'Arquivo muito grande para a IA processar. Tente um PDF menor (< 10 MB).' },
-        { status: 413 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: `Erro da IA (HTTP ${aiResponse.status}). Tente novamente.` },
-      { status: 502 }
-    );
-  }
-
-  // ── 6. Parse AI response ─────────────────────────────────────────────────────
-  const aiResult = await aiResponse.json();
-  const text: string = aiResult.content?.[0]?.text ?? '';
-
-  let parsed: {
-    rates: Array<{
-      brand: BrandName;
-      installmentFrom: number;
-      installmentTo: number;
-      mdrBase: string;
-      anticipationRate?: string;
-    }>;
-    fees?: { anticipationRate?: string; chargebackFee?: string };
-    confidence: 'high' | 'medium' | 'low';
-    missingData: string[];
-  };
-
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON found in response');
-    parsed = JSON.parse(jsonMatch[0]);
+    parsed = extractJson(rawText);
   } catch {
-    console.error('[parse-pdf] Failed to parse AI JSON. Raw:', text.slice(0, 500));
+    console.error('[parse-pdf] Bad JSON from AI:', rawText.slice(0, 500));
     return NextResponse.json(
-      { error: 'A IA retornou um formato inesperado. Tente novamente com um arquivo mais legível.' },
+      { error: 'A IA retornou um formato inesperado. Tente com um arquivo mais legível.' },
       { status: 422 }
     );
   }
 
-  // ── 7. Build MDR matrix ──────────────────────────────────────────────────────
+  // 4. Build MDR matrix
   let matrix = createEmptyMatrix();
-
   for (const rate of parsed.rates ?? []) {
     if (!BRANDS.includes(rate.brand)) continue;
     const partial = expandGroupedRates([
