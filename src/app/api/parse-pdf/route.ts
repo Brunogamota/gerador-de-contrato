@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BRANDS, BrandName } from '@/types/pricing';
-import { createEmptyMatrix, expandGroupedRates, mergePartialMatrix } from '@/lib/calculations/mdr';
+import { createEmptyMatrix, mergePartialMatrix } from '@/lib/calculations/mdr';
+import { MDREntry } from '@/types/pricing';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 
@@ -20,89 +21,56 @@ function normalizeMime(m: string): string {
   return m === 'image/jpg' ? 'image/jpeg' : m;
 }
 
-const PARSE_PROMPT = `You are a Brazilian payment industry specialist extracting MDR rate tables.
+// Simple matrix format — much easier for AI to fill correctly
+const PARSE_PROMPT = `You are extracting an MDR rate table from a Brazilian payment proposal image.
 
-## OUTPUT FORMAT
-Return ONLY a raw JSON object. No markdown, no code fences, no explanation.
+## WHAT TO OUTPUT
+A single raw JSON object. No markdown, no code fences, no explanation, just the JSON.
 
+## JSON STRUCTURE
 {
-  "anticipationIncluded": false,
-  "globalAnticipationRate": "0.00",
-  "rates": [
-    {
-      "brands": ["visa"],
-      "installment": 1,
-      "displayedRate": "2.50"
-    }
-  ],
-  "fees": {
-    "anticipationRate": "0.00",
-    "chargebackFee": "0.00"
+  "anticipationRate": "1.78",
+  "ratesIncludeAnticipation": true,
+  "table": {
+    "visa":       {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""},
+    "mastercard": {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""},
+    "elo":        {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""},
+    "amex":       {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""},
+    "hipercard":  {"1":"","2":"","3":"","4":"","5":"","6":"","7":"","8":"","9":"","10":"","11":"","12":""}
   },
+  "chargebackFee": "0.00",
   "confidence": "high",
   "missingData": []
 }
 
-## STEP-BY-STEP EXTRACTION
+## HOW TO FILL
+1. anticipationRate: look for text like "Acréscimo de X%" or "Taxa de antecipação: X%" near the table. Extract X as a decimal string like "1.78". If not found, use "0.00".
+2. ratesIncludeAnticipation: true if the header says the rates already include anticipation (e.g. "Antecipação D+2 · Acréscimo de 1,78%"). Otherwise false.
+3. table: fill EVERY cell for rows 1 through 12 and all brands that appear in the document.
+   - Each value is the percentage shown in that cell as a decimal string: "3.95" (use dot, not comma)
+   - If the document has a column "Amex/Hiper/Outras" or "Amex/Hiper" or "Outras", use those same values for BOTH "amex" and "hipercard"
+   - If a brand is completely absent from the document, leave all its cells as ""
+   - DO NOT leave any row empty for a brand that has data — fill all 12 rows
+4. chargebackFee: chargeback fee in BRL if visible (e.g. "65.00"), else "0.00"
+5. confidence: "high" if clearly readable, "medium" if some values uncertain, "low" if mostly guessing
+6. missingData: list any brand or row you could not read`;
 
-### STEP 1 — Detect anticipation mode
-Look for text like "Antecipação D+X · Acréscimo de Y%" or "Taxa de antecipação: Y%" near the table header.
-- If found: set anticipationIncluded=true and globalAnticipationRate="Y.YY" (the acréscimo value)
-- If not found: set anticipationIncluded=false and globalAnticipationRate="0.00"
-
-### STEP 2 — Identify columns
-The table has columns for each brand. Common column names and their mapping:
-- "Visa" → ["visa"]
-- "Master" or "Mastercard" → ["mastercard"]
-- "Elo" → ["elo"]
-- "Amex" → ["amex"]
-- "Hipercard" or "Hiper" → ["hipercard"]
-- "Amex/Hiper/Outras" or "Amex/Hiper" → ["amex", "hipercard"]
-- "Demais" or "Outras" → ["amex", "hipercard"]
-
-### STEP 3 — Read ALL rows
-The table has rows for installments: 1x, 2x, 3x, 4x, 5x, 6x, 7x, 8x, 9x, 10x, 11x, 12x.
-For EACH row, for EACH brand column, create one entry in the rates array:
-{
-  "brands": ["visa"],
-  "installment": 3,
-  "displayedRate": "3.95"
-}
-
-A table with 4 brand columns and 12 rows = 48 entries minimum.
-DO NOT skip any row. DO NOT group rows unless they have IDENTICAL rates for consecutive installments.
-
-### STEP 4 — fees
-- fees.anticipationRate = globalAnticipationRate (the acréscimo %)
-- fees.chargebackFee = chargeback fee in BRL if visible, else "0.00"
-
-## RULES
-- displayedRate: exactly what is printed in the cell, as decimal string "3.95" (not "3,95")
-- installment: integer 1 to 12
-- brands: array of brand strings from this set only: visa, mastercard, elo, amex, hipercard
-- confidence: "high" if table clearly readable, "medium" if some values inferred, "low" if guessing
-- missingData: list any installments or brands you could not read`;
-
-type RawRate = {
-  brands: string[];
-  installment: number;
-  displayedRate: string;
+// Raw parsed structure from AI
+type RawTable = {
+  [brand: string]: { [inst: string]: string };
 };
 
 type RawParsed = {
-  anticipationIncluded: boolean;
-  globalAnticipationRate: string;
-  rates: RawRate[];
-  fees?: { anticipationRate?: string; chargebackFee?: string };
+  anticipationRate: string;
+  ratesIncludeAnticipation: boolean;
+  table: RawTable;
+  chargebackFee?: string;
   confidence: 'high' | 'medium' | 'low';
   missingData: string[];
 };
 
 function extractJson(raw: string): RawParsed {
-  // Remove markdown code fences
   const text = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-
-  // Balanced-brace extraction
   const start = text.indexOf('{');
   if (start === -1) throw new Error('No JSON object found');
 
@@ -118,17 +86,14 @@ function extractJson(raw: string): RawParsed {
 
   if (end === -1) throw new Error('Unclosed JSON object');
   const parsed = JSON.parse(text.slice(start, end + 1));
-  if (!Array.isArray(parsed.rates)) throw new Error('Missing rates array');
+  if (!parsed.table || typeof parsed.table !== 'object') throw new Error('Missing table object');
   return parsed as RawParsed;
 }
 
-function safeRate(val: string | number | undefined): number {
-  const n = parseFloat(String(val ?? '0').replace(',', '.'));
+function safeNum(val: string | undefined): number {
+  if (!val) return 0;
+  const n = parseFloat(val.replace(',', '.'));
   return isNaN(n) ? 0 : n;
-}
-
-function toFixed2(n: number): string {
-  return n.toFixed(2);
 }
 
 // ── Gemini ───────────────────────────────────────────────────────────────────
@@ -137,12 +102,13 @@ async function callGemini(base64: string, mimeType: string): Promise<string> {
   if (!apiKey) throw new Error('NO_KEY');
 
   const genAI = new GoogleGenerativeAI(apiKey);
+  // Use Pro for better table reading accuracy
   const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-1.5-pro',
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.1,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 4096,
     },
   });
 
@@ -164,7 +130,7 @@ async function callOpenAI(base64: string, mimeType: string, isPdf: boolean): Pro
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 8192,
+    max_tokens: 4096,
     temperature: 0.1,
     response_format: { type: 'json_object' },
     messages: [
@@ -186,12 +152,12 @@ async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
 
-  type AnthropicBlock =
+  type Block =
     | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
     | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
     | { type: 'text'; text: string };
 
-  const fileBlock: AnthropicBlock = isPdf
+  const fileBlock: Block = isPdf
     ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
     : { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } };
 
@@ -207,7 +173,7 @@ async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): 
     headers,
     body: JSON.stringify({
       model: 'claude-opus-4-7',
-      max_tokens: 8192,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: PARSE_PROMPT }] }],
     }),
   });
@@ -290,56 +256,63 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Build MDR matrix ──────────────────────────────────────────────────────
-  // If rates already include anticipation, split: mdrBase = displayed - anticipation
-  const anticipationIncluded = parsed.anticipationIncluded === true;
-  const globalAntRate = safeRate(parsed.globalAnticipationRate);
+  // ── Build MDR matrix from flat table ─────────────────────────────────────
+  const antRate = safeNum(parsed.anticipationRate);
+  const includesAnt = parsed.ratesIncludeAnticipation === true && antRate > 0;
 
   let matrix = createEmptyMatrix();
+  const missingBrands: string[] = [...(parsed.missingData ?? [])];
 
-  for (const rate of parsed.rates ?? []) {
-    const displayed = safeRate(rate.displayedRate);
-    const inst = Math.min(12, Math.max(1, Number(rate.installment) || 1));
+  for (const brand of BRANDS) {
+    const brandData = parsed.table[brand];
+    if (!brandData) continue;
 
-    let mdrBase: number;
-    let antRate: number;
+    const partial: Partial<Record<number, MDREntry>> = {};
+    let hasAnyValue = false;
 
-    if (anticipationIncluded && globalAntRate > 0) {
-      // CET final já antecipado: desconta a antecipação para obter a taxa base
-      mdrBase = Math.max(0, displayed - globalAntRate);
-      antRate = globalAntRate;
-    } else {
-      mdrBase = displayed;
-      antRate = 0;
-    }
+    for (let inst = 1; inst <= 12; inst++) {
+      const raw = brandData[String(inst)];
+      const displayed = safeNum(raw);
+      if (displayed === 0) continue;
 
-    const rawBrands = Array.isArray(rate.brands) ? rate.brands : [rate.brands];
-    for (const rawBrand of rawBrands) {
-      const brand = String(rawBrand ?? '').toLowerCase().trim() as BrandName;
-      if (!BRANDS.includes(brand)) {
-        console.warn(`[parse-pdf] Unknown brand skipped: "${rawBrand}"`);
-        continue;
+      hasAnyValue = true;
+
+      let mdrBase: number;
+      let entryAntRate: number;
+
+      if (includesAnt) {
+        // CET já antecipado: subtrair taxa de antecipação para obter base
+        mdrBase = Math.max(0, displayed - antRate);
+        entryAntRate = antRate;
+      } else {
+        mdrBase = displayed;
+        entryAntRate = 0;
       }
 
-      const partial = expandGroupedRates([{
-        from: inst,
-        to: inst,
-        mdrBase: toFixed2(mdrBase),
-        anticipationRate: toFixed2(antRate),
-      }]);
-      matrix = mergePartialMatrix(matrix, brand, partial);
+      const mdrBaseStr = mdrBase.toFixed(4);
+      const antRateStr = entryAntRate.toFixed(4);
+      const finalMdr = (mdrBase + entryAntRate).toFixed(4);
+
+      partial[inst] = {
+        mdrBase: mdrBaseStr,
+        anticipationRate: antRateStr,
+        finalMdr,
+        isManualOverride: false,
+      };
+    }
+
+    if (hasAnyValue) {
+      matrix = mergePartialMatrix(matrix, brand as BrandName, partial);
+    } else if (!missingBrands.includes(brand)) {
+      // Only flag as missing if not already reported
+      // (leave it out — it may simply not be in the document)
     }
   }
 
-  // Build fees response
   const fees: { anticipationRate?: string; chargebackFee?: string } = {};
-  if (anticipationIncluded && globalAntRate > 0) {
-    fees.anticipationRate = toFixed2(globalAntRate);
-  } else if (parsed.fees?.anticipationRate) {
-    fees.anticipationRate = parsed.fees.anticipationRate;
-  }
-  if (parsed.fees?.chargebackFee) {
-    fees.chargebackFee = parsed.fees.chargebackFee;
+  if (antRate > 0) fees.anticipationRate = antRate.toFixed(2);
+  if (parsed.chargebackFee && safeNum(parsed.chargebackFee) > 0) {
+    fees.chargebackFee = parsed.chargebackFee;
   }
 
   return NextResponse.json({
