@@ -16,69 +16,93 @@ const ACCEPTED_MIME = new Set([
   'image/gif',
 ]);
 
-// Normalize browser-reported MIME types that differ from what APIs expect
-function normalizeMime(mimeType: string): string {
-  if (mimeType === 'image/jpg') return 'image/jpeg';
-  return mimeType;
+function normalizeMime(m: string): string {
+  return m === 'image/jpg' ? 'image/jpeg' : m;
 }
 
-const PARSE_PROMPT = `You are a payment industry data extraction specialist analyzing a Brazilian payment proposal.
+const PARSE_PROMPT = `You are a Brazilian payment industry specialist extracting MDR rate tables.
 
-Extract ALL MDR (Merchant Discount Rate) data and return ONLY a raw JSON object — no markdown, no code fences, no explanation.
+## OUTPUT FORMAT
+Return ONLY a raw JSON object. No markdown, no code fences, no explanation.
 
-JSON structure:
 {
+  "anticipationIncluded": false,
+  "globalAnticipationRate": "0.00",
   "rates": [
     {
-      "brand": "visa",
-      "installmentFrom": 1,
-      "installmentTo": 1,
-      "mdrBase": "2.50",
-      "anticipationRate": "0.00"
+      "brands": ["visa"],
+      "installment": 1,
+      "displayedRate": "2.50"
     }
   ],
   "fees": {
-    "anticipationRate": "1.45",
-    "chargebackFee": "65.00"
+    "anticipationRate": "0.00",
+    "chargebackFee": "0.00"
   },
   "confidence": "high",
   "missingData": []
 }
 
-CRITICAL RULES — follow exactly:
-1. brand must be one of: visa, mastercard, elo, amex, hipercard (lowercase, exact spelling)
-2. ALL rates must be decimal strings with 2 decimal places: "2.50" not 2.5 or "2,50"
-3. You MUST cover all 12 installments (1x through 12x) for EACH brand found in the document.
-   - If the document shows a single rate for all installments (e.g. "Visa débito/crédito: 2.50%"), output one entry with installmentFrom:1, installmentTo:12
-   - If the document shows grouped ranges (e.g. "1x: 2.0% / 2-6x: 2.5% / 7-12x: 3.0%"), output one entry per group
-   - If the document shows individual rows for each installment, output one entry per installment (installmentFrom equals installmentTo)
-   - NEVER skip installment ranges — the entire 1-12 range must be covered per brand
-4. anticipationRate per installment: if the document separates "taxa de antecipação" per installment, include it; otherwise use "0.00"
-5. fees.anticipationRate: the global anticipation fee percentage (e.g. "1.99")
-6. fees.chargebackFee: the chargeback fee in BRL (e.g. "65.00")
-7. confidence: "high" if data is clearly readable, "medium" if some values inferred, "low" if mostly guessed
-8. missingData: list any brands or installment ranges you could not find
-9. Do NOT invent data. If a brand is absent from the document, omit it from rates entirely.`;
+## STEP-BY-STEP EXTRACTION
 
-type ParsedRates = {
-  rates: Array<{
-    brand: BrandName;
-    installmentFrom: number;
-    installmentTo: number;
-    mdrBase: string;
-    anticipationRate?: string;
-  }>;
+### STEP 1 — Detect anticipation mode
+Look for text like "Antecipação D+X · Acréscimo de Y%" or "Taxa de antecipação: Y%" near the table header.
+- If found: set anticipationIncluded=true and globalAnticipationRate="Y.YY" (the acréscimo value)
+- If not found: set anticipationIncluded=false and globalAnticipationRate="0.00"
+
+### STEP 2 — Identify columns
+The table has columns for each brand. Common column names and their mapping:
+- "Visa" → ["visa"]
+- "Master" or "Mastercard" → ["mastercard"]
+- "Elo" → ["elo"]
+- "Amex" → ["amex"]
+- "Hipercard" or "Hiper" → ["hipercard"]
+- "Amex/Hiper/Outras" or "Amex/Hiper" → ["amex", "hipercard"]
+- "Demais" or "Outras" → ["amex", "hipercard"]
+
+### STEP 3 — Read ALL rows
+The table has rows for installments: 1x, 2x, 3x, 4x, 5x, 6x, 7x, 8x, 9x, 10x, 11x, 12x.
+For EACH row, for EACH brand column, create one entry in the rates array:
+{
+  "brands": ["visa"],
+  "installment": 3,
+  "displayedRate": "3.95"
+}
+
+A table with 4 brand columns and 12 rows = 48 entries minimum.
+DO NOT skip any row. DO NOT group rows unless they have IDENTICAL rates for consecutive installments.
+
+### STEP 4 — fees
+- fees.anticipationRate = globalAnticipationRate (the acréscimo %)
+- fees.chargebackFee = chargeback fee in BRL if visible, else "0.00"
+
+## RULES
+- displayedRate: exactly what is printed in the cell, as decimal string "3.95" (not "3,95")
+- installment: integer 1 to 12
+- brands: array of brand strings from this set only: visa, mastercard, elo, amex, hipercard
+- confidence: "high" if table clearly readable, "medium" if some values inferred, "low" if guessing
+- missingData: list any installments or brands you could not read`;
+
+type RawRate = {
+  brands: string[];
+  installment: number;
+  displayedRate: string;
+};
+
+type RawParsed = {
+  anticipationIncluded: boolean;
+  globalAnticipationRate: string;
+  rates: RawRate[];
   fees?: { anticipationRate?: string; chargebackFee?: string };
   confidence: 'high' | 'medium' | 'low';
   missingData: string[];
 };
 
-// Strip markdown code fences and extract the first complete JSON object
-function extractJson(raw: string): ParsedRates {
-  // Remove ```json ... ``` or ``` ... ``` wrappers
-  let text = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+function extractJson(raw: string): RawParsed {
+  // Remove markdown code fences
+  const text = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
 
-  // Find the outermost { ... } block
+  // Balanced-brace extraction
   const start = text.indexOf('{');
   if (start === -1) throw new Error('No JSON object found');
 
@@ -93,11 +117,18 @@ function extractJson(raw: string): ParsedRates {
   }
 
   if (end === -1) throw new Error('Unclosed JSON object');
-  const jsonStr = text.slice(start, end + 1);
-
-  const parsed = JSON.parse(jsonStr);
+  const parsed = JSON.parse(text.slice(start, end + 1));
   if (!Array.isArray(parsed.rates)) throw new Error('Missing rates array');
-  return parsed as ParsedRates;
+  return parsed as RawParsed;
+}
+
+function safeRate(val: string | number | undefined): number {
+  const n = parseFloat(String(val ?? '0').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+function toFixed2(n: number): string {
+  return n.toFixed(2);
 }
 
 // ── Gemini ───────────────────────────────────────────────────────────────────
@@ -109,10 +140,9 @@ async function callGemini(base64: string, mimeType: string): Promise<string> {
   const model = genAI.getGenerativeModel({
     model: 'gemini-1.5-flash',
     generationConfig: {
-      // Force pure JSON output — no markdown wrapping
       responseMimeType: 'application/json',
       temperature: 0.1,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
     },
   });
 
@@ -128,15 +158,13 @@ async function callGemini(base64: string, mimeType: string): Promise<string> {
 async function callOpenAI(base64: string, mimeType: string, isPdf: boolean): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
-
-  // OpenAI vision doesn't support PDF — skip to next provider
   if (isPdf) throw new Error('PDF_UNSUPPORTED');
 
   const client = new OpenAI({ apiKey });
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 4096,
+    max_tokens: 8192,
     temperature: 0.1,
     response_format: { type: 'json_object' },
     messages: [
@@ -179,7 +207,7 @@ async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): 
     headers,
     body: JSON.stringify({
       model: 'claude-opus-4-7',
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: PARSE_PROMPT }] }],
     }),
   });
@@ -219,7 +247,6 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString('base64');
 
-  // Try providers: Gemini → OpenAI → Anthropic
   const providers = [
     { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
     { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType, isPdf) },
@@ -232,7 +259,7 @@ export async function POST(req: NextRequest) {
   for (const provider of providers) {
     try {
       rawText = await provider.fn();
-      console.log(`[parse-pdf] Success via ${provider.name} (${rawText.length} chars)`);
+      console.log(`[parse-pdf] ${provider.name} OK (${rawText.length} chars)`);
       break;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -244,49 +271,80 @@ export async function POST(req: NextRequest) {
 
   if (!rawText) {
     const hint = lastError.includes('401')
-      ? 'Verifique se as chaves de API estão corretas no Vercel.'
+      ? 'Verifique as chaves de API no Vercel.'
       : lastError.includes('429')
       ? 'Limite de requisições atingido. Aguarde e tente novamente.'
-      : 'Configure ao menos uma chave: GEMINI_API_KEY, OPENAI_API_KEY ou ANTHROPIC_API_KEY.';
-
+      : 'Configure GEMINI_API_KEY, OPENAI_API_KEY ou ANTHROPIC_API_KEY.';
     return NextResponse.json({ error: `Nenhum provider disponível. ${hint}` }, { status: 503 });
   }
 
-  // Parse JSON — with detailed logging on failure
-  let parsed: ParsedRates;
+  let parsed: RawParsed;
   try {
     parsed = extractJson(rawText);
   } catch (e) {
-    console.error('[parse-pdf] JSON parse failed. Raw response (first 1000 chars):', rawText.slice(0, 1000));
-    console.error('[parse-pdf] Parse error:', e);
+    console.error('[parse-pdf] JSON parse failed. Raw (1000 chars):', rawText.slice(0, 1000));
+    console.error('[parse-pdf] Error:', e);
     return NextResponse.json(
-      { error: 'A IA retornou um formato inesperado. Tente com um arquivo mais legível ou menor.' },
+      { error: 'A IA retornou um formato inesperado. Tente com uma imagem mais nítida.' },
       { status: 422 }
     );
   }
 
-  // Build MDR matrix from grouped rate entries
+  // ── Build MDR matrix ──────────────────────────────────────────────────────
+  // If rates already include anticipation, split: mdrBase = displayed - anticipation
+  const anticipationIncluded = parsed.anticipationIncluded === true;
+  const globalAntRate = safeRate(parsed.globalAnticipationRate);
+
   let matrix = createEmptyMatrix();
+
   for (const rate of parsed.rates ?? []) {
-    const brand = rate.brand?.toLowerCase() as BrandName;
-    if (!BRANDS.includes(brand)) {
-      console.warn(`[parse-pdf] Unknown brand skipped: ${rate.brand}`);
-      continue;
+    const displayed = safeRate(rate.displayedRate);
+    const inst = Math.min(12, Math.max(1, Number(rate.installment) || 1));
+
+    let mdrBase: number;
+    let antRate: number;
+
+    if (anticipationIncluded && globalAntRate > 0) {
+      // CET final já antecipado: desconta a antecipação para obter a taxa base
+      mdrBase = Math.max(0, displayed - globalAntRate);
+      antRate = globalAntRate;
+    } else {
+      mdrBase = displayed;
+      antRate = 0;
     }
-    const from = Math.max(1, Number(rate.installmentFrom) || 1);
-    const to   = Math.min(12, Number(rate.installmentTo)  || from);
-    const partial = expandGroupedRates([{
-      from,
-      to,
-      mdrBase: String(rate.mdrBase ?? '0'),
-      anticipationRate: String(rate.anticipationRate ?? '0'),
-    }]);
-    matrix = mergePartialMatrix(matrix, brand, partial);
+
+    const rawBrands = Array.isArray(rate.brands) ? rate.brands : [rate.brands];
+    for (const rawBrand of rawBrands) {
+      const brand = String(rawBrand ?? '').toLowerCase().trim() as BrandName;
+      if (!BRANDS.includes(brand)) {
+        console.warn(`[parse-pdf] Unknown brand skipped: "${rawBrand}"`);
+        continue;
+      }
+
+      const partial = expandGroupedRates([{
+        from: inst,
+        to: inst,
+        mdrBase: toFixed2(mdrBase),
+        anticipationRate: toFixed2(antRate),
+      }]);
+      matrix = mergePartialMatrix(matrix, brand, partial);
+    }
+  }
+
+  // Build fees response
+  const fees: { anticipationRate?: string; chargebackFee?: string } = {};
+  if (anticipationIncluded && globalAntRate > 0) {
+    fees.anticipationRate = toFixed2(globalAntRate);
+  } else if (parsed.fees?.anticipationRate) {
+    fees.anticipationRate = parsed.fees.anticipationRate;
+  }
+  if (parsed.fees?.chargebackFee) {
+    fees.chargebackFee = parsed.fees.chargebackFee;
   }
 
   return NextResponse.json({
     matrix,
-    fees: parsed.fees ?? {},
+    fees,
     confidence: parsed.confidence ?? 'low',
     missingData: parsed.missingData ?? [],
   });
