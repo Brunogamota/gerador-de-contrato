@@ -85,9 +85,13 @@ async function runOCRPipeline(
   }
 
   // ── OCR ────────────────────────────────────────────────────────────────────
+  // Tesseract downloads lang model from CDN on first run — timeout if unreachable
   let ocrResult: Awaited<ReturnType<typeof ocrExtractTable>>;
   try {
-    ocrResult = await ocrExtractTable(preprocessed, logs);
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('OCR timeout — CDN unreachable, skipping to LLM')), 12000)
+    );
+    ocrResult = await Promise.race([ocrExtractTable(preprocessed, logs), timeout]);
   } catch (err) {
     lg(`OCR failed: ${err}`);
     return { result: null, preprocessedBuffer: preprocessed };
