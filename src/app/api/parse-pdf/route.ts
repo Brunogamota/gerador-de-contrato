@@ -244,6 +244,8 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
 async function callOpenAI(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
+  // OpenAI vision API does not accept PDFs via image_url — skip gracefully
+  if (mimeType === 'application/pdf') throw new Error('NOT_SUPPORTED');
   const client = new OpenAI({ apiKey });
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
@@ -446,16 +448,17 @@ export async function POST(req: NextRequest) {
     const llmMime = (!isPdf && preprocessedBuffer) ? 'image/png' : mimeType;
     lg(`Vision LLM image: ${llmMime}, ${(llmBuffer.length / 1024).toFixed(0)}KB`);
 
-    const providers = isPdf
-      ? [
-          { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
-          { name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) },
-        ]
-      : [
-          { name: 'OpenAI',    fn: () => callOpenAI(llmBase64, llmMime) },
-          { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
-          { name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) },
-        ];
+    // Priority: OpenAI → Gemini → Anthropic (optional).
+    // OpenAI throws NOT_SUPPORTED for PDFs (vision API does not accept PDFs),
+    // so Gemini handles PDFs automatically via the fallback chain.
+    // Anthropic is only added when its key is explicitly configured.
+    const providers = [
+      { name: 'OpenAI',    fn: () => callOpenAI(llmBase64, llmMime) },
+      { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
+      ...(process.env.ANTHROPIC_API_KEY
+        ? [{ name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) }]
+        : []),
+    ];
 
     for (const provider of providers) {
       let raw: string;
@@ -466,6 +469,7 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (no key)`); continue; }
+        if (msg === 'NOT_SUPPORTED') { lg(`${provider.name}: skipped (format not supported)`); continue; }
         lg(`${provider.name}: ERROR — ${msg}`);
         continue;
       }
