@@ -244,8 +244,6 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
 async function callOpenAI(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
-  // OpenAI vision API does not accept PDFs via image_url — skip gracefully
-  if (mimeType === 'application/pdf') throw new Error('NOT_SUPPORTED');
   const client = new OpenAI({ apiKey });
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
@@ -439,38 +437,46 @@ export async function POST(req: NextRequest) {
   const needsLLM = !bestQuality?.valid;
 
   if (needsLLM) {
-    lg('=== STAGE 2: Vision LLM fallback ===');
+    lg('=== STAGE 2: Vision LLM ===');
 
-    // Use preprocessed image for LLM if available — significantly better for
-    // reading individual cell values (upscaled + normalized + sharpened)
+    // ── Provider availability check ──────────────────────────────────────────
+    const hasOpenAI    = !!process.env.OPENAI_API_KEY;
+    const hasGemini    = !!process.env.GEMINI_API_KEY;
+    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    lg(`Providers configured: OpenAI=${hasOpenAI}, Gemini=${hasGemini}, Anthropic=${hasAnthropic}`);
+
+    if (!hasOpenAI && !hasGemini && !hasAnthropic) {
+      return NextResponse.json({
+        error: 'Nenhum provider de IA configurado. Configure OPENAI_API_KEY ou GEMINI_API_KEY no .env.local.',
+        debug: { logs, preview: logs.join('\n') },
+      }, { status: 503 });
+    }
+
+    // ── Build provider chain: OpenAI → Gemini → Anthropic (only if key set) ─
     const llmBuffer = (!isPdf && preprocessedBuffer) ? preprocessedBuffer : fileBuffer;
     const llmBase64 = llmBuffer.toString('base64');
-    const llmMime = (!isPdf && preprocessedBuffer) ? 'image/png' : mimeType;
-    lg(`Vision LLM image: ${llmMime}, ${(llmBuffer.length / 1024).toFixed(0)}KB`);
+    const llmMime   = (!isPdf && preprocessedBuffer) ? 'image/png' : mimeType;
+    lg(`LLM input: ${llmMime}, ${(llmBuffer.length / 1024).toFixed(0)}KB`);
 
-    // Priority: OpenAI → Gemini → Anthropic (optional).
-    // OpenAI throws NOT_SUPPORTED for PDFs (vision API does not accept PDFs),
-    // so Gemini handles PDFs automatically via the fallback chain.
-    // Anthropic is only added when its key is explicitly configured.
     const providers = [
       { name: 'OpenAI',    fn: () => callOpenAI(llmBase64, llmMime) },
       { name: 'Gemini',    fn: () => callGemini(llmBase64, llmMime) },
-      ...(process.env.ANTHROPIC_API_KEY
+      ...(hasAnthropic
         ? [{ name: 'Anthropic', fn: () => callAnthropic(llmBase64, llmMime, isPdf) }]
         : []),
     ];
+    lg(`Provider order: ${providers.map(p => p.name).join(' → ')}`);
 
     for (const provider of providers) {
       let raw: string;
       try {
         lg(`${provider.name}: calling...`);
         raw = await provider.fn();
-        lg(`${provider.name}: ${raw.length} chars received`);
+        lg(`${provider.name}: ✓ ${raw.length} chars received`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (no key)`); continue; }
-        if (msg === 'NOT_SUPPORTED') { lg(`${provider.name}: skipped (format not supported)`); continue; }
-        lg(`${provider.name}: ERROR — ${msg}`);
+        if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (key not set)`); continue; }
+        lg(`${provider.name}: failed — ${msg}${providers.indexOf(provider) < providers.length - 1 ? ' → trying next provider' : ''}`);
         continue;
       }
 
