@@ -16,14 +16,21 @@ const ACCEPTED_MIME = new Set([
   'image/gif',
 ]);
 
-const PARSE_PROMPT = `You are a financial data extraction specialist.
-Analyze this payment proposal document and extract MDR (Merchant Discount Rate) data.
+// Normalize browser-reported MIME types that differ from what APIs expect
+function normalizeMime(mimeType: string): string {
+  if (mimeType === 'image/jpg') return 'image/jpeg';
+  return mimeType;
+}
 
-Return ONLY valid JSON in this exact structure (no extra text, no markdown):
+const PARSE_PROMPT = `You are a payment industry data extraction specialist analyzing a Brazilian payment proposal.
+
+Extract ALL MDR (Merchant Discount Rate) data and return ONLY a raw JSON object — no markdown, no code fences, no explanation.
+
+JSON structure:
 {
   "rates": [
     {
-      "brand": "visa|mastercard|elo|amex|hipercard",
+      "brand": "visa",
       "installmentFrom": 1,
       "installmentTo": 1,
       "mdrBase": "2.50",
@@ -34,17 +41,24 @@ Return ONLY valid JSON in this exact structure (no extra text, no markdown):
     "anticipationRate": "1.45",
     "chargebackFee": "65.00"
   },
-  "confidence": "high|medium|low",
-  "missingData": ["list of missing fields"]
+  "confidence": "high",
+  "missingData": []
 }
 
-Rules:
-- brand must be one of: visa, mastercard, elo, amex, hipercard
-- mdrBase and anticipationRate as decimal strings with 2 decimal places
-- If installments are grouped (e.g. "2-6x = 3.5%"), use installmentFrom/installmentTo range
-- If anticipation rate is not listed separately, set anticipationRate to "0.00"
-- If a brand is not present in the document, omit it from the rates array
-- Extract all installment tiers you can find (1x, 2x, ... 12x)`;
+CRITICAL RULES — follow exactly:
+1. brand must be one of: visa, mastercard, elo, amex, hipercard (lowercase, exact spelling)
+2. ALL rates must be decimal strings with 2 decimal places: "2.50" not 2.5 or "2,50"
+3. You MUST cover all 12 installments (1x through 12x) for EACH brand found in the document.
+   - If the document shows a single rate for all installments (e.g. "Visa débito/crédito: 2.50%"), output one entry with installmentFrom:1, installmentTo:12
+   - If the document shows grouped ranges (e.g. "1x: 2.0% / 2-6x: 2.5% / 7-12x: 3.0%"), output one entry per group
+   - If the document shows individual rows for each installment, output one entry per installment (installmentFrom equals installmentTo)
+   - NEVER skip installment ranges — the entire 1-12 range must be covered per brand
+4. anticipationRate per installment: if the document separates "taxa de antecipação" per installment, include it; otherwise use "0.00"
+5. fees.anticipationRate: the global anticipation fee percentage (e.g. "1.99")
+6. fees.chargebackFee: the chargeback fee in BRL (e.g. "65.00")
+7. confidence: "high" if data is clearly readable, "medium" if some values inferred, "low" if mostly guessed
+8. missingData: list any brands or installment ranges you could not find
+9. Do NOT invent data. If a brand is absent from the document, omit it from rates entirely.`;
 
 type ParsedRates = {
   rates: Array<{
@@ -59,23 +73,52 @@ type ParsedRates = {
   missingData: string[];
 };
 
-function extractJson(text: string): ParsedRates {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON in response');
-  return JSON.parse(match[0]);
+// Strip markdown code fences and extract the first complete JSON object
+function extractJson(raw: string): ParsedRates {
+  // Remove ```json ... ``` or ``` ... ``` wrappers
+  let text = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+
+  // Find the outermost { ... } block
+  const start = text.indexOf('{');
+  if (start === -1) throw new Error('No JSON object found');
+
+  let depth = 0;
+  let end = -1;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+
+  if (end === -1) throw new Error('Unclosed JSON object');
+  const jsonStr = text.slice(start, end + 1);
+
+  const parsed = JSON.parse(jsonStr);
+  if (!Array.isArray(parsed.rates)) throw new Error('Missing rates array');
+  return parsed as ParsedRates;
 }
 
-// ── Gemini ──────────────────────────────────────────────────────────────────
+// ── Gemini ───────────────────────────────────────────────────────────────────
 async function callGemini(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    generationConfig: {
+      // Force pure JSON output — no markdown wrapping
+      responseMimeType: 'application/json',
+      temperature: 0.1,
+      maxOutputTokens: 4096,
+    },
+  });
 
   const result = await model.generateContent([
     { inlineData: { data: base64, mimeType } },
-    PARSE_PROMPT,
+    { text: PARSE_PROMPT },
   ]);
 
   return result.response.text();
@@ -86,25 +129,21 @@ async function callOpenAI(base64: string, mimeType: string, isPdf: boolean): Pro
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('NO_KEY');
 
-  const client = new OpenAI({ apiKey });
+  // OpenAI vision doesn't support PDF — skip to next provider
+  if (isPdf) throw new Error('PDF_UNSUPPORTED');
 
-  if (isPdf) {
-    // OpenAI doesn't support PDF vision — upload as file then use Assistants or just pass as text hint
-    // Fallback: treat as unsupported and throw so Anthropic is tried
-    throw new Error('PDF_UNSUPPORTED');
-  }
+  const client = new OpenAI({ apiKey });
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 2048,
+    max_tokens: 4096,
+    temperature: 0.1,
+    response_format: { type: 'json_object' },
     messages: [
       {
         role: 'user',
         content: [
-          {
-            type: 'image_url',
-            image_url: { url: `data:${mimeType};base64,${base64}` },
-          },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
           { type: 'text', text: PARSE_PROMPT },
         ],
       },
@@ -140,7 +179,7 @@ async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): 
     headers,
     body: JSON.stringify({
       model: 'claude-opus-4-7',
-      max_tokens: 2048,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: PARSE_PROMPT }] }],
     }),
   });
@@ -154,9 +193,8 @@ async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): 
   return json.content?.[0]?.text ?? '';
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  // 1. Parse form data
   let file: File | null = null;
   try {
     const formData = await req.formData();
@@ -167,10 +205,12 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
 
-  const mimeType = file.type || 'application/octet-stream';
-  if (!ACCEPTED_MIME.has(mimeType)) {
+  const rawMime = file.type || 'application/octet-stream';
+  const mimeType = normalizeMime(rawMime);
+
+  if (!ACCEPTED_MIME.has(rawMime) && !ACCEPTED_MIME.has(mimeType)) {
     return NextResponse.json(
-      { error: `Tipo não suportado: ${mimeType}. Use PDF, PNG, JPG ou WebP.` },
+      { error: `Tipo não suportado: ${rawMime}. Use PDF, PNG, JPG ou WebP.` },
       { status: 415 }
     );
   }
@@ -179,10 +219,10 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString('base64');
 
-  // 2. Try providers in order: Gemini → OpenAI → Anthropic
+  // Try providers: Gemini → OpenAI → Anthropic
   const providers = [
-    { name: 'Gemini', fn: () => callGemini(base64, mimeType) },
-    { name: 'OpenAI', fn: () => callOpenAI(base64, mimeType, isPdf) },
+    { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
+    { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType, isPdf) },
     { name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) },
   ];
 
@@ -192,13 +232,11 @@ export async function POST(req: NextRequest) {
   for (const provider of providers) {
     try {
       rawText = await provider.fn();
-      console.log(`[parse-pdf] Success via ${provider.name}`);
+      console.log(`[parse-pdf] Success via ${provider.name} (${rawText.length} chars)`);
       break;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg === 'NO_KEY' || msg === 'PDF_UNSUPPORTED') {
-        continue; // skip silently — key not configured or format not supported
-      }
+      if (msg === 'NO_KEY' || msg === 'PDF_UNSUPPORTED') continue;
       console.warn(`[parse-pdf] ${provider.name} failed:`, msg);
       lastError = msg;
     }
@@ -209,36 +247,41 @@ export async function POST(req: NextRequest) {
       ? 'Verifique se as chaves de API estão corretas no Vercel.'
       : lastError.includes('429')
       ? 'Limite de requisições atingido. Aguarde e tente novamente.'
-      : 'Configure ao menos uma chave de API (GEMINI_API_KEY, OPENAI_API_KEY ou ANTHROPIC_API_KEY).';
+      : 'Configure ao menos uma chave: GEMINI_API_KEY, OPENAI_API_KEY ou ANTHROPIC_API_KEY.';
 
     return NextResponse.json({ error: `Nenhum provider disponível. ${hint}` }, { status: 503 });
   }
 
-  // 3. Parse JSON
+  // Parse JSON — with detailed logging on failure
   let parsed: ParsedRates;
   try {
     parsed = extractJson(rawText);
-  } catch {
-    console.error('[parse-pdf] Bad JSON from AI:', rawText.slice(0, 500));
+  } catch (e) {
+    console.error('[parse-pdf] JSON parse failed. Raw response (first 1000 chars):', rawText.slice(0, 1000));
+    console.error('[parse-pdf] Parse error:', e);
     return NextResponse.json(
-      { error: 'A IA retornou um formato inesperado. Tente com um arquivo mais legível.' },
+      { error: 'A IA retornou um formato inesperado. Tente com um arquivo mais legível ou menor.' },
       { status: 422 }
     );
   }
 
-  // 4. Build MDR matrix
+  // Build MDR matrix from grouped rate entries
   let matrix = createEmptyMatrix();
   for (const rate of parsed.rates ?? []) {
-    if (!BRANDS.includes(rate.brand)) continue;
-    const partial = expandGroupedRates([
-      {
-        from: rate.installmentFrom,
-        to: rate.installmentTo,
-        mdrBase: rate.mdrBase,
-        anticipationRate: rate.anticipationRate ?? '0.00',
-      },
-    ]);
-    matrix = mergePartialMatrix(matrix, rate.brand, partial);
+    const brand = rate.brand?.toLowerCase() as BrandName;
+    if (!BRANDS.includes(brand)) {
+      console.warn(`[parse-pdf] Unknown brand skipped: ${rate.brand}`);
+      continue;
+    }
+    const from = Math.max(1, Number(rate.installmentFrom) || 1);
+    const to   = Math.min(12, Number(rate.installmentTo)  || from);
+    const partial = expandGroupedRates([{
+      from,
+      to,
+      mdrBase: String(rate.mdrBase ?? '0'),
+      anticipationRate: String(rate.anticipationRate ?? '0'),
+    }]);
+    matrix = mergePartialMatrix(matrix, brand, partial);
   }
 
   return NextResponse.json({
