@@ -1,9 +1,47 @@
 'use client';
 
-import { useState, useRef, useCallback, Fragment } from 'react';
+import { useState, useRef, useCallback, useEffect, Fragment } from 'react';
 import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber } from '@/types/pricing';
 import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { cn } from '@/lib/utils';
+
+// ─── Stage counting helpers (deterministic isolation debug) ─────────────────
+function countMatrixPerBrand(matrix: MDRMatrix): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const brand of BRANDS) {
+    let c = 0;
+    for (const inst of INSTALLMENTS) {
+      const e = matrix[brand][inst as InstallmentNumber];
+      if (e && e.mdrBase && e.mdrBase.length > 0) c++;
+    }
+    out[brand] = c;
+  }
+  return out;
+}
+
+function logStage(stage: string, counts: Record<string, number>) {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  // eslint-disable-next-line no-console
+  console.log(`[PDFImportModal] stage=${stage} total=${total} counts=${JSON.stringify(counts)}`);
+}
+
+function assertNoDrop(
+  fromStage: string,
+  fromCounts: Record<string, number>,
+  toStage: string,
+  toCounts: Record<string, number>
+) {
+  for (const brand of BRANDS) {
+    const a = fromCounts[brand] ?? 0;
+    const b = toCounts[brand] ?? 0;
+    if (b < a) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[PDFImportModal] ASSERTION FAILED ${fromStage} → ${toStage}: ${brand} dropped ${a} → ${b}`
+      );
+    }
+  }
+}
 
 type ImportStep = 'upload' | 'processing' | 'review' | 'error';
 
@@ -98,12 +136,52 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
       }
       setErrorDebug('');
 
+      // ── stage=response: what arrived from the server ─────────────────────
+      const responseCounts = countMatrixPerBrand(data.matrix as MDRMatrix);
+      logStage('response', responseCounts);
+      if (data.debug?.quality?.perBrand) {
+        logStage('server-reported', data.debug.quality.perBrand as Record<string, number>);
+        assertNoDrop('server-reported', data.debug.quality.perBrand, 'response', responseCounts);
+      }
+
       setParsed(data);
       setEditMatrix(data.matrix);
       setEditFees(data.fees ?? {});
       setStep('review');
     } catch {
       setErrorMsg('Falha de conexão ao processar o arquivo. Tente novamente.');
+      setStep('error');
+    }
+  }
+
+  async function handleUseMock() {
+    setStep('processing');
+    setErrorMsg('');
+    setErrorDebug('');
+
+    try {
+      const res = await fetch('/api/parse-pdf/mock', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.error ?? 'Erro ao carregar mock.');
+        setStep('error');
+        return;
+      }
+
+      const responseCounts = countMatrixPerBrand(data.matrix as MDRMatrix);
+      logStage('mock-response', responseCounts);
+      if (data.debug?.quality?.perBrand) {
+        logStage('mock-server-reported', data.debug.quality.perBrand as Record<string, number>);
+        assertNoDrop('mock-server-reported', data.debug.quality.perBrand, 'mock-response', responseCounts);
+      }
+
+      setParsed(data);
+      setEditMatrix(data.matrix);
+      setEditFees(data.fees ?? {});
+      setStep('review');
+    } catch {
+      setErrorMsg('Falha ao carregar mock.');
       setStep('error');
     }
   }
@@ -141,6 +219,11 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
       return { ...prev, [brand]: { ...prev[brand], [inst]: entry } };
     });
   }
+
+  // ── stage=state: every time editMatrix changes, log counts ────────────────
+  useEffect(() => {
+    logStage('state', countMatrixPerBrand(editMatrix));
+  }, [editMatrix]);
 
   const hasExtractedFees = editFees.anticipationRate || editFees.chargebackFee;
 
@@ -262,6 +345,15 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                   Você revisa e edita todos os valores antes de confirmar.
                 </p>
               </div>
+
+              {/* Debug: bypass AI with deterministic mock */}
+              <button
+                type="button"
+                onClick={handleUseMock}
+                className="text-xs text-gray-500 hover:text-gray-800 underline underline-offset-2 self-start"
+              >
+                🧪 Usar dados mockados (debug — bypassa IA)
+              </button>
             </div>
           )}
 
@@ -411,6 +503,7 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                     </tr>
                   </thead>
                   <tbody>
+                    {(() => { logStage('render', countMatrixPerBrand(editMatrix)); return null; })()}
                     {INSTALLMENTS.map(inst => (
                       <tr key={inst} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                         <td className="px-3 py-1.5 font-semibold text-gray-700">{inst}x</td>
