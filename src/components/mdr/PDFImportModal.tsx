@@ -23,7 +23,8 @@ interface ParsedResult {
     logs: string[];
     provider: string;
     quality?: { totalFilled: number; perBrand: Record<string, number> };
-    rawPreview?: string;
+    rawFull?: string;
+    parsedTable?: Record<string, (number | null)[]>;
   };
 }
 
@@ -325,11 +326,21 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                           {parsed.debug.logs.join('\n')}
                         </pre>
                       </details>
-                      {parsed.debug.rawPreview && (
+                      {parsed.debug.parsedTable && (
                         <details>
-                          <summary className="text-[10px] text-gray-400 cursor-pointer">Resposta bruta da IA (primeiros 3000 chars)</summary>
-                          <pre className="mt-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded p-2 max-h-40 overflow-auto font-mono whitespace-pre-wrap">
-                            {parsed.debug.rawPreview}
+                          <summary className="text-[10px] text-gray-400 cursor-pointer">Arrays parseados por bandeira</summary>
+                          <pre className="mt-1 text-[10px] text-gray-600 bg-gray-50 border border-gray-200 rounded p-2 max-h-32 overflow-auto font-mono">
+                            {Object.entries(parsed.debug.parsedTable).map(([brand, arr]) =>
+                              `${brand}: [${arr.map(v => v ?? 'null').join(', ')}]`
+                            ).join('\n')}
+                          </pre>
+                        </details>
+                      )}
+                      {parsed.debug.rawFull && (
+                        <details>
+                          <summary className="text-[10px] text-gray-400 cursor-pointer">Resposta bruta completa da IA</summary>
+                          <pre className="mt-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded p-2 max-h-48 overflow-auto font-mono whitespace-pre-wrap">
+                            {parsed.debug.rawFull}
                           </pre>
                         </details>
                       )}
