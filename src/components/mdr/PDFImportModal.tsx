@@ -19,7 +19,12 @@ interface ParsedResult {
   confidenceScore?: number;
   missingData: string[];
   partial?: boolean;
-  debug?: { logs: string[]; provider: string };
+  debug?: {
+    logs: string[];
+    provider: string;
+    quality?: { totalFilled: number; perBrand: Record<string, number> };
+    rawPreview?: string;
+  };
 }
 
 interface PDFImportModalProps {
@@ -297,10 +302,38 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                   <details className="w-full mt-1">
                     <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
                       Debug — provider: {parsed.debug.provider}
+                      {parsed.debug.quality && ` · ${parsed.debug.quality.totalFilled} células preenchidas`}
                     </summary>
-                    <pre className="mt-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded p-2 max-h-28 overflow-auto font-mono">
-                      {parsed.debug.logs.join('\n')}
-                    </pre>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {parsed.debug.quality && (
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(parsed.debug.quality.perBrand).map(([brand, count]) => (
+                            <span key={brand} className={cn(
+                              'text-[10px] px-2 py-0.5 rounded-full font-mono',
+                              count >= 12 ? 'bg-emerald-100 text-emerald-700' :
+                              count > 0  ? 'bg-amber-100 text-amber-700' :
+                                           'bg-red-100 text-red-700'
+                            )}>
+                              {brand}: {count}/12
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <details>
+                        <summary className="text-[10px] text-gray-400 cursor-pointer">Logs do servidor</summary>
+                        <pre className="mt-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded p-2 max-h-24 overflow-auto font-mono">
+                          {parsed.debug.logs.join('\n')}
+                        </pre>
+                      </details>
+                      {parsed.debug.rawPreview && (
+                        <details>
+                          <summary className="text-[10px] text-gray-400 cursor-pointer">Resposta bruta da IA (primeiros 3000 chars)</summary>
+                          <pre className="mt-1 text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded p-2 max-h-40 overflow-auto font-mono whitespace-pre-wrap">
+                            {parsed.debug.rawPreview}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
                   </details>
                 )}
               </div>
