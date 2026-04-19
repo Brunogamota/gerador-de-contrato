@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BRANDS, BrandName, InstallmentNumber, MDREntry } from '@/types/pricing';
 import { createEmptyMatrix, mergePartialMatrix } from '@/lib/calculations/mdr';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +16,7 @@ function normalizeMime(m: string) {
   return m === 'image/jpg' ? 'image/jpeg' : m;
 }
 
-// ─── Shared types ─────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type BrandArray = (number | null)[];
 
@@ -56,7 +55,7 @@ function checkQuality(parsed: ParsedTable): QualityReport {
   return { valid: true, totalFilled, perBrand };
 }
 
-// ─── Vision LLM prompt (chain-of-thought) ─────────────────────────────────────
+// ─── Prompt ───────────────────────────────────────────────────────────────────
 
 const RECONCILE_PROMPT = `You are reading a Brazilian payment MDR proposal.
 
@@ -75,6 +74,8 @@ Rules:
 - If you cannot read a number clearly, write null — DO NOT write 0
 - If a column does not exist, write null for all its rows
 - If Amex and Hipercard share one column, write the same value for both`;
+
+// ─── Parser ───────────────────────────────────────────────────────────────────
 
 function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
   const lg = (m: string) => logs.push(m);
@@ -99,7 +100,7 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
     readRows.set(rowNum, brandValues);
   }
 
-  lg(`LLM chain-of-thought rows: ${readRows.size}`);
+  lg(`LLM rows parsed: ${readRows.size}`);
 
   const metaMatch = raw.match(/METADATA:\s*(.+)/i);
   let antRate = 0, includesAnt = false, chargebackFee = 0, confidence = 60;
@@ -150,8 +151,7 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
     }
 
     table[brand] = arr;
-    const filled = arr.filter(v => v != null && v > 0).length;
-    lg(`  ${brand}: ${filled}/12`);
+    lg(`  ${brand}: ${arr.filter(v => v != null && v > 0).length}/12`);
   }
 
   if (table.amex.some(v => v != null) && table.hipercard.every(v => v == null)) {
@@ -162,15 +162,15 @@ function parseChainOfThought(raw: string, logs: string[]): ParsedTable {
   return {
     meta: { anticipation_rate: antRate, rates_include_anticipation: includesAnt, combined_amex_hipercard: false, confidence, chargeback_fee: chargebackFee },
     table,
-    source: 'llm',
+    source: 'llm-openai',
   };
 }
 
-// ─── Vision LLM providers ─────────────────────────────────────────────────────
+// ─── OpenAI call ──────────────────────────────────────────────────────────────
 
 async function callOpenAI(base64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('NO_KEY');
+  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada.');
   const client = new OpenAI({ apiKey });
   const response = await client.chat.completions.create({
     model: 'gpt-4o',
@@ -188,59 +188,8 @@ async function callOpenAI(base64: string, mimeType: string): Promise<string> {
     ],
   });
   const raw = response.choices[0]?.message?.content ?? '';
-  if (!raw) throw new Error('Empty OpenAI response');
-  if (response.choices[0]?.finish_reason === 'length') throw new Error('OpenAI truncated (finish_reason=length)');
-  return raw;
-}
-
-async function callGemini(base64: string, mimeType: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('NO_KEY');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    generationConfig: { temperature: 0, maxOutputTokens: 4096 },
-  });
-  const result = await model.generateContent([
-    { inlineData: { data: base64, mimeType } },
-    { text: RECONCILE_PROMPT },
-  ]);
-  const raw = result.response.text();
-  if (!raw) throw new Error('Empty Gemini response');
-  return raw;
-}
-
-async function callAnthropic(base64: string, mimeType: string, isPdf: boolean): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('NO_KEY');
-
-  type Block =
-    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
-    | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
-    | { type: 'text'; text: string };
-
-  const fileBlock: Block = isPdf
-    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
-    : { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } };
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      ...(isPdf ? { 'anthropic-beta': 'pdfs-2024-09-25' } : {}),
-    },
-    body: JSON.stringify({
-      model: 'claude-opus-4-7',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: [fileBlock, { type: 'text', text: RECONCILE_PROMPT }] }],
-    }),
-  });
-  if (!res.ok) throw new Error(`ANTHROPIC_${res.status}`);
-  const json = await res.json();
-  const raw = json.content?.[0]?.text ?? '';
-  if (!raw) throw new Error('Empty Anthropic response');
+  if (!raw) throw new Error('OpenAI retornou resposta vazia.');
+  if (response.choices[0]?.finish_reason === 'length') throw new Error('Resposta truncada pelo OpenAI (finish_reason=length).');
   return raw;
 }
 
@@ -288,11 +237,18 @@ function buildMatrix(
   return matrix;
 }
 
-// ─── Main handler ─────────────────────────────────────────────────────────────
+// ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const logs: string[] = [];
   const lg = (m: string) => { console.log(`[parse-pdf] ${m}`); logs.push(m); };
+
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json({
+      error: 'OPENAI_API_KEY não configurada. Adicione a variável de ambiente e reinicie o servidor.',
+      debug: { logs },
+    }, { status: 503 });
+  }
 
   let file: File | null = null;
   try {
@@ -309,92 +265,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Tipo não suportado: ${rawMime}.` }, { status: 415 });
   }
 
-  const isPdf = mimeType === 'application/pdf';
   const fileBuffer = Buffer.from(await file.arrayBuffer());
   const base64 = fileBuffer.toString('base64');
-  lg(`File: ${file.name}, mime=${mimeType}, ${(file.size / 1024).toFixed(0)}KB, isPdf=${isPdf}`);
+  lg(`File: ${file.name}, mime=${mimeType}, ${(file.size / 1024).toFixed(0)}KB`);
 
-  // ── Provider availability check ──────────────────────────────────────────────
-  const hasOpenAI    = !!process.env.OPENAI_API_KEY;
-  const hasGemini    = !!process.env.GEMINI_API_KEY;
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-  lg(`Providers: OpenAI=${hasOpenAI}, Gemini=${hasGemini}, Anthropic=${hasAnthropic}`);
-
-  if (!hasOpenAI && !hasGemini && !hasAnthropic) {
+  let raw: string;
+  try {
+    lg('OpenAI: calling...');
+    raw = await callOpenAI(base64, mimeType);
+    lg(`OpenAI: ✓ ${raw.length} chars`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    lg(`OpenAI: failed — ${msg}`);
     return NextResponse.json({
-      error: 'Nenhum provider de IA configurado. Configure OPENAI_API_KEY ou GEMINI_API_KEY no painel do Vercel.',
-      debug: { logs, preview: logs.join('\n') },
-    }, { status: 503 });
+      error: `Falha ao processar com OpenAI: ${msg}`,
+      debug: { logs },
+    }, { status: 502 });
   }
 
-  // ── Provider chain: OpenAI → Gemini → Anthropic (only if key set) ────────────
-  const providers = [
-    { name: 'OpenAI',    fn: () => callOpenAI(base64, mimeType) },
-    { name: 'Gemini',    fn: () => callGemini(base64, mimeType) },
-    ...(hasAnthropic
-      ? [{ name: 'Anthropic', fn: () => callAnthropic(base64, mimeType, isPdf) }]
-      : []),
-  ];
-  lg(`Provider order: ${providers.map(p => p.name).join(' → ')}`);
-
-  let bestParsed: ParsedTable | null = null;
-  let bestQuality: QualityReport | null = null;
-  let bestRaw = '';
-  let usedProvider = '';
-
-  for (const provider of providers) {
-    let raw: string;
-    try {
-      lg(`${provider.name}: calling...`);
-      raw = await provider.fn();
-      lg(`${provider.name}: ✓ ${raw.length} chars received`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg === 'NO_KEY') { lg(`${provider.name}: skipped (key not set)`); continue; }
-      const hasNext = providers.indexOf(provider) < providers.length - 1;
-      lg(`${provider.name}: failed — ${msg}${hasNext ? ' → trying next provider' : ''}`);
-      continue;
-    }
-
-    let parsed: ParsedTable;
-    try {
-      parsed = parseChainOfThought(raw, logs);
-      parsed.source = `llm-${provider.name.toLowerCase()}`;
-    } catch (err) {
-      lg(`${provider.name}: parse error — ${err}`);
-      continue;
-    }
-
-    const q = checkQuality(parsed);
-    lg(`${provider.name}: quality valid=${q.valid}, total=${q.totalFilled}`);
-
-    if (!bestParsed || q.totalFilled > (bestQuality?.totalFilled ?? 0)) {
-      bestParsed = parsed;
-      bestQuality = q;
-      bestRaw = raw;
-      usedProvider = parsed.source;
-    }
-
-    if (q.valid) {
-      lg(`${provider.name}: ✓ accepted`);
-      break;
-    }
-    lg(`${provider.name}: partial result, trying next provider...`);
+  let parsed: ParsedTable;
+  try {
+    parsed = parseChainOfThought(raw, logs);
+  } catch (err) {
+    lg(`Parse error: ${err}`);
+    return NextResponse.json({ error: 'Falha ao interpretar resposta da IA.', debug: { logs } }, { status: 500 });
   }
 
-  if (!bestParsed) {
-    return NextResponse.json({
-      error: 'Não foi possível extrair dados. Verifique se OPENAI_API_KEY ou GEMINI_API_KEY estão configuradas no Vercel.',
-      debug: { logs, preview: logs.join('\n') },
-    }, { status: 503 });
-  }
+  const quality = checkQuality(parsed);
+  lg(`Quality: valid=${quality.valid}, total=${quality.totalFilled}`);
 
-  // ── Build MDR matrix ─────────────────────────────────────────────────────────
   lg('Building matrix...');
-  const { meta, table } = bestParsed;
+  const { meta, table } = parsed;
   const antRate = meta.anticipation_rate ?? 0;
   const includesAnt = meta.rates_include_anticipation && antRate > 0;
-
   const matrix = buildMatrix(table, antRate, includesAnt, logs);
 
   const finalCounts: Record<string, number> = {};
@@ -405,13 +308,12 @@ export async function POST(req: NextRequest) {
     }
     finalCounts[brand] = c;
   }
-  lg(`Final matrix counts: ${JSON.stringify(finalCounts)}`);
+  lg(`Final counts: ${JSON.stringify(finalCounts)}`);
 
   const fees: { anticipationRate?: string; chargebackFee?: string } = {};
   if (antRate > 0) fees.anticipationRate = antRate.toFixed(2);
   if (meta.chargeback_fee > 0) fees.chargebackFee = meta.chargeback_fee.toFixed(2);
 
-  const isPartial = !bestQuality?.valid;
   const missingData: string[] = [];
   for (const brand of BRANDS) {
     const n = finalCounts[brand];
@@ -422,7 +324,7 @@ export async function POST(req: NextRequest) {
   const confLabel: 'high' | 'medium' | 'low' =
     meta.confidence >= 80 ? 'high' : meta.confidence >= 50 ? 'medium' : 'low';
 
-  lg(`DONE: source=${usedProvider}, partial=${isPartial}, confidence=${meta.confidence}`);
+  lg(`DONE: partial=${!quality.valid}, confidence=${meta.confidence}`);
 
   return NextResponse.json({
     matrix,
@@ -430,12 +332,12 @@ export async function POST(req: NextRequest) {
     confidence: confLabel,
     confidenceScore: meta.confidence,
     missingData,
-    partial: isPartial,
+    partial: !quality.valid,
     debug: {
       logs,
-      provider: usedProvider,
+      provider: 'openai',
       quality: { totalFilled: Object.values(finalCounts).reduce((a, b) => a + b, 0), perBrand: finalCounts },
-      rawFull: bestRaw,
+      rawFull: raw,
       parsedTable: table,
     },
   });
