@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { HardNavLink } from '@/components/ui/HardNavLink';
 import { getPrisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -56,13 +57,13 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-ink-50">Dashboard</h1>
           <p className="text-sm text-ink-400 mt-1">Gerencie contratos e tabelas de pricing</p>
         </div>
-        <Link
+        <HardNavLink
           href="/contracts/new"
           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm"
           style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
         >
           + Novo Contrato
-        </Link>
+        </HardNavLink>
       </div>
 
       {/* Stats */}
@@ -93,13 +94,13 @@ export default async function DashboardPage() {
         {recent.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-ink-500 text-sm mb-4">Nenhum contrato gerado ainda</p>
-            <Link
+            <HardNavLink
               href="/contracts/new"
               className="inline-flex px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-all"
               style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
             >
               Criar primeiro contrato
-            </Link>
+            </HardNavLink>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -166,9 +167,9 @@ export default async function DashboardPage() {
           <div key={card.title} className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card p-6 flex flex-col gap-3">
             <h3 className="font-semibold text-ink-50">{card.title}</h3>
             <p className="text-sm text-ink-400 flex-1">{card.desc}</p>
-            <Link href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">
+            <HardNavLink href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">
               {card.cta} →
-            </Link>
+            </HardNavLink>
           </div>
         ))}
       </div>

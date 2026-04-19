@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { HardNavLink } from '@/components/ui/HardNavLink';
 import { getPrisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -43,13 +44,13 @@ export default async function ContractsPage() {
           <h1 className="text-2xl font-bold text-ink-50">Contratos</h1>
           <p className="text-sm text-ink-400 mt-1">{contracts.length} contrato{contracts.length !== 1 ? 's' : ''} no sistema</p>
         </div>
-        <Link
+        <HardNavLink
           href="/contracts/new"
           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm"
           style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
         >
           + Novo Contrato
-        </Link>
+        </HardNavLink>
       </div>
 
       <div className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card overflow-hidden">
@@ -59,13 +60,13 @@ export default async function ContractsPage() {
               <span className="text-2xl">📄</span>
             </div>
             <p className="text-ink-400 text-sm mb-4">Nenhum contrato gerado ainda</p>
-            <Link
+            <HardNavLink
               href="/contracts/new"
               className="inline-flex px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-all"
               style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
             >
               Criar primeiro contrato
-            </Link>
+            </HardNavLink>
           </div>
         ) : (
           <table className="w-full text-sm">

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { HardNavLink } from '@/components/ui/HardNavLink';
 import { RebornMark } from '@/components/brand/RebornLogo';
 import './globals.css';
 
@@ -42,13 +43,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 >
                   Contratos
                 </Link>
-                <Link
+                <HardNavLink
                   href="/contracts/new"
                   className="ml-3 px-4 py-1.5 rounded-lg text-sm font-semibold text-white transition-all"
                   style={{ background: 'linear-gradient(135deg,#f72662,#771339)', boxShadow: '0 0 12px rgba(247,38,98,0.35)' }}
                 >
                   + Novo
-                </Link>
+                </HardNavLink>
               </nav>
             </div>
           </header>
