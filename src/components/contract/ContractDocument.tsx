@@ -243,30 +243,45 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
         <Item n="14.5">Os resultados das auditorias poderão ser utilizados como base para suspensão ou rescisão contratual, constituição de reserva de segurança ou aplicação de multas.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA QUINTA – DAS ALTERAÇÕES CONTRATUAIS E REAJUSTES">
-        <Item n="15.1.1">A REBORN reserva-se o direito de modificar unilateralmente os termos deste Contrato, mediante notificação ao CONTRATANTE com antecedência mínima de 30 (trinta) dias.</Item>
-        <Item n="15.2.1">Os valores e taxas serão reajustados anualmente, na data de aniversário do Contrato, com base na variação positiva do IGPM/FGV acumulado nos 12 meses anteriores.</Item>
+      <Clause title="CLÁUSULA DÉCIMA QUINTA – DA FORÇA MAIOR E CASO FORTUITO">
+        <Item n="15.1">Nenhuma das Partes será responsabilizada por atrasos ou inadimplemento decorrentes de eventos de força maior ou caso fortuito, conforme definidos pela legislação civil brasileira, incluindo, mas não se limitando a: pandemias, desastres naturais, guerras, ataques cibernéticos em larga escala, interrupções de infraestrutura de terceiros (operadoras, bancos, adquirentes), ou decisões governamentais.</Item>
+        <Item n="15.2">A Parte afetada deverá notificar a outra no prazo máximo de 48 (quarenta e oito) horas da ocorrência do evento, descrevendo a natureza, extensão e duração prevista.</Item>
+        <Item n="15.3">Durante o evento de força maior, as obrigações financeiras do CONTRATANTE permanecem exigíveis na medida em que as transações já processadas gerem recursos.</Item>
+        <Item n="15.4">Caso o evento de força maior persista por mais de 30 (trinta) dias consecutivos, qualquer das Partes poderá rescindir este Contrato mediante notificação por escrito, sem ônus ou penalidade.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA SEXTA – DA CESSÃO E TRANSFERÊNCIA">
-        <Item n="16.1">O CONTRATANTE não poderá ceder ou transferir este Contrato a terceiros sem o prévio consentimento expresso e por escrito da REBORN.</Item>
-        <Item n="16.3">A REBORN poderá ceder este Contrato a empresas do mesmo grupo econômico mediante simples notificação ao CONTRATANTE.</Item>
+      <Clause title="CLÁUSULA DÉCIMA SEXTA – DA INTEGRAÇÃO, ONBOARDING E CERTIFICAÇÃO">
+        <Item n="16.1">Após a assinatura deste Contrato, o CONTRATANTE passará por processo de onboarding que inclui: (i) análise cadastral e documental; (ii) análise de risco, PLD/FT e compliance; (iii) configuração técnica da Plataforma; (iv) integração via API e homologação; (v) treinamento e capacitação da equipe.</Item>
+        <Item n="16.2">O prazo estimado para conclusão do onboarding é de até 10 (dez) dias úteis, podendo ser estendido mediante justificativa ou em caso de pendências documentais do CONTRATANTE.</Item>
+        <Item n="16.3">A REBORN reserva-se o direito de recusar o credenciamento do CONTRATANTE a seu exclusivo critério, com base em suas políticas internas de risco e compliance, sem necessidade de justificativa, hipótese em que quaisquer valores antecipados serão devolvidos integralmente.</Item>
+        <Item n="16.4">O CONTRATANTE é responsável por manter suas integrações técnicas atualizadas, devendo promover as adequações necessárias sempre que solicitado pela REBORN mediante notificação com antecedência mínima de 30 (trinta) dias.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA SÉTIMA – DAS NOTIFICAÇÕES">
-        <Item n="17.1">Todas as notificações deverão ser realizadas por escrito e encaminhadas para os endereços e e-mails indicados no Quadro-Resumo.</Item>
-        <Item n="17.2">Consideram-se válidas as notificações enviadas por: (i) e-mail com confirmação de leitura; (ii) carta registrada com AR; (iii) entrega pessoal; (iv) por meio da Plataforma REBORN.</Item>
+      <Clause title="CLÁUSULA DÉCIMA SÉTIMA – DA CESSÃO E TRANSFERÊNCIA">
+        <Item n="17.1">O CONTRATANTE não poderá ceder, transferir, subcontratar ou de qualquer forma onerar as obrigações e direitos decorrentes deste Contrato a terceiros, sem o prévio consentimento expresso e por escrito da REBORN.</Item>
+        <Item n="17.2">A REBORN poderá ceder este Contrato a empresas do mesmo grupo econômico ou em caso de reestruturação societária, mediante simples notificação ao CONTRATANTE com antecedência de 15 (quinze) dias, sem necessidade de consentimento.</Item>
+        <Item n="17.3">Em caso de alteração do controle societário do CONTRATANTE, este deverá notificar a REBORN em até 5 (cinco) dias úteis, facultando à REBORN a revisão das condições contratuais ou rescisão sem multa.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA OITAVA – DA RESCISÃO">
-        <Item n="18.1.1">Qualquer das PARTES poderá rescindir este Contrato sem justa causa mediante notificação por escrito com antecedência mínima de 60 (sessenta) dias.</Item>
-        <Item n="18.2.1">A REBORN poderá rescindir imediatamente nas hipóteses de: (a) inadimplência superior a 10 dias; (b) descumprimento reiterado de obrigações; (c) utilização para atividades proibidas; (d) fraude comprovada; (e) taxa de Chargeback superior a 2% por 2 meses consecutivos; (f) falência ou insolvência do CONTRATANTE.</Item>
-        <Item n="18.4.3">Os valores retidos na Reserva de Segurança somente serão liberados após 180 (cento e oitenta) dias corridos da última Transação processada.</Item>
+      <Clause title="CLÁUSULA DÉCIMA OITAVA – DAS NOTIFICAÇÕES">
+        <Item n="18.1">Todas as notificações, comunicações e avisos decorrentes deste Contrato deverão ser realizados por escrito e encaminhados para os endereços e e-mails indicados no Quadro-Resumo.</Item>
+        <Item n="18.2">Consideram-se válidas e eficazes as notificações enviadas por: (i) e-mail com confirmação de leitura ou de entrega; (ii) carta registrada com Aviso de Recebimento (AR); (iii) entrega pessoal com protocolo; (iv) notificação extrajudicial por Cartório; (v) por meio da Plataforma REBORN.</Item>
+        <Item n="18.3">As notificações por e-mail serão consideradas recebidas em 24 (vinte e quatro) horas do envio, salvo prova de não recebimento. As notificações postais serão consideradas recebidas em 5 (cinco) dias úteis da postagem.</Item>
+        <Item n="18.4">É obrigação das Partes manter seus dados de contato atualizados. A desatualização não poderá ser invocada como justificativa para descumprimento de prazos.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA NONA – DAS DISPOSIÇÕES FINAIS">
-        <Item n="19.1">Este Contrato, juntamente com seus anexos, constitui o acordo integral entre as PARTES, substituindo todos os entendimentos e acordos anteriores, verbais ou escritos.</Item>
-        <Item n="19.6">Este Contrato será regido e interpretado de acordo com as leis da República Federativa do Brasil.</Item>
+      <Clause title="CLÁUSULA DÉCIMA NONA – DA RESCISÃO">
+        <p className="font-semibold text-xs mb-1">19.1. Rescisão sem justa causa</p>
+        <Item n="19.1.1">Qualquer das Partes poderá rescindir este Contrato sem justa causa mediante notificação por escrito com antecedência mínima de 60 (sessenta) dias, estando sujeita às multas e consequências estabelecidas neste instrumento.</Item>
+        <p className="font-semibold text-xs mb-1 mt-2">19.2. Rescisão por justa causa pela REBORN</p>
+        <Item n="19.2.1">A REBORN poderá rescindir imediatamente este Contrato, sem ônus e com retenção dos saldos disponíveis para fins de ressarcimento, nas hipóteses de: (i) inadimplência superior a 10 (dez) dias; (ii) descumprimento reiterado de obrigações contratuais; (iii) utilização dos serviços para atividades proibidas; (iv) fraude comprovada ou dolo; (v) taxa de chargeback superior a 2% por 2 (dois) meses consecutivos; (vi) falência, insolvência ou recuperação judicial do CONTRATANTE; (vii) prestação de informações falsas; (viii) violação das normas de PLD/FT; (ix) determinação de autoridade competente.</Item>
+        <p className="font-semibold text-xs mb-1 mt-2">19.3. Rescisão por justa causa pelo CONTRATANTE</p>
+        <Item n="19.3.1">O CONTRATANTE poderá rescindir este Contrato sem multa nas hipóteses de: (i) descumprimento reiterado pelo REBORN das obrigações de SLA (Cláusula 12.6); (ii) alteração unilateral de condições comerciais pelo REBORN sem observância do prazo de 30 dias; (iii) falência ou insolvência da REBORN.</Item>
+        <p className="font-semibold text-xs mb-1 mt-2">19.4. Efeitos da Rescisão</p>
+        <Item n="19.4.1">Na hipótese de rescisão, a REBORN interromperá o processamento de novas transações na data de eficácia da rescisão. As transações em curso serão concluídas normalmente.</Item>
+        <Item n="19.4.2">O CONTRATANTE deverá quitar todos os débitos pendentes perante a REBORN no prazo de 5 (cinco) dias úteis da data de rescisão.</Item>
+        <Item n="19.4.3">Os valores retidos na Reserva de Segurança somente serão liberados após 180 (cento e oitenta) dias corridos da última transação, deduzidos todos os débitos.</Item>
+        <Item n="19.4.4">Sobrevivem à rescisão as obrigações de confidencialidade, proteção de dados, responsabilidade por chargebacks, pagamento de valores devidos e as disposições gerais deste instrumento.</Item>
       </Clause>
 
       <Clause title="CLÁUSULA VIGÉSIMA – DO FORO">
