@@ -55,8 +55,9 @@ export function PreviewStep({
             variant="outline"
             loading={exporting}
             onClick={handleExportPdf}
+            title="Abre o diálogo de impressão — selecione 'Salvar como PDF' para exportar"
           >
-            Exportar PDF
+            Salvar como PDF
           </Button>
           <Button onClick={onSave} loading={isSaving}>
             Salvar Contrato
