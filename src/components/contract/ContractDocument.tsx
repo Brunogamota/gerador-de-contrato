@@ -193,36 +193,54 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
         <Item n="8.7.6">O CONTRATANTE reconhece que o bloqueio imediato de valores em MED é imposição regulatória do Banco Central do Brasil e não constitui ato discricionário da REBORN, sendo vedado ao CONTRATANTE responsabilizar a REBORN por eventuais prejuízos decorrentes do bloqueio durante o período de análise.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA NONA – DA PROTEÇÃO DE DADOS PESSOAIS (LGPD)">
-        <Item n="9.1.1">Para os fins deste Contrato, o CONTRATANTE é considerado CONTROLADOR dos dados pessoais dos Consumidores Finais, e a REBORN atua como OPERADOR, processando dados exclusivamente conforme as instruções do CONTRATANTE.</Item>
-        <Item n="9.1.3">Como Operador, a REBORN compromete-se a: (i) processar dados pessoais apenas conforme instruções do CONTRATANTE; (ii) implementar medidas técnicas e organizacionais adequadas; (iii) notificar o CONTRATANTE sobre incidentes em até 24 horas.</Item>
-        <Item n="9.3.1">Ao término deste Contrato, a REBORN eliminará ou devolverá todos os dados pessoais no prazo de 30 (trinta) dias, exceto os dados que devam ser retidos por exigência legal.</Item>
+      <Clause title="CLÁUSULA NONA – DA RESERVA DE SEGURANÇA">
+        <Item n="9.1">A REBORN poderá constituir e/ou ajustar, a qualquer tempo, Reserva de Segurança (Rolling Reserve) sobre os valores do CONTRATANTE na Plataforma REBORN, nas seguintes hipóteses: (i) taxa de chargeback acima dos limites estabelecidos; (ii) suspeita de fraude ou irregularidade; (iii) aumento significativo no volume de transações; (iv) a critério da área de risco da REBORN.</Item>
+        <Item n="9.2">O percentual e prazo da Reserva de Segurança serão definidos no Anexo II ou por notificação específica ao CONTRATANTE.</Item>
+        <Item n="9.3">Em caso de rescisão contratual por qualquer motivo, os valores retidos na Reserva de Segurança somente serão liberados após 180 (cento e oitenta) dias corridos da última transação processada, deduzidos eventuais chargebacks, multas e valores devidos à REBORN.</Item>
+        <Item n="9.4">O CONTRATANTE desde já autoriza a retenção e compensação dos valores da Reserva de Segurança com quaisquer débitos que venha a ter perante a REBORN.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA – DO NÍVEL DE SERVIÇO (SLA) E DISPONIBILIDADE">
-        <Item n="10.1.1">A REBORN compromete-se a manter a Plataforma disponível com índice de uptime de no mínimo 99,5%, calculado mensalmente, excluindo períodos de manutenção programada.</Item>
-        <Item n="10.1.2">As janelas de manutenção serão comunicadas ao CONTRATANTE com antecedência mínima de 72 (setenta e duas) horas.</Item>
-        <Item n="10.3.1">Suporte técnico disponível por e-mail (suporte@rebornpay.io), telefone (011 97420-5761) e Portal do Cliente, de segunda a sexta-feira, das 9h às 18h (horário de Brasília).</Item>
+      <Clause title="CLÁUSULA DÉCIMA – DA CONFIDENCIALIDADE E PROPRIEDADE INTELECTUAL">
+        <Item n="10.1">As Partes comprometem-se a manter sigilo absoluto sobre todas as Informações Confidenciais, entendidas como quaisquer dados, informações, documentos, estratégias comerciais, informações técnicas, dados de clientes, metodologias, modelos de negócio e know-how a que venham a ter acesso em decorrência deste Contrato.</Item>
+        <Item n="10.2">A obrigação de confidencialidade permanecerá em vigor durante toda a vigência deste Contrato e pelo prazo adicional de 5 (cinco) anos após seu término, independentemente do motivo.</Item>
+        <Item n="10.3">Não são consideradas Informações Confidenciais aquelas que: (i) sejam ou se tornem publicamente conhecidas sem culpa da Parte receptora; (ii) já fossem conhecidas pela Parte receptora antes da celebração deste Contrato; (iii) sejam reveladas por determinação legal ou judicial, desde que a Parte receptora notifique imediatamente a outra Parte.</Item>
+        <Item n="10.4">O descumprimento da obrigação de confidencialidade sujeitará a Parte infratora ao pagamento de multa de R$ 50.000,00 (cinquenta mil reais) por evento, sem prejuízo de indenização por perdas e danos.</Item>
+        <Item n="10.5">Todos os direitos de propriedade intelectual sobre a Plataforma REBORN, suas tecnologias, algoritmos, modelos de antifraude, APIs, interfaces, marcas e demais ativos intangíveis são de titularidade exclusiva da REBORN.</Item>
+        <Item n="10.6">Este Contrato concede ao CONTRATANTE apenas uma licença não exclusiva, não transferível, não sublicenciável e revogável de uso da Plataforma REBORN durante a vigência contratual, exclusivamente para os fins previstos neste instrumento.</Item>
+        <Item n="10.7">É vedado ao CONTRATANTE: (i) realizar engenharia reversa da Plataforma REBORN; (ii) copiar, reproduzir ou redistribuir a tecnologia da REBORN; (iii) utilizar a marca REBORN sem prévia autorização escrita.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA PRIMEIRA – DA LIMITAÇÃO DE RESPONSABILIDADE">
-        <Item n="11.1.1">A REBORN não será responsável por quaisquer danos indiretos, incidentais, especiais, punitivos ou consequenciais, incluindo lucros cessantes, perda de receita ou perda de dados.</Item>
-        <Item n="11.1.2">A responsabilidade total e agregada da REBORN fica limitada ao valor total das taxas pagas pelo CONTRATANTE nos 6 (seis) meses imediatamente anteriores ao evento.</Item>
+      <Clause title="CLÁUSULA DÉCIMA PRIMEIRA – DA PROTEÇÃO DE DADOS PESSOAIS (LGPD)">
+        <Item n="11.1">Para os fins deste Contrato e nos termos da Lei nº 13.709/2018 (LGPD), o CONTRATANTE é considerado CONTROLADOR dos dados pessoais de seus Consumidores Finais, e a REBORN atua como OPERADORA, processando dados exclusivamente para a execução dos serviços contratados e conforme as instruções do CONTRATANTE.</Item>
+        <Item n="11.2">Como Operadora, a REBORN compromete-se a: (i) processar dados pessoais apenas conforme as instruções do CONTRATANTE e para as finalidades previstas neste Contrato; (ii) implementar medidas técnicas e organizacionais adequadas para proteção dos dados; (iii) garantir que as pessoas autorizadas a tratar dados estejam sujeitas a obrigações de confidencialidade; (iv) notificar o CONTRATANTE sobre incidentes de segurança em até 24 (vinte e quatro) horas da ciência do evento; (v) cooperar com a ANPD quando solicitado.</Item>
+        <Item n="11.3">O CONTRATANTE, como Controlador, é exclusivamente responsável pela base legal de tratamento dos dados, pela obtenção de consentimentos necessários e pelo cumprimento dos direitos dos titulares.</Item>
+        <Item n="11.4">A REBORN poderá subcontratar parte do tratamento de dados a parceiros tecnológicos, desde que estes ofereçam garantias suficientes de conformidade com a LGPD.</Item>
+        <Item n="11.5">Ao término deste Contrato, a REBORN eliminará ou devolverá todos os dados pessoais no prazo de 30 (trinta) dias, exceto aqueles que devam ser retidos por exigência legal ou regulatória, os quais serão mantidos pelo prazo mínimo necessário.</Item>
+        <Item n="11.6">O CONTRATANTE indenizará e manterá a REBORN indene de quaisquer penalidades, multas ou condenações impostas pela ANPD ou por decisões judiciais decorrentes de atos do CONTRATANTE como Controlador.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA SEGUNDA – DO DIREITO DE AUDITORIA">
-        <Item n="12.1">A REBORN reserva-se o direito de auditar, a qualquer momento, as operações do CONTRATANTE realizadas através da Plataforma, para verificar conformidade com os termos deste Contrato.</Item>
-        <Item n="12.2">O CONTRATANTE obriga-se a fornecer à REBORN quaisquer informações e documentos solicitados no prazo máximo de 5 (cinco) dias úteis.</Item>
+      <Clause title="CLÁUSULA DÉCIMA SEGUNDA – DO NÍVEL DE SERVIÇO (SLA) E SUPORTE">
+        <Item n="12.1">A REBORN compromete-se a manter a Plataforma disponível com índice de uptime de no mínimo 99,5% (noventa e nove vírgula cinco por cento), calculado mensalmente, excluindo períodos de manutenção programada.</Item>
+        <Item n="12.2">As janelas de manutenção programada serão comunicadas ao CONTRATANTE com antecedência mínima de 72 (setenta e duas) horas, preferencialmente realizadas em horários de menor impacto (madrugada ou fins de semana).</Item>
+        <Item n="12.3">Ocorrências de indisponibilidade não programada serão comunicadas ao CONTRATANTE em até 30 (trinta) minutos de sua detecção, com atualização de status a cada hora.</Item>
+        <Item n="12.4">Suporte técnico disponível nos seguintes canais: (i) e-mail: suporte@rebornpay.io; (ii) telefone: (11) 97420-5761; (iii) Portal do Cliente; (iv) canal de emergência definido no Anexo I. Horário padrão: segunda a sexta-feira, 9h às 18h (horário de Brasília). Plantão para incidentes críticos: 24x7.</Item>
+        <Item n="12.5">Os SLAs de resposta e resolução por criticidade estão detalhados no Anexo I.</Item>
+        <Item n="12.6">O não cumprimento do SLA de disponibilidade por 2 (dois) meses consecutivos confere ao CONTRATANTE o direito de rescindir o Contrato sem multa.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA TERCEIRA – DA FORÇA MAIOR E CASO FORTUITO">
-        <Item n="13.1">Nenhuma das PARTES será responsabilizada por atrasos ou inadimplemento decorrentes de eventos de força maior ou caso fortuito, conforme definidos pela legislação civil brasileira.</Item>
-        <Item n="13.4">Caso o evento de força maior persista por mais de 30 (trinta) dias consecutivos, qualquer das PARTES poderá rescindir este Contrato mediante notificação por escrito, sem ônus ou penalidade.</Item>
+      <Clause title="CLÁUSULA DÉCIMA TERCEIRA – DA LIMITAÇÃO DE RESPONSABILIDADE">
+        <Item n="13.1">A REBORN não será responsável por quaisquer danos indiretos, incidentais, especiais, punitivos ou consequenciais, incluindo lucros cessantes, perda de receita, perda de dados ou danos à reputação, decorrentes do uso ou impossibilidade de uso dos serviços.</Item>
+        <Item n="13.2">A responsabilidade total e agregada da REBORN fica limitada ao valor total das taxas pagas pelo CONTRATANTE nos 6 (seis) meses imediatamente anteriores ao evento gerador do dano.</Item>
+        <Item n="13.3">A limitação de responsabilidade prevista nesta cláusula não se aplica nas hipóteses de dolo ou culpa grave da REBORN, ou em caso de violação das obrigações de proteção de dados pessoais.</Item>
+        <Item n="13.4">O CONTRATANTE é o único responsável perante seus Consumidores Finais, cabendo a ele responder por eventuais demandas, reclamações, processos administrativos ou judiciais decorrentes de suas atividades comerciais. O CONTRATANTE obriga-se a manter a REBORN indene de quaisquer condenações, custas, honorários e despesas decorrentes de demandas de Consumidores Finais.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA DÉCIMA QUARTA – DA INTEGRAÇÃO, ONBOARDING E CERTIFICAÇÃO">
-        <Item n="14.1.1">Após a assinatura deste Contrato, o CONTRATANTE passará por processo de onboarding que inclui: (i) análise cadastral e documental; (ii) análise de risco e compliance; (iii) configuração técnica; (iv) integração com a Plataforma REBORN; (v) treinamento e capacitação.</Item>
-        <Item n="14.1.3">A REBORN reserva-se o direito de recusar o credenciamento do CONTRATANTE a seu exclusivo critério, com base em suas políticas internas de risco e compliance.</Item>
+      <Clause title="CLÁUSULA DÉCIMA QUARTA – DO DIREITO DE AUDITORIA E MONITORAMENTO">
+        <Item n="14.1">A REBORN reserva-se o direito de auditar, a qualquer momento, as operações do CONTRATANTE realizadas através da Plataforma, para verificar conformidade com os termos deste Contrato, normas regulatórias e melhores práticas de segurança.</Item>
+        <Item n="14.2">O CONTRATANTE obriga-se a fornecer à REBORN quaisquer informações, documentos e acessos solicitados no prazo máximo de 5 (cinco) dias úteis.</Item>
+        <Item n="14.3">A REBORN poderá contratar terceiros especializados para realizar auditorias, garantindo que estes estejam sujeitos às obrigações de confidencialidade deste instrumento.</Item>
+        <Item n="14.4">O CONTRATANTE autoriza a REBORN a monitorar, de forma contínua e automatizada, os padrões de transações realizadas através da Plataforma, para fins de prevenção a fraudes, lavagem de dinheiro e compliance.</Item>
+        <Item n="14.5">Os resultados das auditorias poderão ser utilizados como base para suspensão ou rescisão contratual, constituição de reserva de segurança ou aplicação de multas.</Item>
       </Clause>
 
       <Clause title="CLÁUSULA DÉCIMA QUINTA – DAS ALTERAÇÕES CONTRATUAIS E REAJUSTES">
