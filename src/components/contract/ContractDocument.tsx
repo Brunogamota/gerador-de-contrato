@@ -36,7 +36,7 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
 
 
       <p className="text-center font-bold text-sm uppercase tracking-wide mb-6">
-        CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE INFRA DE PAGAMENTOS E ANTIFRAUDE
+        CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE GATEWAY E ORQUESTRADOR DE PAGAMENTO COM SOLUÇÃO ANTIFRAUDE
       </p>
 
       {/* Quadro-Resumo */}
@@ -62,40 +62,31 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
       </table>
 
       {/* Corpo do contrato */}
-      <Section title="CONDIÇÕES GERAIS DE PRESTAÇÃO DOS SERVIÇOS" />
-
-      <p className="mb-3">
-        Pelo presente instrumento particular, <strong>REBORN TECNOLOGIA E SERVIÇOS LTDA</strong>, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 59.627.567/0001-35, com sede na Avenida Brg. Faria Lima, 1572, Sala 1022 - Edifício Barão de Rothschild - Jardim Paulistano, São Paulo/SP, CEP 01451-917, neste ato devidamente representada na forma de seus atos constitutivos, doravante denominada simplesmente <strong>"REBORN"</strong>;
-      </p>
-      <p className="mb-3">
-        E <strong>{d.contratanteNome}</strong>, inscrita no CNPJ sob o nº {d.contratanteCnpj}, com sede {d.contratanteEndereco}, neste ato devidamente representada na forma de seus atos constitutivos, doravante denominada simplesmente <strong>"CONTRATANTE"</strong>;
-      </p>
-      <p className="mb-3">
-        REBORN e CONTRATANTE, quando em conjunto, serão doravante denominadas <strong>"PARTES"</strong>, e, individualmente, <strong>"PARTE"</strong>.
-      </p>
-
-      <p className="font-bold mb-2">CONSIDERANDO QUE:</p>
-      <p className="mb-2">I. A REBORN é uma empresa de tecnologia especializada em soluções para o mercado de pagamentos digitais, oferecendo infraestrutura tecnológica avançada para processamento de pagamentos, gestão de fluxos financeiros e soluções de gateway/orquestrador de pagamento com antifraude;</p>
-      <p className="mb-2">II. O CONTRATANTE possui interesse em contratar os serviços e soluções tecnológicas oferecidos pela REBORN para otimizar suas operações comerciais e financeiras;</p>
-      <p className="mb-4">III. As PARTES, de comum acordo e em boa-fé, celebram o presente Contrato de Prestação de Serviços de Gateway e Orquestrador de Pagamento, que se regerá pelas cláusulas e condições a seguir estabelecidas.</p>
-
-      <p className="font-bold text-center mb-4">RESOLVEM AS PARTES CELEBRAR O PRESENTE CONTRATO, MEDIANTE AS CLÁUSULAS E CONDIÇÕES SEGUINTES:</p>
-
-      <Clause title="CLÁUSULA PRIMEIRA – DO OBJETO">
-        <Item n="1.1">O presente Contrato tem por objeto a prestação de serviços de Gateway e Orquestrador de Pagamento com Solução Antifraude pela REBORN ao CONTRATANTE, conforme as condições gerais e específicas detalhadas nos anexos deste instrumento.</Item>
-        <Item n="1.2">Os serviços objeto deste Contrato estão detalhadamente descritos no Anexo I – Serviços de Gateway/Orquestrador e Antifraude.</Item>
-        <Item n="1.3">A contratação dos serviços implica na aceitação plena e irrestrita das condições estabelecidas neste instrumento e seus anexos.</Item>
+      <Clause title="CLÁUSULA PRIMEIRA – DAS PARTES E DO PREÂMBULO">
+        <p className="mb-2 text-xs">Pelo presente instrumento particular e na melhor forma de direito, as Partes abaixo qualificadas, de comum acordo e em boa-fé, celebram o presente Contrato de Prestação de Serviços de Gateway e Orquestrador de Pagamento com Solução Antifraude («Contrato»), que se regerá pelas cláusulas e condições seguintes.</p>
+        <p className="mb-2 text-xs"><strong>REBORN TECNOLOGIA E SERVIÇOS LTDA</strong>, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº 59.627.567/0001-35, com sede na Avenida Brg. Faria Lima, 1572, Sala 1022, Edifício Barão de Rothschild, Jardim Paulistano, São Paulo/SP, CEP 01451-917, doravante denominada simplesmente <strong>«REBORN»</strong>;</p>
+        <p className="mb-2 text-xs">E <strong>{d.contratanteNome}</strong>, inscrita no CNPJ sob o nº {d.contratanteCnpj}, com sede na {d.contratanteEndereco}, doravante denominada simplesmente <strong>«CONTRATANTE»</strong>.</p>
+        <p className="mb-2 text-xs">REBORN e CONTRATANTE, individualmente denominadas «Parte» e, em conjunto, «Partes».</p>
+        <p className="font-bold mb-1 text-xs">CONSIDERANDO QUE:</p>
+        <ul className="list-disc ml-4 mb-2 text-xs space-y-1">
+          <li>A REBORN é empresa especializada em soluções para o mercado de pagamentos digitais, oferecendo infraestrutura tecnológica avançada para processamento de pagamentos, gestão de fluxos financeiros e soluções de gateway/orquestrador de pagamento com antifraude;</li>
+          <li>O CONTRATANTE possui interesse em contratar os serviços e soluções tecnológicas oferecidos pela REBORN para otimizar suas operações comerciais e financeiras;</li>
+          <li>As Partes celebram este instrumento de forma livre, consciente e sem qualquer vício de vontade.</li>
+        </ul>
       </Clause>
 
-      <Clause title="CLÁUSULA SEGUNDA – DA VIGÊNCIA">
-        <Item n="2.1">O presente Contrato entra em vigor na data de sua assinatura pelas PARTES e vigorará por {d.vigenciaMeses} meses, renovando-se automaticamente por iguais períodos sucessivos, salvo manifestação em contrário de qualquer das PARTES com antecedência mínima de 30 (trinta) dias da data de renovação.</Item>
-        <Item n="2.2">A vigência específica dos serviços será contada a partir da data de ativação da Plataforma REBORN para o CONTRATANTE.</Item>
+      <Clause title="CLÁUSULA SEGUNDA – DO OBJETO">
+        <Item n="2.1">O presente Contrato tem por objeto a prestação, pela REBORN ao CONTRATANTE, de serviços de Gateway e Orquestrador de Pagamento com Solução Antifraude, conforme condições detalhadas no Anexo I – Descrição dos Serviços.</Item>
+        <Item n="2.2">Os serviços compreendem: (i) gateway de pagamento com suporte a cartão de crédito, débito, PIX, boleto bancário e demais meios que vierem a ser disponibilizados; (ii) orquestração inteligente de pagamentos com roteamento entre múltiplos adquirentes; (iii) motor antifraude integrado com análise comportamental em tempo real; (iv) dashboard de gestão, relatórios e conciliação financeira; (v) split de pagamentos entre múltiplos recebedores (subsellers); (vi) webhooks e integrações via API REST.</Item>
+        <Item n="2.3">O processamento de transações de cartão de crédito e débito pela Plataforma REBORN ocorre exclusivamente por meio da modalidade split de pagamentos. Para habilitar o processamento de cartão, o CONTRATANTE deverá: (i) cadastrar cada recebedor final como subseller na Plataforma REBORN, fornecendo todos os dados cadastrais, documentos e informações solicitadas; e (ii) garantir que cada subseller esteja devidamente habilitado e em conformidade com as regras das bandeiras de cartão e com as políticas de risco da REBORN. O descumprimento deste requisito impedirá o processamento de transações de cartão pelo CONTRATANTE.</Item>
+        <Item n="2.4">A contratação dos serviços implica aceitação plena e irrestrita das condições estabelecidas neste instrumento e em todos os seus anexos, os quais são parte integrante deste Contrato.</Item>
+        <Item n="2.5">Quaisquer serviços adicionais não previstos neste Contrato deverão ser formalizados mediante aditamento escrito assinado por ambas as Partes.</Item>
       </Clause>
 
-      <Clause title="CLÁUSULA TERCEIRA – DA REMUNERAÇÃO">
-        <Item n="3.1">A remuneração devida pelo CONTRATANTE à REBORN pela prestação dos serviços será deduzida automaticamente dos valores transacionados pelo CONTRATANTE na Plataforma REBORN, conforme as condições, taxas e prazos de repasse estabelecidos no Anexo II – Remuneração.</Item>
-        <Item n="3.2">O CONTRATANTE reconhece e concorda que a REBORN poderá compensar quaisquer valores devidos pelo CONTRATANTE (incluindo, mas não se limitando a, taxas, multas, indenizações, valores de Chargeback e estornos) com os valores a serem repassados ao CONTRATANTE decorrentes das Transações processadas.</Item>
-        <Item n="3.3">Caso o volume de Transações processadas ou o saldo disponível do CONTRATANTE na Plataforma REBORN seja insuficiente para cobrir os valores devidos à REBORN, o CONTRATANTE deverá realizar o pagamento da diferença em até 5 (cinco) dias úteis após a notificação da REBORN. O não pagamento implicará na incidência de multa de 2% (dois por cento) e juros de 1% (um por cento) ao mês, calculados pro rata die.</Item>
+      <Clause title="CLÁUSULA TERCEIRA – DA VIGÊNCIA">
+        <Item n="3.1">Este Contrato entra em vigor na data de sua assinatura pelas Partes e vigorará por {d.vigenciaMeses} meses, renovando-se automaticamente por iguais e sucessivos períodos, salvo manifestação contrária de qualquer das Partes com antecedência mínima de 60 (sessenta) dias da data de renovação, por escrito.</Item>
+        <Item n="3.2">A vigência específica dos serviços será contada a partir da data de ativação da Plataforma REBORN para o CONTRATANTE, conforme comunicação formal enviada à CONTRATANTE.</Item>
+        <Item n="3.3">O prazo mínimo de permanência é de {d.vigenciaMeses} meses contados da data de ativação.</Item>
       </Clause>
 
       <Clause title="CLÁUSULA QUARTA – DOS DIREITOS E OBRIGAÇÕES GERAIS">
