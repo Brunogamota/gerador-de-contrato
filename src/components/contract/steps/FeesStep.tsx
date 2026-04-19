@@ -28,7 +28,7 @@ const FEE_FIELDS: FeeFieldDef[] = [
   { key: 'taxaAntecipacao', label: 'Taxa de Antecipação', hint: 'Quando solicitada pelo contratante', suffix: '%' },
   { key: 'taxaPreChargeback', label: 'Taxa Pré-Chargeback', hint: 'Por cada pré-chargeback recebido', prefix: 'R$' },
   { key: 'taxaChargeback', label: 'Taxa de Chargeback', hint: 'Por cada chargeback gerado', prefix: 'R$' },
-  { key: 'valorMinimoMensal', label: 'Valor Mínimo Mensal', hint: 'Cobrança mínima caso o volume seja baixo', prefix: 'R$' },
+  { key: 'valorMinimoMensal', label: 'Valor Mínimo Mensal', hint: 'Cobrança mínima caso o volume seja baixo (use ponto como decimal: 5000.00)', prefix: 'R$' },
 ];
 
 export function FeesStep({ form }: FeesStepProps) {
@@ -70,12 +70,45 @@ export function FeesStep({ form }: FeesStepProps) {
         </Select>
       </div>
 
+      {/* Condições especiais */}
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 mb-1">Condições Especiais</h3>
+        <p className="text-sm text-gray-500 mb-5">
+          Parcelamento do setup e isenção temporária do fee mínimo mensal.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Select
+            label="Parcelamento do Setup"
+            hint="Número de parcelas para pagamento do setup"
+            {...register('setupParcelas', { valueAsNumber: true })}
+          >
+            <option value={1}>À vista (1×)</option>
+            <option value={2}>2× parcelas</option>
+            <option value={3}>3× parcelas</option>
+            <option value={6}>6× parcelas</option>
+            <option value={12}>12× parcelas</option>
+          </Select>
+
+          <Select
+            label="Isenção do Fee Mínimo Mensal"
+            hint="Número de meses iniciais sem cobrança do fee mínimo"
+            {...register('isencaoFeeAteMeses', { valueAsNumber: true })}
+          >
+            <option value={0}>Sem isenção</option>
+            <option value={1}>1 mês</option>
+            <option value={2}>2 meses</option>
+            <option value={3}>3 meses</option>
+            <option value={6}>6 meses</option>
+            <option value={12}>12 meses</option>
+          </Select>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-medium text-amber-800 mb-1">Sobre taxas e precisão financeira</p>
+        <p className="text-sm font-medium text-amber-800 mb-1">Formato dos valores monetários</p>
         <p className="text-sm text-amber-700">
-          Todos os valores são armazenados como strings decimais para garantir precisão total — sem
-          erros de ponto flutuante. As operações de cálculo usam Decimal.js com precisão de 20
-          dígitos.
+          Use ponto como separador decimal: <strong>5000.00</strong> para R$ 5.000,00.
+          Todos os valores são armazenados como strings decimais para garantir precisão total.
         </p>
       </div>
     </div>

@@ -70,12 +70,21 @@ export function ContractWizard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data, mdrMatrix, contractNumber }),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        if (res.status === 503) {
+          throw new Error('Banco de dados não configurado (DATABASE_URL). Execute npm run db:push após configurar.');
+        }
+        const detail = errBody.details
+          ? JSON.stringify(errBody.details.fieldErrors ?? errBody.details, null, 2)
+          : (errBody.error ?? 'Erro desconhecido');
+        throw new Error(`Falha ao salvar (${res.status}): ${detail}`);
+      }
       const saved = await res.json();
       router.push(`/contracts/${saved.id}`);
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar o contrato. Tente novamente.');
+      alert(err instanceof Error ? err.message : 'Erro ao salvar o contrato. Tente novamente.');
     } finally {
       setIsSaving(false);
     }

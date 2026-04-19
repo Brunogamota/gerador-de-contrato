@@ -13,6 +13,7 @@ export const ContractDataSchema = z.object({
   foro: z.string().default('São Paulo/SP'),
 
   setup: z.string().default('0.00'),
+  setupParcelas: z.number().int().min(1).max(24).default(1),
   feeTransacao: z.string().default('0.15'),
   taxaAntifraude: z.string().default('1.00'),
   taxaPix: z.string().default('0.45'),
@@ -24,6 +25,7 @@ export const ContractDataSchema = z.object({
   taxaChargeback: z.string().default('65.00'),
   prazoRecebimento: z.string().default('D0'),
   valorMinimoMensal: z.string().default('0.00'),
+  isencaoFeeAteMeses: z.number().int().min(0).max(36).default(0),
 });
 
 export type ContractData = z.infer<typeof ContractDataSchema>;
@@ -54,6 +56,7 @@ export const DEFAULT_CONTRACT_DATA: ContractData = {
   vigenciaMeses: 12,
   foro: 'São Paulo/SP',
   setup: '0.00',
+  setupParcelas: 1,
   feeTransacao: '0.15',
   taxaAntifraude: '1.00',
   taxaPix: '0.45',
@@ -65,4 +68,5 @@ export const DEFAULT_CONTRACT_DATA: ContractData = {
   taxaChargeback: '65.00',
   prazoRecebimento: 'D0',
   valorMinimoMensal: '0.00',
+  isencaoFeeAteMeses: 0,
 };

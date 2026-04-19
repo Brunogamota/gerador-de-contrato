@@ -15,8 +15,23 @@ function mdrVal(matrix: MDRMatrix, brand: BrandName, inst: number): string {
   return v ? `${parseFloat(v).toFixed(2).replace('.', ',')}%` : '-';
 }
 
+function parseMoney(v: string): number {
+  const s = v.trim();
+  if (!s) return 0;
+  if (s.includes(',')) {
+    // Brazilian format "5.000,50" → remove thousand dots, convert comma
+    return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+  }
+  const parts = s.split('.');
+  // "5.000" or "1.234.567": last segment has 3 digits → thousands separator
+  if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+    return parseFloat(s.replace(/\./g, '')) || 0;
+  }
+  return parseFloat(s) || 0;
+}
+
 function cur(v: string | number): string {
-  const n = typeof v === 'string' ? parseFloat(v) : v;
+  const n = typeof v === 'number' ? v : parseMoney(v);
   if (isNaN(n)) return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 }
@@ -387,8 +402,20 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td className={td}>Setup</td>
+              <td className={`${td} text-center`}>
+                {d.setupParcelas > 1
+                  ? `${cur(d.setup)} (${d.setupParcelas}× de ${cur(parseMoney(d.setup) / d.setupParcelas)})`
+                  : cur(d.setup)}
+              </td>
+              <td className={td}>
+                {d.setupParcelas > 1
+                  ? `Parcelado em ${d.setupParcelas} vezes mensais`
+                  : 'Valor único devido na assinatura'}
+              </td>
+            </tr>
             {[
-              ['Setup', cur(d.setup), 'Valor único devido na assinatura'],
               ['Fee por Transação', cur(d.feeTransacao), 'Por cada Transação processada'],
               ['Taxa de Antifraude', cur(d.taxaAntifraude), 'Por transação verificada'],
               ['Taxa PIX In', cur(d.taxaPix), 'Por cada Transação PIX processada'],
@@ -410,7 +437,14 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
         </table>
 
         <p className="font-semibold text-xs mb-1">3. VALOR MÍNIMO MENSAL</p>
-        <p className="text-xs mb-4">O CONTRATANTE concorda em pagar à REBORN um valor mínimo mensal de {cur(d.valorMinimoMensal)}, caso as taxas devidas não atinjam este montante.</p>
+        <p className="text-xs mb-2">O CONTRATANTE concorda em pagar à REBORN um valor mínimo mensal de {cur(d.valorMinimoMensal)}, caso as taxas devidas não atinjam este montante.</p>
+        {d.isencaoFeeAteMeses > 0 && (
+          <p className="text-xs mb-4 italic">
+            * <strong>Isenção temporária:</strong> O valor mínimo mensal estará isento durante os primeiros{' '}
+            <strong>{d.isencaoFeeAteMeses} {d.isencaoFeeAteMeses === 1 ? 'mês' : 'meses'}</strong> de vigência,
+            contados da data de ativação da Plataforma REBORN.
+          </p>
+        )}
       </div>
 
       {/* Assinaturas */}

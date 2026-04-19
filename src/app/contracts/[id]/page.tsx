@@ -28,6 +28,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     vigenciaMeses: contract.vigenciaMeses,
     foro: contract.foro,
     setup: contract.setup,
+    setupParcelas: (contract as any).setupParcelas ?? 1,
     feeTransacao: contract.feeTransacao,
     taxaAntifraude: contract.taxaAntifraude,
     taxaPix: contract.taxaPix,
@@ -39,6 +40,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     taxaChargeback: contract.taxaChargeback,
     prazoRecebimento: contract.prazoRecebimento,
     valorMinimoMensal: contract.valorMinimoMensal,
+    isencaoFeeAteMeses: (contract as any).isencaoFeeAteMeses ?? 0,
   };
 
   const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');

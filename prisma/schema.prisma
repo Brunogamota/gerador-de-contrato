@@ -27,6 +27,7 @@ model Contract {
 
   // Taxas operacionais (stored as string for decimal precision)
   setup             String @default("0.00")
+  setupParcelas     Int    @default(1)
   feeTransacao      String @default("0.15")
   taxaAntifraude    String @default("1.00")
   taxaPix           String @default("0.45")
@@ -36,8 +37,9 @@ model Contract {
   taxaAntecipacao   String @default("1.45")
   taxaPreChargeback String @default("0.00")
   taxaChargeback    String @default("65.00")
-  prazoRecebimento  String @default("D0")
-  valorMinimoMensal String @default("0.00")
+  prazoRecebimento   String @default("D0")
+  valorMinimoMensal  String @default("0.00")
+  isencaoFeeAteMeses Int    @default(0)
 
   // MDR Matrix serialized as JSON
   mdrMatrix String @default("{}")
