@@ -1,5 +1,3 @@
-import { RebornMark } from '@/components/brand/RebornLogo';
-
 interface ContractLetterheadProps {
   forPrint?: boolean;
 }
@@ -12,9 +10,8 @@ export function ContractLetterhead({ forPrint = false }: ContractLetterheadProps
   return (
     <div className={base.container}>
       <div className="flex items-start justify-between gap-6">
-        {/* Left: Logo + company name */}
+        {/* Left: company name */}
         <div className="flex items-start gap-4">
-          <RebornMark size={44} color="#161419" />
           <div>
             <p
               className="font-bold text-ink-950 leading-none tracking-tight"
