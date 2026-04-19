@@ -1,7 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Inter } from 'next/font/google';
 import { RebornMark } from '@/components/brand/RebornLogo';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'RebornPay · Contratos',
@@ -10,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" className={`dark ${inter.variable}`}>
       <body className="bg-ink-950 text-ink-50">
         <div className="min-h-screen flex flex-col bg-ink-950">
           {/* ── Top navigation (dark branded) ──────────────────── */}
