@@ -26,11 +26,12 @@ export async function POST(req: NextRequest) {
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const body = await req.json();
-    const { data, mdrMatrix, costTable, marginConfig, proposalNumber } = body as {
+    const { data, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber } = body as {
       data: unknown;
       mdrMatrix: unknown;
       costTable?: unknown;
       marginConfig?: unknown;
+      clientRates?: unknown;
       proposalNumber?: string;
     };
 
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
         mdrMatrix:           JSON.stringify(mdrMatrix as MDRMatrix),
         costTable:           costTable ? JSON.stringify(costTable) : '{}',
         marginConfig:        marginConfig ? JSON.stringify(marginConfig) : '{}',
+        clientRates:         clientRates ? JSON.stringify(clientRates) : '{}',
         validadeAte:         d.validadeAte,
         observacoes:         d.observacoes || '',
         status:              'draft',

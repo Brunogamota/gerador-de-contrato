@@ -43,6 +43,7 @@ type ProposalRecord = {
   mdrMatrix: string;
   costTable: string;
   marginConfig: string;
+  clientRates: string;
   mcc?: string | null;
   validadeAte: string;
   observacoes?: string | null;
@@ -160,6 +161,9 @@ export default function ProposalDetailPage() {
   const costTable: MDRMatrix = (() => {
     try { return JSON.parse(proposal.costTable || '{}'); } catch { return {}; }
   })();
+  const clientRates: MDRMatrix = (() => {
+    try { return JSON.parse(proposal.clientRates || '{}'); } catch { return {}; }
+  })();
   const marginConfig: MarginConfig = (() => {
     try { return JSON.parse(proposal.marginConfig || '{}'); } catch { return { type: 'percent', value: '0' }; }
   })();
@@ -169,6 +173,10 @@ export default function ProposalDetailPage() {
   const statusInfo = PROPOSAL_STATUS_LABELS[status] ?? PROPOSAL_STATUS_LABELS.draft;
   const isConverted = proposal.status === 'converted_to_contract';
   const hasCostData = Object.keys(costTable).length > 0;
+  const hasClientRates = Object.values(clientRates).some(
+    (brand) => typeof brand === 'object' && brand !== null &&
+      Object.values(brand as object).some((e: unknown) => (e as { mdrBase?: string })?.mdrBase),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -277,7 +285,9 @@ export default function ProposalDetailPage() {
         <InternalView
           costTable={costTable}
           finalMatrix={finalMatrix}
+          clientRates={clientRates}
           marginConfig={marginConfig}
+          hasClientRates={hasClientRates}
         />
       )}
     </div>
@@ -287,89 +297,176 @@ export default function ProposalDetailPage() {
 function InternalView({
   costTable,
   finalMatrix,
+  clientRates,
   marginConfig,
+  hasClientRates,
 }: {
   costTable: MDRMatrix;
   finalMatrix: MDRMatrix;
+  clientRates: MDRMatrix;
   marginConfig: MarginConfig;
+  hasClientRates: boolean;
 }) {
+  const [tab, setTab] = useState<'margin' | 'saving'>('margin');
+
   return (
     <div className="bg-white rounded-2xl border border-amber-200 shadow-card p-6 flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center">
-          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-          </svg>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center">
+            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-ink-900">Visão Interna</p>
+            <p className="text-xs text-ink-500">Nunca aparece no PDF do cliente.</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-ink-900">Visão Interna — Custo / Margem / Final</p>
-          <p className="text-xs text-ink-500">Estas informações nunca aparecem no PDF enviado ao cliente.</p>
+
+        {/* Tab selector */}
+        <div className="flex gap-1 p-1 bg-ink-100 rounded-xl">
+          <button
+            onClick={() => setTab('margin')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+              tab === 'margin' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700',
+            )}
+          >
+            Minha Margem
+          </button>
+          <button
+            onClick={() => setTab('saving')}
+            disabled={!hasClientRates}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+              tab === 'saving' ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700',
+              !hasClientRates && 'opacity-40 cursor-not-allowed',
+            )}
+          >
+            Saving do Cliente {!hasClientRates && '(sem dados)'}
+          </button>
         </div>
       </div>
 
-      {/* Margin config summary */}
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 text-sm">
-        <span className="text-amber-700">
-          <strong>Margem:</strong>{' '}
-          {marginConfig.type === 'percent'
-            ? `${marginConfig.value}% sobre o custo`
-            : `+${marginConfig.value} pp (pontos percentuais)`}
-        </span>
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 text-sm text-amber-700">
+        <strong>Margem:</strong>{' '}
+        {marginConfig.type === 'percent'
+          ? `${marginConfig.value}% sobre o custo`
+          : `+${marginConfig.value} pp sobre o custo`}
       </div>
 
-      {/* Breakdown table */}
-      <div className="overflow-x-auto rounded-xl border border-ink-200">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="bg-ink-50 border-b border-ink-200">
-              <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
-              {BRANDS.map((b) => (
-                <th key={b} colSpan={3} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">
-                  {BRAND_LABELS[b]}
-                </th>
-              ))}
-            </tr>
-            <tr className="bg-ink-50/50 border-b border-ink-100">
-              <th className="px-3 py-1" />
-              {BRANDS.map((b) => (
-                <Fragment key={b}>
-                  <th className="px-2 py-1 text-center font-normal text-red-500 border-l border-ink-100">Custo</th>
-                  <th className="px-2 py-1 text-center font-normal text-amber-600">+Mg</th>
-                  <th className="px-2 py-1 text-center font-semibold text-emerald-600">Final</th>
-                </Fragment>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {INSTALLMENTS.map((inst) => (
-              <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
-                <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
-                {BRANDS.map((b) => {
-                  const bd = computeMarginBreakdown(
-                    costTable,
-                    finalMatrix,
-                    b as BrandName,
-                    inst as InstallmentNumber,
-                  );
-                  return bd ? (
-                    <Fragment key={b}>
-                      <td className="px-2 py-1.5 text-center font-mono text-red-600 border-l border-ink-100">{bd.cost}%</td>
-                      <td className="px-2 py-1.5 text-center font-mono text-amber-600">+{bd.margin}%</td>
-                      <td className="px-2 py-1.5 text-center font-mono font-semibold text-emerald-700">{bd.final}%</td>
-                    </Fragment>
-                  ) : (
-                    <Fragment key={b}>
-                      <td className="px-2 py-1.5 text-center text-ink-300 border-l border-ink-100">—</td>
-                      <td className="px-2 py-1.5 text-center text-ink-300">—</td>
-                      <td className="px-2 py-1.5 text-center text-ink-300">—</td>
-                    </Fragment>
-                  );
-                })}
+      {/* TAB: Minha Margem — Custo → +Mg → Final */}
+      {tab === 'margin' && (
+        <div className="overflow-x-auto rounded-xl border border-ink-200">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-ink-50 border-b border-ink-200">
+                <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
+                {BRANDS.map((b) => (
+                  <th key={b} colSpan={3} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">
+                    {BRAND_LABELS[b]}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              <tr className="bg-ink-50/50 border-b border-ink-100">
+                <th className="px-3 py-1" />
+                {BRANDS.map((b) => (
+                  <Fragment key={b}>
+                    <th className="px-2 py-1 text-center font-normal text-red-500 border-l border-ink-100">Custo</th>
+                    <th className="px-2 py-1 text-center font-normal text-amber-600">+Mg</th>
+                    <th className="px-2 py-1 text-center font-semibold text-emerald-600">Final</th>
+                  </Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {INSTALLMENTS.map((inst) => (
+                <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
+                  <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
+                  {BRANDS.map((b) => {
+                    const bd = computeMarginBreakdown(costTable, finalMatrix, b as BrandName, inst as InstallmentNumber);
+                    return bd ? (
+                      <Fragment key={b}>
+                        <td className="px-2 py-1.5 text-center font-mono text-red-600 border-l border-ink-100">{bd.cost}%</td>
+                        <td className="px-2 py-1.5 text-center font-mono text-amber-600">+{bd.margin}%</td>
+                        <td className="px-2 py-1.5 text-center font-mono font-semibold text-emerald-700">{bd.final}%</td>
+                      </Fragment>
+                    ) : (
+                      <Fragment key={b}>
+                        <td className="px-2 py-1.5 text-center text-ink-300 border-l border-ink-100">—</td>
+                        <td className="px-2 py-1.5 text-center text-ink-300">—</td>
+                        <td className="px-2 py-1.5 text-center text-ink-300">—</td>
+                      </Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* TAB: Saving do Cliente — Taxa atual → Nossa proposta → Saving */}
+      {tab === 'saving' && (
+        <div className="overflow-x-auto rounded-xl border border-ink-200">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-ink-50 border-b border-ink-200">
+                <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
+                {BRANDS.map((b) => (
+                  <th key={b} colSpan={3} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">
+                    {BRAND_LABELS[b]}
+                  </th>
+                ))}
+              </tr>
+              <tr className="bg-ink-50/50 border-b border-ink-100">
+                <th className="px-3 py-1" />
+                {BRANDS.map((b) => (
+                  <Fragment key={b}>
+                    <th className="px-2 py-1 text-center font-normal text-ink-500 border-l border-ink-100">Atual</th>
+                    <th className="px-2 py-1 text-center font-normal text-brand">Nossa</th>
+                    <th className="px-2 py-1 text-center font-semibold text-emerald-600">Saving</th>
+                  </Fragment>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {INSTALLMENTS.map((inst) => (
+                <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
+                  <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
+                  {BRANDS.map((b) => {
+                    const clientEntry = clientRates[b as BrandName]?.[inst as InstallmentNumber];
+                    const ourEntry    = finalMatrix[b as BrandName]?.[inst as InstallmentNumber];
+                    const clientVal   = parseFloat(clientEntry?.finalMdr || clientEntry?.mdrBase || '');
+                    const ourVal      = parseFloat(ourEntry?.finalMdr || ourEntry?.mdrBase || '');
+                    const hasClient   = !isNaN(clientVal);
+                    const hasOur      = !isNaN(ourVal);
+                    const saving      = hasClient && hasOur ? (clientVal - ourVal) : NaN;
+
+                    return (
+                      <Fragment key={b}>
+                        <td className="px-2 py-1.5 text-center font-mono text-ink-600 border-l border-ink-100">
+                          {hasClient ? `${clientVal.toFixed(2)}%` : '—'}
+                        </td>
+                        <td className="px-2 py-1.5 text-center font-mono text-brand">
+                          {hasOur ? `${ourVal.toFixed(2)}%` : '—'}
+                        </td>
+                        <td className={cn(
+                          'px-2 py-1.5 text-center font-mono font-semibold',
+                          isNaN(saving) ? 'text-ink-300' : saving > 0 ? 'text-emerald-600' : saving < 0 ? 'text-red-500' : 'text-ink-400',
+                        )}>
+                          {isNaN(saving) ? '—' : saving > 0 ? `-${saving.toFixed(2)}%` : saving < 0 ? `+${Math.abs(saving).toFixed(2)}%` : '0%'}
+                        </td>
+                      </Fragment>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

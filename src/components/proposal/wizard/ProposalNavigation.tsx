@@ -29,12 +29,12 @@ export function ProposalNavigation({ currentStep, stepIndex, mdrIsValid, mdrCanG
       <div className="flex items-center gap-3">
         {currentStep === 'cost' && !mdrCanGenerate && (
           <p className="text-sm text-amber-600">
-            Preencha ao menos uma bandeira completa para continuar
+            Preencha ao menos uma bandeira para continuar
           </p>
         )}
         <button
           onClick={onNext}
-          disabled={currentStep === 'cost' && !mdrIsValid}
+          disabled={false}
           className={cn(
             'px-6 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white',
             'hover:bg-brand-700 active:bg-brand-800 transition-colors shadow-sm',

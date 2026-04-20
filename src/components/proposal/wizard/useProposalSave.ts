@@ -11,10 +11,11 @@ interface Params {
   mdrMatrix: MDRMatrix;
   costTable: MDRMatrix;
   marginConfig: MarginConfig;
+  clientRates: MDRMatrix;
   proposalNumber: string;
 }
 
-export function useProposalSave({ getValues, mdrMatrix, costTable, marginConfig, proposalNumber }: Params) {
+export function useProposalSave({ getValues, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber }: Params) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -25,7 +26,7 @@ export function useProposalSave({ getValues, mdrMatrix, costTable, marginConfig,
       const res = await fetch('/api/proposals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, mdrMatrix, costTable, marginConfig, proposalNumber }),
+        body: JSON.stringify({ data, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber }),
       });
       if (!res.ok) throw new Error('Save failed');
       const saved = await res.json();
