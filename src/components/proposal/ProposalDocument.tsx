@@ -1,7 +1,7 @@
 'use client';
 
 import { ProposalData } from '@/types/proposal';
-import { MDRMatrix } from '@/types/pricing';
+import { MDRMatrix, IntlPricing } from '@/types/pricing';
 import { ContractLetterhead } from '@/components/contract/ContractLetterhead';
 import { ProposalHeader } from './document/ProposalHeader';
 import { ProposalClientSummary } from './document/ProposalClientSummary';
@@ -13,9 +13,15 @@ interface ProposalDocumentProps {
   proposalData: ProposalData;
   mdrMatrix: MDRMatrix;
   proposalNumber: string;
+  intlProposalPricing?: IntlPricing;
+  setupIntl?: string;
 }
 
-export function ProposalDocument({ proposalData: d, mdrMatrix, proposalNumber }: ProposalDocumentProps) {
+export function ProposalDocument({
+  proposalData: d, mdrMatrix, proposalNumber, intlProposalPricing, setupIntl,
+}: ProposalDocumentProps) {
+  const hasIntl = !!(intlProposalPricing?.processingRate);
+
   return (
     <div
       id="proposal-document"
@@ -30,8 +36,13 @@ export function ProposalDocument({ proposalData: d, mdrMatrix, proposalNumber }:
 
       <ProposalHeader proposalNumber={proposalNumber} validadeAte={d.validadeAte} />
       <ProposalClientSummary d={d} />
-      <ProposalPricingSection d={d} mdrMatrix={mdrMatrix} />
-      <ProposalConditions observacoes={d.observacoes} />
+      <ProposalPricingSection
+        d={d}
+        mdrMatrix={mdrMatrix}
+        intlProposalPricing={intlProposalPricing}
+        setupIntl={setupIntl}
+      />
+      <ProposalConditions observacoes={d.observacoes} hasIntlPricing={hasIntl} />
       <ProposalSignatureBlock d={d} />
     </div>
   );

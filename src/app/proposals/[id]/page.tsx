@@ -4,7 +4,7 @@ import { useEffect, useState, Fragment } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ProposalData, PROPOSAL_STATUS_LABELS, ProposalStatus } from '@/types/proposal';
-import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber } from '@/types/pricing';
+import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing, DEFAULT_INTL_PRICING } from '@/types/pricing';
 import { MarginConfig } from '@/lib/pricing/margin';
 import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { ProposalDocument } from '@/components/proposal/ProposalDocument';
@@ -44,6 +44,8 @@ type ProposalRecord = {
   costTable: string;
   marginConfig: string;
   clientRates: string;
+  intlProposalPricing?: string | null;
+  setupIntl?: string | null;
   mcc?: string | null;
   validadeAte: string;
   observacoes?: string | null;
@@ -168,6 +170,10 @@ export default function ProposalDetailPage() {
     try { return JSON.parse(proposal.marginConfig || '{}'); } catch { return { type: 'percent', value: '0' }; }
   })();
   const finalMatrix = applyMargin(costTable, marginConfig);
+  const intlProposalPricing: IntlPricing = (() => {
+    try { return JSON.parse(proposal.intlProposalPricing || '{}'); } catch { return DEFAULT_INTL_PRICING; }
+  })();
+  const setupIntl = proposal.setupIntl || '0.00';
 
   const status = proposal.status as ProposalStatus;
   const statusInfo = PROPOSAL_STATUS_LABELS[status] ?? PROPOSAL_STATUS_LABELS.draft;
@@ -279,6 +285,8 @@ export default function ProposalDetailPage() {
             proposalData={proposalData}
             mdrMatrix={mdrMatrix}
             proposalNumber={proposal.proposalNumber}
+            intlProposalPricing={intlProposalPricing}
+            setupIntl={setupIntl}
           />
         </div>
       ) : (

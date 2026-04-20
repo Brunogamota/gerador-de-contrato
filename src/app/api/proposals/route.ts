@@ -26,13 +26,17 @@ export async function POST(req: NextRequest) {
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const body = await req.json();
-    const { data, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber } = body as {
+    const { data, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber,
+            intlCostPricing, intlProposalPricing, setupIntl } = body as {
       data: unknown;
       mdrMatrix: unknown;
       costTable?: unknown;
       marginConfig?: unknown;
       clientRates?: unknown;
       proposalNumber?: string;
+      intlCostPricing?: unknown;
+      intlProposalPricing?: unknown;
+      setupIntl?: string;
     };
 
     const parsed = ProposalDataSchema.safeParse(data);
@@ -80,6 +84,9 @@ export async function POST(req: NextRequest) {
         costTable:           costTable ? JSON.stringify(costTable) : '{}',
         marginConfig:        marginConfig ? JSON.stringify(marginConfig) : '{}',
         clientRates:         clientRates ? JSON.stringify(clientRates) : '{}',
+        intlCostPricing:     intlCostPricing ? JSON.stringify(intlCostPricing) : '{}',
+        intlProposalPricing: intlProposalPricing ? JSON.stringify(intlProposalPricing) : '{}',
+        setupIntl:           setupIntl ?? '0.00',
         validadeAte:         d.validadeAte,
         observacoes:         d.observacoes || '',
         status:              'draft',

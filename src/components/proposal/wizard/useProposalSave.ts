@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProposalData } from '@/types/proposal';
-import { MDRMatrix } from '@/types/pricing';
+import { MDRMatrix, IntlPricing } from '@/types/pricing';
 import { MarginConfig } from '@/lib/pricing/margin';
 
 interface Params {
@@ -13,9 +13,15 @@ interface Params {
   marginConfig: MarginConfig;
   clientRates: MDRMatrix;
   proposalNumber: string;
+  intlCostPricing: IntlPricing;
+  intlProposalPricing: IntlPricing;
+  setupIntl: string;
 }
 
-export function useProposalSave({ getValues, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber }: Params) {
+export function useProposalSave({
+  getValues, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber,
+  intlCostPricing, intlProposalPricing, setupIntl,
+}: Params) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -26,7 +32,10 @@ export function useProposalSave({ getValues, mdrMatrix, costTable, marginConfig,
       const res = await fetch('/api/proposals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber }),
+        body: JSON.stringify({
+          data, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber,
+          intlCostPricing, intlProposalPricing, setupIntl,
+        }),
       });
       if (!res.ok) throw new Error('Save failed');
       const saved = await res.json();

@@ -69,3 +69,45 @@ export interface ParsedPDFRate {
   anticipationRate?: string;
   source: string;
 }
+
+export interface IntlPricing {
+  processingRate: string;
+  processingFlatFee: string;
+  pricingModel: string;
+  year1Commitment: string;
+  year2Commitment: string;
+  connectPayoutRate: string;
+  connectPayoutFlatFee: string;
+  connectMonthlyFee: string;
+  connectActivationFee: string;
+  radarStandardFee: string;
+  radarRfftFee: string;
+  intel3dsFee: string;
+  intelAdaptiveRate: string;
+  intelCardUpdaterFee: string;
+  intelNetworkTokenFee: string;
+  fxFeeRate: string;
+  disputeLostFee: string;
+  disputeFee: string;
+}
+
+export const DEFAULT_INTL_PRICING: IntlPricing = {
+  processingRate: '',
+  processingFlatFee: '',
+  pricingModel: 'IC+',
+  year1Commitment: '',
+  year2Commitment: '',
+  connectPayoutRate: '',
+  connectPayoutFlatFee: '',
+  connectMonthlyFee: '',
+  connectActivationFee: '',
+  radarStandardFee: '',
+  radarRfftFee: '',
+  intel3dsFee: '',
+  intelAdaptiveRate: '',
+  intelCardUpdaterFee: '',
+  intelNetworkTokenFee: '',
+  fxFeeRate: '',
+  disputeLostFee: '',
+  disputeFee: '',
+};

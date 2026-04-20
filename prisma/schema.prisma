@@ -109,6 +109,11 @@ model Proposal {
   validadeAte String
   observacoes String? @default("")
 
+  // International pricing (JSON strings — cost is internal, proposal goes in PDF)
+  intlCostPricing     String @default("{}")
+  intlProposalPricing String @default("{}")
+  setupIntl           String @default("0.00")
+
   // Status: draft | generated | sent | viewed | accepted | rejected | expired | converted_to_contract
   status     String  @default("draft")
   contractId String?

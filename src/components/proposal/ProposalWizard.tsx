@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProposalData, ProposalDataSchema, DEFAULT_PROPOSAL_DATA } from '@/types/proposal';
-import { MDRMatrix } from '@/types/pricing';
+import { MDRMatrix, IntlPricing, DEFAULT_INTL_PRICING } from '@/types/pricing';
 import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { validateMatrix } from '@/lib/calculations/validation';
 import { generateProposalNumber } from '@/lib/utils';
@@ -28,6 +28,9 @@ export function ProposalWizard() {
   const [clientRates, setClientRates] = useState<MDRMatrix>(createEmptyMatrix);
   const [marginConfig, setMarginConfig] = useState<MarginConfig>(DEFAULT_MARGIN_CONFIG);
   const [finalMatrix, setFinalMatrix] = useState<MDRMatrix>(createEmptyMatrix);
+  const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
+  const [intlProposalPricing, setIntlProposalPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
+  const [setupIntl, setSetupIntl] = useState('0.00');
   const [proposalNumber] = useState(generateProposalNumber);
   const [profileBanner, setProfileBanner] = useState<string | null>(null);
 
@@ -66,7 +69,6 @@ export function ProposalWizard() {
   const stepIndex = PROPOSAL_STEPS.findIndex((s) => s.id === currentStep);
   const costValidation = validateMatrix(costTable);
 
-  // When margin config changes, keep final in sync (if not overridden manually)
   const handleMarginChange = useCallback((config: MarginConfig) => {
     setMarginConfig(config);
   }, []);
@@ -78,6 +80,9 @@ export function ProposalWizard() {
     marginConfig,
     clientRates,
     proposalNumber,
+    intlCostPricing,
+    intlProposalPricing,
+    setupIntl,
   });
 
   async function goNext() {
@@ -124,10 +129,15 @@ export function ProposalWizard() {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 md:p-8">
         {currentStep === 'info' && <ProposalInfoStep form={form} />}
         {currentStep === 'cost' && (
-          <CostStep matrix={costTable} onChange={(m) => {
-            setCostTable(m);
-            setFinalMatrix(applyMargin(m, marginConfig));
-          }} />
+          <CostStep
+            matrix={costTable}
+            onChange={(m) => {
+              setCostTable(m);
+              setFinalMatrix(applyMargin(m, marginConfig));
+            }}
+            intlCostPricing={intlCostPricing}
+            onIntlCostChange={setIntlCostPricing}
+          />
         )}
         {currentStep === 'client-rates' && (
           <ClientRatesStep matrix={clientRates} onChange={setClientRates} />
@@ -142,6 +152,11 @@ export function ProposalWizard() {
             onFinalMatrixChange={setFinalMatrix}
             mcc={mccValue}
             clientName={clientNameValue}
+            intlCostPricing={intlCostPricing}
+            intlProposalPricing={intlProposalPricing}
+            onIntlProposalChange={setIntlProposalPricing}
+            setupIntl={setupIntl}
+            onSetupIntlChange={setSetupIntl}
           />
         )}
         {currentStep === 'fees' && <FeesStep form={contractForm} />}
@@ -150,6 +165,8 @@ export function ProposalWizard() {
             proposalData={form.getValues()}
             mdrMatrix={finalMatrix}
             proposalNumber={proposalNumber}
+            intlProposalPricing={intlProposalPricing}
+            setupIntl={setupIntl}
             onSave={handleSave}
             isSaving={isSaving}
           />

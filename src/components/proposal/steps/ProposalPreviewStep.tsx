@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ProposalData } from '@/types/proposal';
-import { MDRMatrix } from '@/types/pricing';
+import { MDRMatrix, IntlPricing } from '@/types/pricing';
 import { ProposalDocument } from '@/components/proposal/ProposalDocument';
 import { exportContractToPdf, printContract } from '@/lib/contract/generator';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,8 @@ interface ProposalPreviewStepProps {
   proposalNumber: string;
   onSave: () => Promise<void>;
   isSaving: boolean;
+  intlProposalPricing?: IntlPricing;
+  setupIntl?: string;
 }
 
 export function ProposalPreviewStep({
@@ -21,6 +23,8 @@ export function ProposalPreviewStep({
   proposalNumber,
   onSave,
   isSaving,
+  intlProposalPricing,
+  setupIntl,
 }: ProposalPreviewStepProps) {
   const [exporting, setExporting] = useState(false);
 
@@ -78,6 +82,8 @@ export function ProposalPreviewStep({
             proposalData={proposalData}
             mdrMatrix={mdrMatrix}
             proposalNumber={proposalNumber}
+            intlProposalPricing={intlProposalPricing}
+            setupIntl={setupIntl}
           />
         </div>
       </div>
