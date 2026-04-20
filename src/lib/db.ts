@@ -18,9 +18,7 @@ export function getPrisma(): PrismaClient | null {
     const client = new Client({
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     });
-    if (process.env.NODE_ENV !== 'production') {
-      globalForPrisma.prisma = client;
-    }
+    globalForPrisma.prisma = client;
     return client;
   } catch (e) {
     console.warn('[db] Failed to initialize PrismaClient:', e);

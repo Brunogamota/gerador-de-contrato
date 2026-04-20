@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
     console.log(`[cost-profiles] POST created id=${profile.id} name="${profile.name}" mcc=${profile.mcc}`);
     return NextResponse.json(profile, { status: 201 });
   } catch (err) {
-    console.error('[cost-profiles] POST error:', err);
-    return NextResponse.json({ error: 'Failed to create' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[cost-profiles] POST error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
