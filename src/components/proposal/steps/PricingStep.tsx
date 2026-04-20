@@ -11,6 +11,9 @@ import { cn } from '@/lib/utils';
 type PricingMode = 'margin' | 'manual' | 'ai';
 type Market = 'brasil' | 'intl';
 
+// Display order: most aggressive (cheapest for client) → most conservative (max margin)
+const AI_LEVEL_ORDER = ['max', 'high', 'medium', 'low'] as const;
+
 type SpreadLevel = {
   label: string;
   description: string;
@@ -49,10 +52,17 @@ export function PricingStep({
 }: PricingStepProps) {
   const [market, setMarket] = useState<Market>('brasil');
   const [mode, setMode] = useState<PricingMode>('margin');
+
+  // Brasil AI state
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRationale, setAiRationale] = useState('');
   const [aiLevels, setAiLevels] = useState<Record<string, SpreadLevel> | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+
+  // Intl AI state
+  const [intlAiLoading, setIntlAiLoading] = useState(false);
+  const [intlAiRationale, setIntlAiRationale] = useState('');
+  const [intlAiApplied, setIntlAiApplied] = useState(false);
 
   async function handleAiSuggest() {
     setAiLoading(true);
@@ -76,6 +86,33 @@ export function PricingStep({
     }
   }
 
+  async function handleIntlAiSuggest() {
+    const hasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+    if (!hasData) {
+      alert('Preencha primeiro os custos do fornecedor internacional na aba Custo (passo anterior).');
+      return;
+    }
+    setIntlAiLoading(true);
+    setIntlAiRationale('');
+    setIntlAiApplied(false);
+    try {
+      const res = await fetch('/api/proposals/suggest-intl-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ costPricing: intlCostPricing }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erro');
+      onIntlProposalChange(data.pricing as IntlPricing);
+      setIntlAiRationale(data.rationale as string);
+      setIntlAiApplied(true);
+    } catch (err) {
+      alert(`Erro ao gerar sugestão: ${err instanceof Error ? err.message : 'Verifique a OPENAI_API_KEY.'}`);
+    } finally {
+      setIntlAiLoading(false);
+    }
+  }
+
   function selectLevel(key: string) {
     setSelectedLevel(key);
     onFinalMatrixChange(aiLevels![key].matrix);
@@ -95,11 +132,13 @@ export function PricingStep({
     setMode(m);
   }
 
+  const intlCostHasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-ink-950 mb-1">Precificação Final</h2>
-        <p className="text-sm text-ink-500">Defina as taxas que aparecerão na proposta.</p>
+        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5">Precificação Final</h2>
+        <p className="text-sm text-ink-400">Defina as taxas que aparecerão na proposta.</p>
       </div>
 
       {/* Market tab selector */}
@@ -262,15 +301,13 @@ export function PricingStep({
             <div className="flex flex-col gap-5">
               <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
                     <span className="text-brand font-bold text-lg">✦</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-ink-900 mb-1">Sugestão de pricing por IA — 4 níveis</p>
                     <p className="text-xs text-ink-500 leading-relaxed">
-                      A IA analisa seu custo e as taxas atuais do cliente e gera 4 opções de pricing.
-                      Todos os níveis são melhores que a taxa atual do cliente.
-                      Escolha um nível e edite livremente.
+                      A IA analisa o custo e as taxas do cliente, gera 4 opções ordenadas do mais agressivo (menor preço) ao mais rentável (maior margem). Escolha um e edite.
                     </p>
                     {mcc && <p className="text-xs text-ink-400 mt-1">MCC: <span className="font-mono text-ink-600">{mcc}</span>{clientName && ` · ${clientName}`}</p>}
                   </div>
@@ -278,7 +315,7 @@ export function PricingStep({
                 <button onClick={handleAiSuggest} disabled={aiLoading}
                   className={cn(
                     'self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all',
-                    aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand-700 shadow-sm',
+                    aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand/90 shadow-sm',
                   )}
                 >
                   {aiLoading
@@ -297,14 +334,17 @@ export function PricingStep({
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Object.entries(aiLevels).map(([key, level]) => {
+                    {AI_LEVEL_ORDER.filter((k) => aiLevels[k]).map((key) => {
+                      const level = aiLevels[key];
                       const c = COLOR_MAP[level.color] ?? COLOR_MAP.blue;
                       const isSelected = selectedLevel === key;
                       return (
                         <div key={key}
                           className={cn(
-                            'rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all cursor-pointer',
-                            isSelected ? `${c.card} border-opacity-100 ring-2 ring-offset-1 ring-current` : `${c.card} border-opacity-60 hover:border-opacity-100`,
+                            'rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all cursor-pointer hover:shadow-sm',
+                            isSelected
+                              ? `${c.card} ring-2 ring-offset-1`
+                              : `${c.card} opacity-90 hover:opacity-100`,
                           )}
                           onClick={() => selectLevel(key)}
                         >
@@ -313,24 +353,25 @@ export function PricingStep({
                               <span className={cn('inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold', c.badge)}>
                                 {level.label}
                               </span>
-                              <p className="text-xs text-ink-500 mt-1">{level.description}</p>
+                              <p className="text-xs text-ink-500 mt-1 leading-relaxed">{level.description}</p>
                             </div>
                             {isSelected && (
-                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Selecionado</span>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">✓ Selecionado</span>
                             )}
                           </div>
 
-                          <div className="flex gap-3 text-xs font-mono">
-                            {['visa', 'mastercard'].map((b) => {
-                              const e1  = level.matrix[b as BrandName]?.[1 as InstallmentNumber];
-                              const e6  = level.matrix[b as BrandName]?.[6 as InstallmentNumber];
-                              const e12 = level.matrix[b as BrandName]?.[12 as InstallmentNumber];
+                          <div className="flex gap-4 text-xs font-mono">
+                            {(['visa', 'mastercard'] as BrandName[]).map((b) => {
+                              const e1  = level.matrix[b]?.[1 as InstallmentNumber];
+                              const e6  = level.matrix[b]?.[6 as InstallmentNumber];
+                              const e12 = level.matrix[b]?.[12 as InstallmentNumber];
+                              const val = (e: typeof e1) => e?.finalMdr ? `${parseFloat(e.finalMdr).toFixed(2)}%` : (e?.mdrBase ? `${parseFloat(e.mdrBase).toFixed(2)}%` : '—');
                               return (
-                                <div key={b} className="flex flex-col gap-1">
-                                  <span className="text-ink-400 capitalize">{b === 'mastercard' ? 'Master' : b}</span>
-                                  <span>1x: <strong>{e1?.finalMdr ? `${parseFloat(e1.finalMdr).toFixed(2)}%` : '—'}</strong></span>
-                                  <span>6x: <strong>{e6?.finalMdr ? `${parseFloat(e6.finalMdr).toFixed(2)}%` : '—'}</strong></span>
-                                  <span>12x: <strong>{e12?.finalMdr ? `${parseFloat(e12.finalMdr).toFixed(2)}%` : '—'}</strong></span>
+                                <div key={b} className="flex flex-col gap-0.5">
+                                  <span className="text-ink-500 capitalize font-medium">{b === 'mastercard' ? 'Master' : 'Visa'}</span>
+                                  <span>1x: <strong>{val(e1)}</strong></span>
+                                  <span>6x: <strong>{val(e6)}</strong></span>
+                                  <span>12x: <strong>{val(e12)}</strong></span>
                                 </div>
                               );
                             })}
@@ -343,9 +384,9 @@ export function PricingStep({
                   {selectedLevel && (
                     <div className="flex gap-3 pt-2">
                       <button onClick={acceptAndEdit}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand-700 shadow-sm transition-all"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand/90 shadow-sm transition-all"
                       >
-                        ✓ Usar nível selecionado e editar →
+                        ✓ Usar nível selecionado e editar
                       </button>
                     </div>
                   )}
@@ -375,6 +416,42 @@ export function PricingStep({
             <span>Esses valores aparecerão na proposta internacional para o cliente.</span>
           </div>
 
+          {/* AI suggestion for intl */}
+          <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-brand/20 bg-brand/5">
+            <div className="flex items-center gap-3">
+              <span className="text-brand font-bold text-lg">✦</span>
+              <div>
+                <p className="text-sm font-semibold text-ink-900">Sugestão de pricing por IA</p>
+                <p className="text-xs text-ink-500">
+                  {intlCostHasData
+                    ? 'Gera proposta com markup inteligente baseado nos seus custos Stripe.'
+                    : 'Preencha os custos do fornecedor no passo Custo para habilitar.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleIntlAiSuggest}
+              disabled={intlAiLoading || !intlCostHasData}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all whitespace-nowrap flex-shrink-0',
+                intlAiLoading || !intlCostHasData
+                  ? 'bg-ink-300 cursor-not-allowed'
+                  : 'bg-brand hover:bg-brand/90 shadow-sm',
+              )}
+            >
+              {intlAiLoading
+                ? <><div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />Gerando…</>
+                : <>✦ {intlAiApplied ? 'Gerar novamente' : 'Gerar sugestão'}</>}
+            </button>
+          </div>
+
+          {intlAiRationale && (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
+              <span className="text-blue-400 flex-shrink-0">💡</span>
+              <p className="text-sm text-blue-800 leading-relaxed">{intlAiRationale}</p>
+            </div>
+          )}
+
           {/* Setup OPP Internacional */}
           <div className="flex items-center gap-4 p-4 rounded-xl border border-ink-200 bg-ink-50">
             <div className="flex flex-col gap-1">
@@ -393,19 +470,18 @@ export function PricingStep({
             </div>
           </div>
 
-          <IntlPricingForm
-            value={intlProposalPricing}
-            onChange={onIntlProposalChange}
-          />
+          <IntlPricingForm value={intlProposalPricing} onChange={onIntlProposalChange} />
 
           {/* Reference: cost from supplier */}
-          {intlCostPricing.processingRate && (
-            <div className="rounded-xl border border-ink-100 bg-ink-50 p-4">
-              <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-3">
+          {intlCostHasData && (
+            <details className="rounded-xl border border-ink-200 overflow-hidden">
+              <summary className="px-4 py-3 bg-ink-50 text-xs font-semibold text-ink-500 uppercase tracking-wide cursor-pointer hover:bg-ink-100 transition-colors">
                 Custo do fornecedor (referência — uso interno)
-              </p>
-              <IntlPricingForm value={intlCostPricing} readOnly />
-            </div>
+              </summary>
+              <div className="p-4 border-t border-ink-200">
+                <IntlPricingForm value={intlCostPricing} readOnly />
+              </div>
+            </details>
           )}
         </div>
       )}

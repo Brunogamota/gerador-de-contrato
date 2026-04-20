@@ -77,23 +77,38 @@ export function ProposalWizard() {
 
   // Auto-load CostProfile when MCC changes (called on goNext from info step)
   const loadCostProfile = useCallback(async (mcc: string) => {
-    if (!mcc) return;
     try {
       const res = await fetch('/api/cost-profiles');
       if (!res.ok) return;
-      const profiles: Array<{ name: string; mcc: string; mdrMatrix: string; isDefault: boolean }> = await res.json();
+      const profiles: Array<{
+        name: string; mcc: string; mdrMatrix: string; isDefault: boolean;
+        intlCostPricing?: string; profileType?: string;
+      }> = await res.json();
 
-      const exact = profiles.find((p) => p.mcc === mcc);
+      const exact = profiles.find((p) => p.mcc === mcc && mcc);
       const fallback = profiles.find((p) => p.isDefault);
       const match = exact ?? fallback;
 
       if (match) {
-        const parsed = JSON.parse(match.mdrMatrix) as MDRMatrix;
-        setCostTable(parsed);
-        setFinalMatrix(applyMargin(parsed, marginConfig));
+        // Load MDR table
+        try {
+          const parsed = JSON.parse(match.mdrMatrix) as MDRMatrix;
+          setCostTable(parsed);
+          setFinalMatrix(applyMargin(parsed, marginConfig));
+        } catch { /* ignore */ }
+
+        // Load intl cost pricing if present
+        if (match.intlCostPricing) {
+          try {
+            const intlParsed = JSON.parse(match.intlCostPricing) as IntlPricing;
+            const hasData = Object.values(intlParsed).some((v) => v && v !== '' && v !== '0.00');
+            if (hasData) setIntlCostPricing(intlParsed);
+          } catch { /* ignore */ }
+        }
+
         setProfileBanner(
           exact
-            ? `Perfil carregado: "${match.name}" (MCC ${mcc})`
+            ? `Perfil carregado: "${match.name}"${mcc ? ` (MCC ${mcc})` : ''}`
             : `Perfil padrão carregado: "${match.name}"`,
         );
         setTimeout(() => setProfileBanner(null), 4000);
@@ -132,6 +147,7 @@ export function ProposalWizard() {
         'validadeAte',
       ]);
       if (!valid) return;
+      // Load cost profile (by MCC or default — always try to load)
       await loadCostProfile(form.getValues('mcc') ?? '');
     }
     const nextIdx = stepIndex + 1;

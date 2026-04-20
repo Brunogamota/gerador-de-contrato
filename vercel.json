@@ -11,6 +11,9 @@
     },
     "src/app/api/proposals/suggest-pricing/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/proposals/suggest-intl-pricing/route.ts": {
+      "maxDuration": 60
     }
   }
 }

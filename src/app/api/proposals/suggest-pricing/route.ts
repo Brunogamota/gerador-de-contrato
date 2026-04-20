@@ -111,11 +111,12 @@ export async function POST(req: NextRequest) {
     const raw    = response.choices[0]?.message?.content ?? '';
     const parsed = JSON.parse(raw) as { levels: RawLevels; rationale: string };
 
+    // Note: displayed in reverse order (max first) — most aggressive (cheapest) to most conservative (best margin)
     const LEVEL_META: Record<LevelKey, { label: string; description: string; color: string }> = {
-      low:    { label: 'Competitivo',   description: 'Redução mínima (2–5%) — mantém margem máxima, ainda mais barato que o cliente paga hoje',  color: 'emerald' },
-      medium: { label: 'Pouca Margem',  description: 'Redução de 6–11% — spread saudável, bom para clientes que negociam pouco',                  color: 'blue'    },
-      high:   { label: 'Margem Média',  description: 'Redução de 12–18% — equilibrado, maior chance de fechar sem sacrificar margem',             color: 'amber'   },
-      max:    { label: 'Agressivo',     description: 'Redução de 19–25% — use só se necessário; margem próxima ao piso sustentável',              color: 'rose'    },
+      max:    { label: 'Agressivo',    description: 'Redução de 19–25% — preço mais baixo possível, margem mínima sustentável',             color: 'rose'    },
+      high:   { label: 'Competitivo',  description: 'Redução de 12–18% — bom custo-benefício, maior chance de fechar',                     color: 'amber'   },
+      medium: { label: 'Margem Boa',   description: 'Redução de 6–11% — spread saudável para clientes que negociam pouco',                 color: 'blue'    },
+      low:    { label: 'Rentável',     description: 'Redução mínima (2–5%) — margem máxima, para clientes que valorizam o serviço',        color: 'emerald' },
     };
 
     const levels = Object.fromEntries(
