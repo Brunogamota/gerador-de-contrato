@@ -236,7 +236,7 @@ export default function PricingSettingsPage() {
               <input
                 ref={intlFileRef}
                 type="file"
-                accept=".pdf,image/*"
+                accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
