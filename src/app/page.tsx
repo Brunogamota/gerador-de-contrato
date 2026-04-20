@@ -1,16 +1,14 @@
 import Link from 'next/link';
-import { db } from '@/lib/supabase-server';
+import { prisma } from '@/lib/db';
 
 async function getStats() {
   try {
-    const { data, error } = await db.from('contracts').select('status');
-    if (error) throw error;
-    const rows = data ?? [];
-    return {
-      total: rows.length,
-      draft: rows.filter((r) => r.status === 'draft').length,
-      active: rows.filter((r) => r.status === 'active').length,
-    };
+    const [total, draft, active] = await Promise.all([
+      prisma.contract.count(),
+      prisma.contract.count({ where: { status: 'draft' } }),
+      prisma.contract.count({ where: { status: 'active' } }),
+    ]);
+    return { total, draft, active };
   } catch {
     return { total: 0, draft: 0, active: 0 };
   }
@@ -18,13 +16,19 @@ async function getStats() {
 
 async function getRecent() {
   try {
-    const { data, error } = await db
-      .from('contracts')
-      .select('id, contractNumber, contratanteNome, contratanteCnpj, status, dataInicio, createdAt')
-      .order('createdAt', { ascending: false })
-      .limit(5);
-    if (error) throw error;
-    return data ?? [];
+    return await prisma.contract.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        contractNumber: true,
+        contratanteNome: true,
+        contratanteCnpj: true,
+        status: true,
+        dataInicio: true,
+        createdAt: true,
+      },
+    });
   } catch {
     return [];
   }
@@ -131,31 +135,14 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          {
-            title: 'Engine MDR',
-            desc: 'Tabela de taxas por bandeira e parcela com cálculo automático de MDR Final = Base + Antecipação.',
-            href: '/contracts/new',
-            cta: 'Criar pricing',
-          },
-          {
-            title: 'Validação de Consistência',
-            desc: 'Detecta progressão invertida, taxas incomuns e campos faltantes em tempo real.',
-            href: '/contracts/new',
-            cta: 'Ver validações',
-          },
-          {
-            title: 'Geração de Contrato',
-            desc: 'Contrato completo com todos os dados e MDR injetados automaticamente. Exporta em PDF.',
-            href: '/contracts/new',
-            cta: 'Gerar contrato',
-          },
+          { title: 'Engine MDR', desc: 'Tabela de taxas por bandeira e parcela com cálculo automático de MDR Final = Base + Antecipação.', href: '/contracts/new', cta: 'Criar pricing' },
+          { title: 'Validação de Consistência', desc: 'Detecta progressão invertida, taxas incomuns e campos faltantes em tempo real.', href: '/contracts/new', cta: 'Ver validações' },
+          { title: 'Geração de Contrato', desc: 'Contrato completo com todos os dados e MDR injetados automaticamente. Exporta em PDF.', href: '/contracts/new', cta: 'Gerar contrato' },
         ].map((card) => (
           <div key={card.title} className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card p-6 flex flex-col gap-3">
             <h3 className="font-semibold text-ink-50">{card.title}</h3>
             <p className="text-sm text-ink-400 flex-1">{card.desc}</p>
-            <Link href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">
-              {card.cta} →
-            </Link>
+            <Link href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">{card.cta} →</Link>
           </div>
         ))}
       </div>

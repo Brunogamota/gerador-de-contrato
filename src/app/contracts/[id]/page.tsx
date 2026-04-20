@@ -1,15 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { db } from '@/lib/supabase-server';
+import { prisma } from '@/lib/db';
 import { MDRMatrix } from '@/types/pricing';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
 
 async function getContract(id: string) {
   try {
-    const { data, error } = await db.from('contracts').select('*').eq('id', id).single();
-    if (error) return null;
-    return data;
+    return await prisma.contract.findUnique({ where: { id } });
   } catch {
     return null;
   }

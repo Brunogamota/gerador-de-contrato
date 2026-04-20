@@ -1,14 +1,21 @@
 import Link from 'next/link';
-import { db } from '@/lib/supabase-server';
+import { prisma } from '@/lib/db';
 
 async function getContracts() {
   try {
-    const { data, error } = await db
-      .from('contracts')
-      .select('id, contractNumber, contratanteNome, contratanteCnpj, status, dataInicio, vigenciaMeses, createdAt')
-      .order('createdAt', { ascending: false });
-    if (error) throw error;
-    return data ?? [];
+    return await prisma.contract.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        contractNumber: true,
+        contratanteNome: true,
+        contratanteCnpj: true,
+        status: true,
+        dataInicio: true,
+        vigenciaMeses: true,
+        createdAt: true,
+      },
+    });
   } catch {
     return [];
   }
@@ -85,7 +92,7 @@ export default async function ContractsPage() {
                         {s.label}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                    <td className="px-6 py-4 text-right">
                       <Link href={`/contracts/${c.id}`} className="text-brand hover:text-brand-400 text-sm font-medium transition-colors">
                         Ver
                       </Link>

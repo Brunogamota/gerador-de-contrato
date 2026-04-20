@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/supabase-server';
+import { prisma } from '@/lib/db';
 import { ContractDataSchema } from '@/types/contract';
 import { MDRMatrix } from '@/types/pricing';
 import { generateContractNumber } from '@/lib/utils';
@@ -9,12 +9,10 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const { data, error } = await db
-      .from('contracts')
-      .select('*')
-      .order('createdAt', { ascending: false });
-    if (error) throw error;
-    return NextResponse.json(data);
+    const contracts = await prisma.contract.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json(contracts);
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Failed to fetch contracts' }, { status: 500 });
@@ -24,24 +22,20 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { data: formData, mdrMatrix, contractNumber } = body as {
+    const { data, mdrMatrix, contractNumber } = body as {
       data: unknown;
       mdrMatrix: MDRMatrix;
       contractNumber?: string;
     };
 
-    const parsed = ContractDataSchema.safeParse(formData);
+    const parsed = ContractDataSchema.safeParse(data);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid data', details: parsed.error.flatten() }, { status: 400 });
     }
 
     const d = parsed.data;
-    const now = new Date().toISOString();
-
-    const { data, error } = await db
-      .from('contracts')
-      .insert({
-        id: crypto.randomUUID(),
+    const contract = await prisma.contract.create({
+      data: {
         contractNumber: contractNumber ?? generateContractNumber(),
         contratanteNome:     d.contratanteNome,
         contratanteCnpj:     d.contratanteCnpj,
@@ -67,14 +61,10 @@ export async function POST(req: NextRequest) {
         isencaoFeeAteMeses:  d.isencaoFeeAteMeses,
         mdrMatrix:           JSON.stringify(mdrMatrix ?? {}),
         status:              'draft',
-        createdAt:           now,
-        updatedAt:           now,
-      })
-      .select()
-      .single();
+      },
+    });
 
-    if (error) throw error;
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(contract, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Failed to create contract' }, { status: 500 });
