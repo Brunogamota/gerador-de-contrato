@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ProposalData } from '@/types/proposal';
-import { MDRMatrix } from '@/types/pricing';
+import { ProposalData, PROPOSAL_STATUS_LABELS, ProposalStatus } from '@/types/proposal';
+import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber } from '@/types/pricing';
+import { MarginConfig } from '@/lib/pricing/margin';
+import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { ProposalDocument } from '@/components/proposal/ProposalDocument';
 import { exportContractToPdf, printContract } from '@/lib/contract/generator';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 type ProposalRecord = {
   id: string;
@@ -25,9 +28,6 @@ type ProposalRecord = {
   repLegalEmail?: string | null;
   repLegalTelefone?: string | null;
   repLegalCargo?: string | null;
-  dataInicio: string;
-  vigenciaMeses: number;
-  foro: string;
   setup: string;
   feeTransacao: string;
   taxaAntifraude: string;
@@ -41,16 +41,11 @@ type ProposalRecord = {
   prazoRecebimento: string;
   valorMinimoMensal: string;
   mdrMatrix: string;
+  costTable: string;
+  marginConfig: string;
   mcc?: string | null;
   validadeAte: string;
   observacoes?: string | null;
-};
-
-const statusMap: Record<string, { label: string; color: string }> = {
-  rascunho: { label: 'Rascunho', color: 'bg-gray-100 text-gray-600' },
-  enviada:  { label: 'Enviada',  color: 'bg-blue-50 text-blue-700' },
-  aprovada: { label: 'Aprovada', color: 'bg-emerald-50 text-emerald-700' },
-  expirada: { label: 'Expirada', color: 'bg-red-50 text-red-700' },
 };
 
 export default function ProposalDetailPage() {
@@ -59,8 +54,9 @@ export default function ProposalDetailPage() {
   const [proposal, setProposal] = useState<ProposalRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [converting, setConverting] = useState(false);
-  const [markingSent, setMarkingSent] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showInternal, setShowInternal] = useState(false);
 
   useEffect(() => {
     fetch(`/api/proposals/${params.id}`)
@@ -85,14 +81,14 @@ export default function ProposalDetailPage() {
     }
   }
 
-  async function handleMarkSent() {
+  async function patchStatus(status: string, extra?: Record<string, unknown>) {
     if (!proposal) return;
-    setMarkingSent(true);
+    setUpdatingStatus(true);
     try {
       const res = await fetch(`/api/proposals/${proposal.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'enviada' }),
+        body: JSON.stringify({ status, ...extra }),
       });
       if (!res.ok) throw new Error('Update failed');
       const updated = await res.json();
@@ -100,7 +96,7 @@ export default function ProposalDetailPage() {
     } catch {
       alert('Erro ao atualizar status. Tente novamente.');
     } finally {
-      setMarkingSent(false);
+      setUpdatingStatus(false);
     }
   }
 
@@ -138,9 +134,9 @@ export default function ProposalDetailPage() {
     repLegalEmail:       proposal.repLegalEmail    ?? '',
     repLegalTelefone:    proposal.repLegalTelefone ?? '',
     repLegalCargo:       proposal.repLegalCargo    ?? '',
-    dataInicio:          proposal.dataInicio,
-    vigenciaMeses:       proposal.vigenciaMeses,
-    foro:                proposal.foro,
+    dataInicio:          new Date().toLocaleDateString('pt-BR'),
+    vigenciaMeses:       12,
+    foro:                'São Paulo/SP',
     setup:               proposal.setup,
     feeTransacao:        proposal.feeTransacao,
     taxaAntifraude:      proposal.taxaAntifraude,
@@ -158,17 +154,33 @@ export default function ProposalDetailPage() {
     observacoes:         proposal.observacoes ?? '',
   };
 
-  const mdrMatrix: MDRMatrix = JSON.parse(proposal.mdrMatrix || '{}');
-  const s = statusMap[proposal.status] ?? statusMap.rascunho;
+  const mdrMatrix: MDRMatrix = (() => {
+    try { return JSON.parse(proposal.mdrMatrix || '{}'); } catch { return {}; }
+  })();
+  const costTable: MDRMatrix = (() => {
+    try { return JSON.parse(proposal.costTable || '{}'); } catch { return {}; }
+  })();
+  const marginConfig: MarginConfig = (() => {
+    try { return JSON.parse(proposal.marginConfig || '{}'); } catch { return { type: 'percent', value: '0' }; }
+  })();
+  const finalMatrix = applyMargin(costTable, marginConfig);
+
+  const status = proposal.status as ProposalStatus;
+  const statusInfo = PROPOSAL_STATUS_LABELS[status] ?? PROPOSAL_STATUS_LABELS.draft;
+  const isConverted = proposal.status === 'converted_to_contract';
+  const hasCostData = Object.keys(costTable).length > 0;
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">← Propostas</Link>
             <span className="text-gray-300">/</span>
-            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>
+            <span className={cn('inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium', statusInfo.color)}>
+              {statusInfo.label}
+            </span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{proposal.contratanteNome}</h1>
           <p className="text-sm text-gray-500 font-mono mt-1">{proposal.proposalNumber}</p>
@@ -181,16 +193,41 @@ export default function ProposalDetailPage() {
           <Button variant="outline" loading={exporting} onClick={handleExportPdf}>
             Exportar PDF
           </Button>
-          {proposal.status === 'rascunho' && (
-            <Button variant="outline" loading={markingSent} onClick={handleMarkSent}>
+
+          {/* Status actions */}
+          {proposal.status === 'draft' && (
+            <Button variant="outline" loading={updatingStatus} onClick={() => patchStatus('sent', { sentAt: new Date().toISOString() })}>
               Marcar como Enviada
             </Button>
           )}
-          {proposal.status !== 'aprovada' && !proposal.contractId && (
+          {(proposal.status === 'sent' || proposal.status === 'viewed') && (
+            <>
+              <Button
+                variant="outline"
+                loading={updatingStatus}
+                onClick={() => patchStatus('accepted', { acceptedAt: new Date().toISOString() })}
+              >
+                Marcar como Aceita
+              </Button>
+              <Button
+                variant="outline"
+                loading={updatingStatus}
+                onClick={() => patchStatus('rejected')}
+                className="border-red-200 text-red-600 hover:bg-red-50"
+              >
+                Rejeitar
+              </Button>
+            </>
+          )}
+
+          {/* Convert to contract (any non-converted, non-rejected) */}
+          {!isConverted && proposal.status !== 'rejected' && !proposal.contractId && (
             <Button loading={converting} onClick={handleConvert}>
               Gerar Contrato
             </Button>
           )}
+
+          {/* Link to contract if already converted */}
           {proposal.contractId && (
             <Link
               href={`/contracts/${proposal.contractId}`}
@@ -203,12 +240,135 @@ export default function ProposalDetailPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
-        <ProposalDocument
-          proposalData={proposalData}
-          mdrMatrix={mdrMatrix}
-          proposalNumber={proposal.proposalNumber}
+      {/* View toggle */}
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+        <button
+          onClick={() => setShowInternal(false)}
+          className={cn(
+            'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+            !showInternal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          )}
+        >
+          Visualização do Cliente
+        </button>
+        {hasCostData && (
+          <button
+            onClick={() => setShowInternal(true)}
+            className={cn(
+              'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+              showInternal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            )}
+          >
+            Visão Interna (Custo/Margem)
+          </button>
+        )}
+      </div>
+
+      {/* Document */}
+      {!showInternal ? (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
+          <ProposalDocument
+            proposalData={proposalData}
+            mdrMatrix={mdrMatrix}
+            proposalNumber={proposal.proposalNumber}
+          />
+        </div>
+      ) : (
+        <InternalView
+          costTable={costTable}
+          finalMatrix={finalMatrix}
+          marginConfig={marginConfig}
         />
+      )}
+    </div>
+  );
+}
+
+function InternalView({
+  costTable,
+  finalMatrix,
+  marginConfig,
+}: {
+  costTable: MDRMatrix;
+  finalMatrix: MDRMatrix;
+  marginConfig: MarginConfig;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-amber-200 shadow-card p-6 flex flex-col gap-5">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center">
+          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-ink-900">Visão Interna — Custo / Margem / Final</p>
+          <p className="text-xs text-ink-500">Estas informações nunca aparecem no PDF enviado ao cliente.</p>
+        </div>
+      </div>
+
+      {/* Margin config summary */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 text-sm">
+        <span className="text-amber-700">
+          <strong>Margem:</strong>{' '}
+          {marginConfig.type === 'percent'
+            ? `${marginConfig.value}% sobre o custo`
+            : `+${marginConfig.value} pp (pontos percentuais)`}
+        </span>
+      </div>
+
+      {/* Breakdown table */}
+      <div className="overflow-x-auto rounded-xl border border-ink-200">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-ink-50 border-b border-ink-200">
+              <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
+              {BRANDS.map((b) => (
+                <th key={b} colSpan={3} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">
+                  {BRAND_LABELS[b]}
+                </th>
+              ))}
+            </tr>
+            <tr className="bg-ink-50/50 border-b border-ink-100">
+              <th className="px-3 py-1" />
+              {BRANDS.map((b) => (
+                <Fragment key={b}>
+                  <th className="px-2 py-1 text-center font-normal text-red-500 border-l border-ink-100">Custo</th>
+                  <th className="px-2 py-1 text-center font-normal text-amber-600">+Mg</th>
+                  <th className="px-2 py-1 text-center font-semibold text-emerald-600">Final</th>
+                </Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {INSTALLMENTS.map((inst) => (
+              <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
+                <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
+                {BRANDS.map((b) => {
+                  const bd = computeMarginBreakdown(
+                    costTable,
+                    finalMatrix,
+                    b as BrandName,
+                    inst as InstallmentNumber,
+                  );
+                  return bd ? (
+                    <Fragment key={b}>
+                      <td className="px-2 py-1.5 text-center font-mono text-red-600 border-l border-ink-100">{bd.cost}%</td>
+                      <td className="px-2 py-1.5 text-center font-mono text-amber-600">+{bd.margin}%</td>
+                      <td className="px-2 py-1.5 text-center font-mono font-semibold text-emerald-700">{bd.final}%</td>
+                    </Fragment>
+                  ) : (
+                    <Fragment key={b}>
+                      <td className="px-2 py-1.5 text-center text-ink-300 border-l border-ink-100">—</td>
+                      <td className="px-2 py-1.5 text-center text-ink-300">—</td>
+                      <td className="px-2 py-1.5 text-center text-ink-300">—</td>
+                    </Fragment>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

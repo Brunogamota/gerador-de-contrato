@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { HardNavLink } from '@/components/ui/HardNavLink';
 import { getPrisma } from '@/lib/db';
+import { PROPOSAL_STATUS_LABELS, ProposalStatus } from '@/types/proposal';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,12 +27,6 @@ async function getProposals() {
   }
 }
 
-const statusMap: Record<string, { label: string; color: string }> = {
-  rascunho:  { label: 'Rascunho',  color: 'bg-ink-800/50 text-ink-300' },
-  enviada:   { label: 'Enviada',   color: 'bg-blue-950/50 text-blue-300' },
-  aprovada:  { label: 'Aprovada',  color: 'bg-emerald-950/50 text-emerald-300' },
-  expirada:  { label: 'Expirada',  color: 'bg-red-950/50 text-red-300' },
-};
 
 export const metadata = { title: 'Propostas · RebornPay' };
 
@@ -84,7 +79,7 @@ export default async function ProposalsPage() {
             </thead>
             <tbody className="divide-y divide-ink-800">
               {proposals.map((p) => {
-                const s = statusMap[p.status] ?? statusMap.rascunho;
+                const s = PROPOSAL_STATUS_LABELS[p.status as ProposalStatus] ?? PROPOSAL_STATUS_LABELS.draft;
                 return (
                   <tr key={p.id} className="hover:bg-ink-800/30 transition-colors">
                     <td className="px-6 py-4">

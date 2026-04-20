@@ -1,9 +1,11 @@
 import { ProposalData } from '@/types/proposal';
-import { TD, TH } from '@/components/contract/document/formatters';
 
 interface Props {
   d: ProposalData;
 }
+
+const ROW_LABEL = 'px-3 py-2 text-xs font-semibold w-44 align-top';
+const ROW_VALUE = 'px-3 py-2 text-xs';
 
 export function ProposalClientSummary({ d }: Props) {
   const rows: [string, string][] = [
@@ -12,23 +14,32 @@ export function ProposalClientSummary({ d }: Props) {
     ['Endereço',             d.contratanteEndereco],
     ['E-mail',               d.contratanteEmail],
     ['Telefone',             d.contratanteTelefone],
-    ['Prazo de Recebimento', d.prazoRecebimento],
-    ['Válida até',           d.validadeAte],
   ];
 
   if (d.repLegalNome) {
-    rows.splice(5, 0, ['Representante Legal', d.repLegalNome + (d.repLegalCargo ? ` — ${d.repLegalCargo}` : '')]);
+    rows.push(['Representante Legal', d.repLegalNome + (d.repLegalCargo ? ` — ${d.repLegalCargo}` : '')]);
   }
 
+  rows.push(['Prazo de Recebimento', d.prazoRecebimento]);
+  rows.push(['Válida até',           d.validadeAte]);
+
   return (
-    <div className="mb-6">
-      <p className="font-semibold text-xs mb-2 uppercase tracking-wide">Dados do Cliente</p>
-      <table className="w-full border-collapse text-xs">
+    <div className="mb-8">
+      <p
+        className="text-xs font-bold uppercase tracking-widest mb-3"
+        style={{ color: '#f72662', letterSpacing: '0.1em' }}
+      >
+        Dados do Cliente
+      </p>
+      <table className="w-full" style={{ borderCollapse: 'collapse' }}>
         <tbody>
-          {rows.map(([label, value]) => (
-            <tr key={label}>
-              <td className={`${TH} w-40`}>{label}</td>
-              <td className={TD}>{value}</td>
+          {rows.map(([label, value], i) => (
+            <tr
+              key={label}
+              style={{ background: i % 2 === 0 ? '#f9fafb' : '#ffffff' }}
+            >
+              <td className={ROW_LABEL} style={{ color: '#374151' }}>{label}</td>
+              <td className={ROW_VALUE} style={{ color: '#111827' }}>{value}</td>
             </tr>
           ))}
         </tbody>

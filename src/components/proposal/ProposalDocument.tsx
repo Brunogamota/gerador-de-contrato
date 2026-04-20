@@ -19,8 +19,12 @@ export function ProposalDocument({ proposalData: d, mdrMatrix, proposalNumber }:
   return (
     <div
       id="proposal-document"
-      className="bg-white font-serif text-xs text-gray-900 leading-relaxed p-10 max-w-4xl mx-auto"
-      style={{ fontFamily: 'Times New Roman, serif', fontSize: '10pt', lineHeight: '1.6' }}
+      className="bg-white text-ink-950 leading-relaxed p-10 max-w-4xl mx-auto"
+      style={{
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        fontSize: '10pt',
+        lineHeight: '1.55',
+      }}
     >
       <ContractLetterhead />
 
