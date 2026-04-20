@@ -1,16 +1,13 @@
+import { RebornWordmark } from '@/components/brand/RebornLogo';
+
 export function ContractLetterhead() {
   return (
     <div className="mb-8 pb-6">
       <div className="flex items-start justify-between gap-6">
-        {/* Left: Logo */}
-        <div className="flex flex-col gap-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/reborn-logo.png"
-            alt="Reborn"
-            style={{ height: '36px', width: 'auto', display: 'block' }}
-          />
-          <p className="text-xs text-ink-500 mt-1">
+        {/* Left: Logo + company info */}
+        <div className="flex flex-col gap-1.5">
+          <RebornWordmark height={30} color="#0a0a0a" />
+          <p className="text-xs text-ink-500 font-medium tracking-wide" style={{ marginTop: '4px' }}>
             REBORN TECNOLOGIA E SERVIÇOS LTDA
           </p>
           <p className="text-xs text-ink-500">
@@ -34,7 +31,12 @@ export function ContractLetterhead() {
       {/* Brand gradient divider */}
       <div
         className="mt-5"
-        style={{ height: '2px', background: 'linear-gradient(90deg, #f72662 0%, #771339 60%, transparent 100%)', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' } as React.CSSProperties}
+        style={{
+          height: '2px',
+          background: 'linear-gradient(90deg, #f72662 0%, #771339 60%, transparent 100%)',
+          printColorAdjust: 'exact',
+          WebkitPrintColorAdjust: 'exact',
+        } as React.CSSProperties}
       />
     </div>
   );
