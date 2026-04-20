@@ -17,6 +17,7 @@
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.103.3",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "decimal.js": "^10.4.3",
