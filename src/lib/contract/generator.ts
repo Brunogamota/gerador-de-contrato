@@ -38,7 +38,7 @@ export function printContract(elementId: string): void {
   if (!element) return;
 
   const win = window.open('', '_blank', 'width=900,height=700');
-  if (!win) return;
+  if (!win) throw new Error('Popup bloqueado — permita popups para este site');
 
   win.document.write(buildPrintHtml(element));
   win.document.close();

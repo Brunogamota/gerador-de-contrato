@@ -47,7 +47,10 @@ export function PreviewStep({
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
-            onClick={() => printContract('contract-document')}
+            onClick={() => {
+              try { printContract('contract-document'); }
+              catch (err) { alert(err instanceof Error ? err.message : 'Erro ao imprimir'); }
+            }}
           >
             Imprimir
           </Button>

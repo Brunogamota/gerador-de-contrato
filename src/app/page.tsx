@@ -9,7 +9,8 @@ async function getStats() {
       prisma.contract.count({ where: { status: 'active' } }),
     ]);
     return { total, draft, active };
-  } catch {
+  } catch (err) {
+    console.error(err);
     return { total: 0, draft: 0, active: 0 };
   }
 }
@@ -29,7 +30,8 @@ async function getRecent() {
         createdAt: true,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return [];
   }
 }

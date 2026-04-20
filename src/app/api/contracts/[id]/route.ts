@@ -9,8 +9,9 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
     const contract = await prisma.contract.findUnique({ where: { id: params.id } });
     if (!contract) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(contract);
-  } catch {
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (err) {
+    console.error('[GET /api/contracts/:id]', err);
+    return NextResponse.json({ error: 'Failed to fetch contract' }, { status: 500 });
   }
 }
 
@@ -22,7 +23,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data: body,
     });
     return NextResponse.json(contract);
-  } catch {
+  } catch (err) {
+    console.error('[PATCH /api/contracts/:id]', err);
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
   }
 }
@@ -31,7 +33,8 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
   try {
     await prisma.contract.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error('[DELETE /api/contracts/:id]', err);
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }

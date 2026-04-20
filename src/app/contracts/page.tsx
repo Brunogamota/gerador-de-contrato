@@ -16,7 +16,8 @@ async function getContracts() {
         createdAt: true,
       },
     });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return [];
   }
 }
