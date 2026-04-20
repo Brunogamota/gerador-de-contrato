@@ -33,6 +33,7 @@ export function ProposalWizard() {
   const [setupIntl, setSetupIntl] = useState('0.00');
   const [proposalNumber] = useState(generateProposalNumber);
   const [profileBanner, setProfileBanner] = useState<string | null>(null);
+  const [marketType, setMarketType] = useState<'brasil' | 'intl' | 'both'>('brasil');
 
   const form = useForm<ProposalData>({
     resolver: zodResolver(ProposalDataSchema),
@@ -137,6 +138,8 @@ export function ProposalWizard() {
             }}
             intlCostPricing={intlCostPricing}
             onIntlCostChange={setIntlCostPricing}
+            marketType={marketType}
+            onMarketTypeChange={setMarketType}
           />
         )}
         {currentStep === 'client-rates' && (

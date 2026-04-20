@@ -13,17 +13,52 @@ interface CostStepProps {
   onChange: (matrix: MDRMatrix) => void;
   intlCostPricing: IntlPricing;
   onIntlCostChange: (v: IntlPricing) => void;
+  marketType: 'brasil' | 'intl' | 'both';
+  onMarketTypeChange: (v: 'brasil' | 'intl' | 'both') => void;
 }
 
 type Tab = 'brasil' | 'intl';
 
-export function CostStep({ matrix, onChange, intlCostPricing, onIntlCostChange }: CostStepProps) {
+export function CostStep({
+  matrix,
+  onChange,
+  intlCostPricing,
+  onIntlCostChange,
+  marketType,
+  onMarketTypeChange,
+}: CostStepProps) {
   const [tab, setTab] = useState<Tab>('brasil');
   const [showImport, setShowImport] = useState(false);
   const validation = validateMatrix(matrix);
 
+  // Which content panel to render
+  const showBrasil = marketType === 'brasil' || (marketType === 'both' && tab === 'brasil');
+  const showIntl = marketType === 'intl' || (marketType === 'both' && tab === 'intl');
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Market type selector */}
+      <div className="flex gap-1 p-1 rounded-xl bg-ink-100 w-fit">
+        {([
+          { id: 'brasil', label: '🇧🇷 Somente Brasil' },
+          { id: 'intl',   label: '🌐 Somente Internacional' },
+          { id: 'both',   label: 'Ambos' },
+        ] as const).map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => onMarketTypeChange(opt.id)}
+            className={cn(
+              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              marketType === opt.id
+                ? 'bg-white text-ink-950 shadow-sm'
+                : 'text-ink-500 hover:text-ink-800',
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold text-ink-950 mb-1">Custo da Adquirente</h2>
@@ -32,7 +67,7 @@ export function CostStep({ matrix, onChange, intlCostPricing, onIntlCostChange }
           </p>
         </div>
 
-        {tab === 'brasil' && (
+        {showBrasil && (
           <button
             onClick={() => setShowImport(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand/30 bg-brand-50 text-brand text-sm font-semibold hover:bg-brand-100 hover:border-brand/50 transition-all"
@@ -45,26 +80,28 @@ export function CostStep({ matrix, onChange, intlCostPricing, onIntlCostChange }
         )}
       </div>
 
-      {/* Tab selector */}
-      <div className="flex gap-1 p-1 rounded-xl bg-ink-100 w-fit">
-        {([
-          { id: 'brasil', label: '🇧🇷 Brasil (MDR)' },
-          { id: 'intl',   label: '🌐 Internacional' },
-        ] as const).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              tab === t.id
-                ? 'bg-white text-ink-950 shadow-sm'
-                : 'text-ink-500 hover:text-ink-800',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Tab selector — only visible when marketType is 'both' */}
+      {marketType === 'both' && (
+        <div className="flex gap-1 p-1 rounded-xl bg-ink-100 w-fit">
+          {([
+            { id: 'brasil', label: '🇧🇷 Brasil (MDR)' },
+            { id: 'intl',   label: '🌐 Internacional' },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                tab === t.id
+                  ? 'bg-white text-ink-950 shadow-sm'
+                  : 'text-ink-500 hover:text-ink-800',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,11 +110,11 @@ export function CostStep({ matrix, onChange, intlCostPricing, onIntlCostChange }
         <span><strong>Uso interno exclusivo</strong> — esta tabela nunca aparece no PDF nem é compartilhada com o cliente.</span>
       </div>
 
-      {tab === 'brasil' && (
+      {showBrasil && (
         <MDRGrid matrix={matrix} onChange={onChange} issues={validation.issues} />
       )}
 
-      {tab === 'intl' && (
+      {showIntl && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-ink-500">
             Taxas cobradas pelo seu fornecedor internacional (ex: Stripe). Use como referência ao definir a proposta para o cliente.

@@ -17,10 +17,11 @@ interface CostProfile {
   intlCostPricing: string;
   isDefault: boolean;
   createdAt: string;
+  profileType?: string;
 }
 
 type Mode = 'list' | 'create' | 'edit';
-type Tab = 'brasil' | 'intl';
+type ProfileType = 'brasil' | 'intl';
 
 export default function PricingSettingsPage() {
   const [profiles, setProfiles] = useState<CostProfile[]>([]);
@@ -34,7 +35,7 @@ export default function PricingSettingsPage() {
   const [isDefault, setIsDefault] = useState(false);
   const [matrix, setMatrix] = useState<MDRMatrix>(createEmptyMatrix);
   const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
-  const [tab, setTab] = useState<Tab>('brasil');
+  const [profileType, setProfileType] = useState<ProfileType>('brasil');
   const [showImport, setShowImport] = useState(false);
   const [saving, setSaving] = useState(false);
   const [intlAiLoading, setIntlAiLoading] = useState(false);
@@ -57,7 +58,7 @@ export default function PricingSettingsPage() {
     setName(''); setMcc(''); setIsDefault(false);
     setMatrix(createEmptyMatrix());
     setIntlCostPricing(DEFAULT_INTL_PRICING);
-    setTab('brasil');
+    setProfileType('brasil');
     setEditingId(null);
     setMode('create');
   }
@@ -66,7 +67,7 @@ export default function PricingSettingsPage() {
     setName(p.name); setMcc(p.mcc); setIsDefault(p.isDefault);
     try { setMatrix(JSON.parse(p.mdrMatrix)); } catch { setMatrix(createEmptyMatrix()); }
     try { setIntlCostPricing(JSON.parse(p.intlCostPricing || '{}')); } catch { setIntlCostPricing(DEFAULT_INTL_PRICING); }
-    setTab('brasil');
+    setProfileType((p.profileType as ProfileType) ?? 'brasil');
     setEditingId(p.id);
     setMode('edit');
   }
@@ -92,7 +93,7 @@ export default function PricingSettingsPage() {
     if (!name.trim()) { alert('Nome é obrigatório.'); return; }
     setSaving(true);
     try {
-      const payload = { name, mcc, isDefault, mdrMatrix: matrix, intlCostPricing };
+      const payload = { name, mcc, isDefault, mdrMatrix: matrix, intlCostPricing, profileType };
       const url = editingId ? `/api/cost-profiles/${editingId}` : '/api/cost-profiles';
       const method = editingId ? 'PATCH' : 'POST';
       const res = await fetch(url, {
@@ -146,6 +147,33 @@ export default function PricingSettingsPage() {
         </div>
 
         <div className="bg-ink-900 rounded-2xl border border-ink-800 p-6 flex flex-col gap-5">
+          {/* Tipo de Perfil selector */}
+          <div>
+            <label className="block text-xs font-semibold text-ink-400 uppercase tracking-wide mb-2">
+              Tipo de Perfil
+            </label>
+            <div className="flex gap-2">
+              {([
+                { value: 'brasil', label: 'Brasil (MDR)' },
+                { value: 'intl',   label: 'Internacional (Stripe)' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setProfileType(opt.value)}
+                  className={cn(
+                    'px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
+                    profileType === opt.value
+                      ? 'bg-brand/20 border-brand/50 text-brand-300'
+                      : 'bg-ink-800 border-ink-700 text-ink-400 hover:text-ink-200 hover:border-ink-600'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-ink-400 uppercase tracking-wide mb-1.5">
@@ -158,18 +186,20 @@ export default function PricingSettingsPage() {
                 className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-500 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-ink-400 uppercase tracking-wide mb-1.5">
-                MCC (código)
-              </label>
-              <input
-                value={mcc}
-                onChange={(e) => setMcc(e.target.value)}
-                placeholder="Ex: 5411"
-                className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-500 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
-              />
-              <p className="text-xs text-ink-500 mt-1">Usado para carregar automaticamente ao criar proposta</p>
-            </div>
+            {profileType === 'brasil' && (
+              <div>
+                <label className="block text-xs font-semibold text-ink-400 uppercase tracking-wide mb-1.5">
+                  MCC (código)
+                </label>
+                <input
+                  value={mcc}
+                  onChange={(e) => setMcc(e.target.value)}
+                  placeholder="Ex: 5411"
+                  className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3.5 py-2.5 text-sm text-ink-100 placeholder:text-ink-500 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
+                />
+                <p className="text-xs text-ink-500 mt-1">Usado para carregar automaticamente ao criar proposta</p>
+              </div>
+            )}
           </div>
 
           <label className="flex items-center gap-2.5 cursor-pointer w-fit">
@@ -182,25 +212,7 @@ export default function PricingSettingsPage() {
             <span className="text-sm text-ink-300">Usar como padrão (carrega quando MCC não tem perfil específico)</span>
           </label>
 
-          {/* Tab selector */}
-          <div className="flex gap-1 p-1 rounded-xl bg-ink-800 w-fit">
-            {(['brasil', 'intl'] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={cn(
-                  'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all',
-                  tab === t
-                    ? 'bg-ink-950 text-ink-50 shadow'
-                    : 'text-ink-400 hover:text-ink-200'
-                )}
-              >
-                {t === 'brasil' ? 'Brasil' : 'Internacional'}
-              </button>
-            ))}
-          </div>
-
-          {tab === 'brasil' ? (
+          {profileType === 'brasil' ? (
             <>
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-ink-200">Tabela de Custo — Brasil (Adquirente)</p>
@@ -331,6 +343,7 @@ export default function PricingSettingsPage() {
             </thead>
             <tbody className="divide-y divide-ink-800">
               {profiles.map((p) => {
+                const pType = (p.profileType ?? 'brasil') as ProfileType;
                 let filled = 0;
                 let hasIntl = false;
                 try {
@@ -346,15 +359,28 @@ export default function PricingSettingsPage() {
                 return (
                   <tr key={p.id} className="hover:bg-ink-800/30 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-medium text-ink-50">{p.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-ink-500">{filled}/60 células MDR Brasil</p>
-                        {hasIntl && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800/30">
-                            + Intl
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-ink-50">{p.name}</p>
+                        {pType === 'intl' ? (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800/30 font-medium">
+                            Stripe
+                          </span>
+                        ) : (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-ink-700/50 text-ink-400 border border-ink-700/50 font-medium">
+                            MDR
                           </span>
                         )}
                       </div>
+                      {pType === 'brasil' && (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-ink-500">{filled}/60 células MDR Brasil</p>
+                          {hasIntl && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800/30">
+                              + Intl
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-mono text-ink-300 text-xs bg-ink-800 px-2 py-0.5 rounded-lg">

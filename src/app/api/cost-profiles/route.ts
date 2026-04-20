@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
-    const { name, mcc, mdrMatrix, isDefault, intlCostPricing } = await req.json();
+    const { name, mcc, mdrMatrix, isDefault, intlCostPricing, profileType } = await req.json();
     if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
-    if (!isMdrMatrix(mdrMatrix)) return NextResponse.json({ error: 'Invalid mdrMatrix' }, { status: 400 });
+    if (profileType !== 'intl' && !isMdrMatrix(mdrMatrix)) return NextResponse.json({ error: 'Invalid mdrMatrix' }, { status: 400 });
 
     if (isDefault) {
       await prisma.costProfile.updateMany({ data: { isDefault: false } });
@@ -33,9 +33,10 @@ export async function POST(req: NextRequest) {
       data: {
         name: name.trim(),
         mcc: mcc ?? '',
-        mdrMatrix: JSON.stringify(mdrMatrix),
+        mdrMatrix: JSON.stringify(mdrMatrix ?? {}),
         intlCostPricing: JSON.stringify(intlCostPricing ?? {}),
         isDefault: isDefault ?? false,
+        profileType: profileType ?? 'brasil',
       },
     });
     console.log(`[cost-profiles] POST created id=${profile.id} name="${profile.name}" mcc=${profile.mcc}`);
