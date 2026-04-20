@@ -72,9 +72,6 @@ export function ContractWizard() {
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        if (res.status === 503) {
-          throw new Error('Banco de dados não configurado (DATABASE_URL). Execute npm run db:push após configurar.');
-        }
         const detail = errBody.details
           ? JSON.stringify(errBody.details.fieldErrors ?? errBody.details, null, 2)
           : (errBody.error ?? 'Erro desconhecido');
