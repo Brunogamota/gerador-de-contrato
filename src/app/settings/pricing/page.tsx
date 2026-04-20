@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MDRMatrix, IntlPricing, DEFAULT_INTL_PRICING } from '@/types/pricing';
 import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { validateMatrix } from '@/lib/calculations/validation';
@@ -37,6 +37,9 @@ export default function PricingSettingsPage() {
   const [tab, setTab] = useState<Tab>('brasil');
   const [showImport, setShowImport] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [intlAiLoading, setIntlAiLoading] = useState(false);
+  const [intlAiError, setIntlAiError] = useState('');
+  const intlFileRef = useRef<HTMLInputElement>(null);
 
   async function loadProfiles() {
     setLoading(true);
@@ -66,6 +69,23 @@ export default function PricingSettingsPage() {
     setTab('brasil');
     setEditingId(p.id);
     setMode('edit');
+  }
+
+  async function handleIntlAiAnalyze(file: File) {
+    setIntlAiLoading(true);
+    setIntlAiError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/parse-intl-pricing', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? 'Erro ao analisar com IA.');
+      setIntlCostPricing(json.data as IntlPricing);
+    } catch (err: unknown) {
+      setIntlAiError(err instanceof Error ? err.message : 'Erro desconhecido.');
+    } finally {
+      setIntlAiLoading(false);
+    }
   }
 
   async function handleSave() {
@@ -195,12 +215,38 @@ export default function PricingSettingsPage() {
             </>
           ) : (
             <>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-sm font-semibold text-ink-200">Custo Internacional — Stripe / Radar</p>
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-950/40 text-red-400 border border-red-800/30">
-                  Uso interno — não vai no PDF do cliente
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => intlFileRef.current?.click()}
+                    disabled={intlAiLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand/30 bg-brand-950/30 text-brand text-sm font-semibold hover:bg-brand-950/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
+                    </svg>
+                    {intlAiLoading ? 'Analisando…' : 'Analisar com IA'}
+                  </button>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-950/40 text-red-400 border border-red-800/30">
+                    Uso interno — não vai no PDF do cliente
+                  </span>
+                </div>
               </div>
+              <input
+                ref={intlFileRef}
+                type="file"
+                accept=".pdf,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleIntlAiAnalyze(file);
+                  e.target.value = '';
+                }}
+              />
+              {intlAiError && (
+                <p className="text-xs text-red-400">{intlAiError}</p>
+              )}
               <IntlPricingForm value={intlCostPricing} onChange={setIntlCostPricing} />
             </>
           )}
