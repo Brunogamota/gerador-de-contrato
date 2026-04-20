@@ -9,7 +9,7 @@ export function isMdrMatrix(v: unknown): boolean {
 }
 
 // Fields that must never be written via PATCH (computed / identity columns).
-const PATCH_PROTECTED = new Set(['id', 'contractNumber', 'createdAt', 'updatedAt']);
+const PATCH_PROTECTED = new Set(['id', 'contractNumber', 'proposalNumber', 'createdAt', 'updatedAt']);
 
 export function sanitizePatch(body: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(body).filter(([k]) => !PATCH_PROTECTED.has(k)));

@@ -52,12 +52,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 >
                   Contratos
                 </Link>
+                <Link
+                  href="/proposals"
+                  className="px-3 py-1.5 rounded-lg text-sm text-ink-300 hover:text-white hover:bg-ink-800 transition-colors"
+                >
+                  Propostas
+                </Link>
+                <HardNavLink
+                  href="/proposals/new"
+                  className="ml-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-all"
+                  style={{ background: 'rgba(247,38,98,0.15)', color: '#ff73a2' }}
+                >
+                  + Proposta
+                </HardNavLink>
                 <HardNavLink
                   href="/contracts/new"
-                  className="ml-3 px-4 py-1.5 rounded-lg text-sm font-semibold text-white transition-all"
+                  className="ml-1 px-4 py-1.5 rounded-lg text-sm font-semibold text-white transition-all"
                   style={{ background: 'linear-gradient(135deg,#f72662,#771339)', boxShadow: '0 0 12px rgba(247,38,98,0.35)' }}
                 >
-                  + Novo
+                  + Contrato
                 </HardNavLink>
               </nav>
             </div>

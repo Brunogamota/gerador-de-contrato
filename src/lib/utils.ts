@@ -47,6 +47,12 @@ export function generateContractNumber(): string {
   return `RBN-${year}-${rand}`;
 }
 
+export function generateProposalNumber(): string {
+  const year = new Date().getFullYear();
+  const rand = Math.floor(Math.random() * 90000) + 10000;
+  return `PRO-${year}-${rand}`;
+}
+
 export function parseDateBR(dateStr: string): Date | null {
   const parts = dateStr.split('/');
   if (parts.length !== 3) return null;
