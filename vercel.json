@@ -5,6 +5,12 @@
   "functions": {
     "src/app/api/parse-pdf/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/parse-intl-pricing/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/proposals/suggest-pricing/route.ts": {
+      "maxDuration": 60
     }
   }
 }
