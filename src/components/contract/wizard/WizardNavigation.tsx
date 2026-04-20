@@ -1,0 +1,49 @@
+import { cn } from '@/lib/utils';
+import { StepId } from './steps';
+
+interface Props {
+  currentStep: StepId;
+  stepIndex: number;
+  mdrIsValid: boolean;
+  mdrCanGenerate: boolean;
+  onBack: () => void;
+  onNext: () => void;
+}
+
+export function WizardNavigation({ currentStep, stepIndex, mdrIsValid, mdrCanGenerate, onBack, onNext }: Props) {
+  return (
+    <div className="flex items-center justify-between">
+      <button
+        onClick={onBack}
+        disabled={stepIndex === 0}
+        className={cn(
+          'px-5 py-2.5 rounded-xl text-sm font-medium transition-colors',
+          stepIndex === 0
+            ? 'text-gray-300 cursor-default'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+        )}
+      >
+        ← Voltar
+      </button>
+
+      <div className="flex items-center gap-3">
+        {currentStep === 'mdr' && !mdrCanGenerate && (
+          <p className="text-sm text-amber-600">
+            Preencha ao menos uma bandeira completa para continuar
+          </p>
+        )}
+        <button
+          onClick={onNext}
+          disabled={currentStep === 'mdr' && !mdrIsValid}
+          className={cn(
+            'px-6 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white',
+            'hover:bg-brand-700 active:bg-brand-800 transition-colors shadow-sm',
+            'disabled:opacity-50 disabled:cursor-not-allowed'
+          )}
+        >
+          Continuar →
+        </button>
+      </div>
+    </div>
+  );
+}

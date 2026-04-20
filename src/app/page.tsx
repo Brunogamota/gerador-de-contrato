@@ -1,20 +1,22 @@
 import Link from 'next/link';
+import { HardNavLink } from '@/components/ui/HardNavLink';
 import { getPrisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 async function getStats() {
   const prisma = getPrisma();
-  if (!prisma) return { total: 0, draft: 0, active: 0 };
+  if (!prisma) return { total: 0, draft: 0, active: 0, proposals: 0 };
   try {
-    const [total, draft, active] = await Promise.all([
+    const [total, draft, active, proposals] = await Promise.all([
       prisma.contract.count(),
       prisma.contract.count({ where: { status: 'draft' } }),
       prisma.contract.count({ where: { status: 'active' } }),
+      prisma.proposal.count(),
     ]);
-    return { total, draft, active };
+    return { total, draft, active, proposals };
   } catch {
-    return { total: 0, draft: 0, active: 0 };
+    return { total: 0, draft: 0, active: 0, proposals: 0 };
   }
 }
 
@@ -56,21 +58,22 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-ink-50">Dashboard</h1>
           <p className="text-sm text-ink-400 mt-1">Gerencie contratos e tabelas de pricing</p>
         </div>
-        <Link
+        <HardNavLink
           href="/contracts/new"
           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm"
           style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
         >
           + Novo Contrato
-        </Link>
+        </HardNavLink>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total de Contratos', value: stats.total, icon: '📄' },
-          { label: 'Rascunhos',          value: stats.draft,  icon: '✏️' },
-          { label: 'Ativos',             value: stats.active, icon: '✅' },
+          { label: 'Contratos',  value: stats.total,     icon: '📄' },
+          { label: 'Rascunhos',  value: stats.draft,     icon: '✏️' },
+          { label: 'Ativos',     value: stats.active,    icon: '✅' },
+          { label: 'Propostas',  value: stats.proposals, icon: '📋' },
         ].map(({ label, value, icon }) => (
           <div key={label} className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card p-5 flex items-center gap-4">
             <span className="text-2xl">{icon}</span>
@@ -93,13 +96,13 @@ export default async function DashboardPage() {
         {recent.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-ink-500 text-sm mb-4">Nenhum contrato gerado ainda</p>
-            <Link
+            <HardNavLink
               href="/contracts/new"
               className="inline-flex px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-all"
               style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
             >
               Criar primeiro contrato
-            </Link>
+            </HardNavLink>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -166,9 +169,9 @@ export default async function DashboardPage() {
           <div key={card.title} className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card p-6 flex flex-col gap-3">
             <h3 className="font-semibold text-ink-50">{card.title}</h3>
             <p className="text-sm text-ink-400 flex-1">{card.desc}</p>
-            <Link href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">
+            <HardNavLink href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">
               {card.cta} →
-            </Link>
+            </HardNavLink>
           </div>
         ))}
       </div>

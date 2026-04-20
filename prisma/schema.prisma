@@ -50,8 +50,89 @@ model Contract {
   // MDR Matrix serialized as JSON
   mdrMatrix String @default("{}")
 
+  // Proposal reference (rastreabilidade)
+  proposalId String?
+
+  // MCC do cliente
+  mcc String? @default("")
+
   // Status
   status String @default("draft") // draft | active | signed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Proposal {
+  id             String   @id @default(cuid())
+  proposalNumber String   @unique
+
+  // Contratante
+  contratanteNome      String
+  contratanteCnpj      String
+  contratanteEndereco  String
+  contratanteEmail     String
+  contratanteTelefone  String
+
+  // Representante legal (opcional)
+  repLegalNome     String? @default("")
+  repLegalCpf      String? @default("")
+  repLegalRg       String? @default("")
+  repLegalEmail    String? @default("")
+  repLegalTelefone String? @default("")
+  repLegalCargo    String? @default("")
+
+  // Taxas operacionais
+  setup             String @default("0.00")
+  feeTransacao      String @default("0.15")
+  taxaAntifraude    String @default("1.00")
+  taxaPix           String @default("0.45")
+  taxaPixOut        String @default("0.45")
+  taxaSplit         String @default("0.00")
+  taxaEstorno       String @default("2.50")
+  taxaAntecipacao   String @default("1.45")
+  taxaPreChargeback String @default("0.00")
+  taxaChargeback    String @default("65.00")
+  prazoRecebimento  String @default("D0")
+  valorMinimoMensal String @default("0.00")
+
+  // MCC do cliente
+  mcc String? @default("")
+
+  // Pricing tables (JSON strings)
+  costTable    String @default("{}") // taxas da adquirente — NUNCA no PDF
+  marginConfig String @default("{}") // configuração de margem — NUNCA no PDF
+  mdrMatrix    String @default("{}") // finalPricingTable = custo + margem — vai no PDF
+  clientRates  String @default("{}") // taxas atuais do cliente (para comparativo) — NUNCA no PDF
+
+  // Proposta-specific
+  validadeAte String
+  observacoes String? @default("")
+
+  // International pricing (JSON strings — cost is internal, proposal goes in PDF)
+  intlCostPricing     String @default("{}")
+  intlProposalPricing String @default("{}")
+  setupIntl           String @default("0.00")
+
+  // Status: draft | generated | sent | viewed | accepted | rejected | expired | converted_to_contract
+  status     String  @default("draft")
+  contractId String?
+
+  // Timestamps de ciclo de vida
+  sentAt     DateTime?
+  viewedAt   DateTime?
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CostProfile {
+  id        String   @id @default(cuid())
+  name      String
+  mcc       String   @default("") // MCC code(s) que este perfil cobre
+  mdrMatrix String   @default("{}") // taxas da adquirente para este MCC
+  isDefault Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

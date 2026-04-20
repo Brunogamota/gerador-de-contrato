@@ -26,10 +26,31 @@ const CONFIDENCE_LABEL = {
   low:    { label: 'Baixa confiança',  color: 'text-red-600 bg-red-50' },
 };
 
+function mergeMatrices(base: MDRMatrix, incoming: MDRMatrix): MDRMatrix {
+  const result = { ...base } as MDRMatrix;
+  for (const brand of BRANDS) {
+    result[brand] = { ...result[brand] };
+    for (const inst of INSTALLMENTS) {
+      const existing = result[brand][inst as InstallmentNumber];
+      const next = incoming[brand][inst as InstallmentNumber];
+      if (!existing.mdrBase && next.mdrBase) {
+        result[brand] = { ...result[brand], [inst]: next };
+      }
+    }
+  }
+  return result;
+}
+
+function worstConfidence(a: ParsedResult['confidence'], b: ParsedResult['confidence']): ParsedResult['confidence'] {
+  const rank = { high: 2, medium: 1, low: 0 };
+  return rank[a] <= rank[b] ? a : b;
+}
+
 export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportModalProps) {
   const [step, setStep] = useState<ImportStep>('upload');
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [processingIndex, setProcessingIndex] = useState(0);
   const [parsed, setParsed] = useState<ParsedResult | null>(null);
   const [editMatrix, setEditMatrix] = useState<MDRMatrix>(createEmptyMatrix());
   const [errorMsg, setErrorMsg] = useState('');
@@ -37,48 +58,74 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
   const [overwriteAll, setOverwriteAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback((f: File) => {
-    setFile(f);
-    if (f.type.startsWith('image/')) {
-      const url = URL.createObjectURL(f);
-      setPreview(url);
-    } else {
-      setPreview(null);
-    }
+  const addFiles = useCallback((incoming: FileList | File[]) => {
+    const arr = Array.from(incoming);
+    setFiles(prev => {
+      const combined = [...prev];
+      const newPreviews: string[] = [];
+      for (const f of arr) {
+        const isDupe = combined.some(x => x.name === f.name && x.size === f.size);
+        if (!isDupe) {
+          combined.push(f);
+          newPreviews.push(f.type.startsWith('image/') ? URL.createObjectURL(f) : '');
+        }
+      }
+      setPreviews(p => [...p, ...newPreviews]);
+      return combined;
+    });
+  }, []);
+
+  const removeFile = useCallback((idx: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+    setPreviews(prev => {
+      const url = prev[idx];
+      if (url) URL.revokeObjectURL(url);
+      return prev.filter((_, i) => i !== idx);
+    });
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  }, [handleFile]);
+    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  }, [addFiles]);
 
   async function handleAnalyze() {
-    if (!file) return;
+    if (!files.length) return;
     setStep('processing');
+    setProcessingIndex(0);
     setErrorMsg('');
 
-    try {
-      const form = new FormData();
-      form.append('file', file);
+    let merged: MDRMatrix = createEmptyMatrix();
+    let mergedConfidence: ParsedResult['confidence'] = 'high';
+    let mergedMissing: string[] = [];
 
-      const res = await fetch('/api/parse-pdf', { method: 'POST', body: form });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrorMsg(data.error ?? 'Erro ao processar o arquivo.');
+    for (let i = 0; i < files.length; i++) {
+      setProcessingIndex(i);
+      try {
+        const form = new FormData();
+        form.append('file', files[i]);
+        const res = await fetch('/api/parse-pdf', { method: 'POST', body: form });
+        const data = await res.json() as ParsedResult;
+        if (!res.ok) {
+          setErrorMsg((data as unknown as { error?: string }).error ?? `Erro ao processar arquivo ${i + 1}.`);
+          setStep('error');
+          return;
+        }
+        merged = mergeMatrices(merged, data.matrix);
+        mergedConfidence = worstConfidence(mergedConfidence, data.confidence);
+        const combined = [...mergedMissing, ...data.missingData];
+        mergedMissing = combined.filter((v, i) => combined.indexOf(v) === i);
+      } catch {
+        setErrorMsg(`Falha de conexão ao processar arquivo ${i + 1}. Tente novamente.`);
         setStep('error');
         return;
       }
-
-      setParsed(data);
-      setEditMatrix(data.matrix);
-      setStep('review');
-    } catch {
-      setErrorMsg('Falha de conexão ao processar o arquivo. Tente novamente.');
-      setStep('error');
     }
+
+    setParsed({ matrix: merged, fees: {}, confidence: mergedConfidence, missingData: mergedMissing });
+    setEditMatrix(merged);
+    setStep('review');
   }
 
   function handleConfirm() {
@@ -86,18 +133,18 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
     if (overwriteAll) {
       onConfirm(editMatrix);
     } else {
-      // Merge: only fill empty cells in current matrix
-      const merged = { ...currentMatrix } as MDRMatrix;
+      const result = { ...currentMatrix } as MDRMatrix;
       for (const brand of BRANDS) {
+        result[brand] = { ...result[brand] };
         for (const inst of INSTALLMENTS) {
           const existing = currentMatrix[brand][inst as InstallmentNumber];
           const incoming = editMatrix[brand][inst as InstallmentNumber];
           if (!existing.finalMdr && incoming.finalMdr) {
-            merged[brand] = { ...merged[brand], [inst]: incoming };
+            result[brand] = { ...result[brand], [inst]: incoming };
           }
         }
       }
-      onConfirm(merged);
+      onConfirm(result);
     }
   }
 
@@ -105,7 +152,6 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
     setEditMatrix(prev => {
       const entry = { ...prev[brand][inst as InstallmentNumber] };
       entry[field] = value;
-      // Recompute final
       const base = parseFloat(entry.mdrBase || '0');
       const ant = parseFloat(entry.anticipationRate || '0');
       entry.finalMdr = (!isNaN(base) ? (base + ant).toFixed(4) : '');
@@ -134,8 +180,12 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
         <div className="flex border-b border-ink-100 px-6 py-2 gap-6">
           {(['upload', 'processing', 'review'] as const).map((s, i) => (
             <div key={s} className={cn('flex items-center gap-1.5 text-xs font-medium', step === s ? 'text-brand' : 'text-ink-400')}>
-              <span className={cn('w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold', step === s ? 'bg-brand text-white' : i < ['upload','processing','review'].indexOf(step) ? 'bg-emerald-500 text-white' : 'bg-ink-100 text-ink-500')}>
-                {i < ['upload','processing','review'].indexOf(step) ? '✓' : i + 1}
+              <span className={cn('w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold',
+                step === s ? 'bg-brand text-white' :
+                i < ['upload', 'processing', 'review'].indexOf(step) ? 'bg-emerald-500 text-white' :
+                'bg-ink-100 text-ink-500'
+              )}>
+                {i < ['upload', 'processing', 'review'].indexOf(step) ? '✓' : i + 1}
               </span>
               {s === 'upload' ? 'Upload' : s === 'processing' ? 'Processando' : 'Revisão'}
             </div>
@@ -164,41 +214,50 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                   </svg>
                 </div>
                 <p className="text-sm font-medium text-ink-800 mb-1">
-                  {dragging ? 'Solte o arquivo aqui' : 'Arraste ou clique para selecionar'}
+                  {dragging ? 'Solte os arquivos aqui' : 'Arraste ou clique para selecionar'}
                 </p>
-                <p className="text-xs text-ink-500">PDF, PNG ou JPG · max 20 MB</p>
+                <p className="text-xs text-ink-500">PDF, PNG ou JPG · múltiplos arquivos · max 20 MB cada</p>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
+                  multiple
                   className="hidden"
-                  onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
+                  onChange={e => e.target.files && addFiles(e.target.files)}
                 />
               </div>
 
-              {file && (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-ink-200 bg-ink-50">
-                  <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-brand" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-ink-800 truncate">{file.name}</p>
-                    <p className="text-xs text-ink-500">{(file.size / 1024).toFixed(0)} KB</p>
-                  </div>
-                  <button onClick={() => { setFile(null); setPreview(null); }} className="text-ink-400 hover:text-ink-700 p-1">✕</button>
+              {/* File list */}
+              {files.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-ink-600">
+                    {files.length} {files.length === 1 ? 'arquivo selecionado' : 'arquivos selecionados'}
+                  </p>
+                  {files.map((f, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-ink-200 bg-ink-50">
+                      {previews[idx] ? (
+                        <img src={previews[idx]} alt="" className="w-10 h-10 rounded-lg object-cover border border-ink-200 flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-5 h-5 text-brand" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-ink-800 truncate">{f.name}</p>
+                        <p className="text-xs text-ink-500">{(f.size / 1024).toFixed(0)} KB</p>
+                      </div>
+                      <button onClick={() => removeFile(idx)} className="text-ink-400 hover:text-red-500 p-1 transition-colors">✕</button>
+                    </div>
+                  ))}
                 </div>
-              )}
-
-              {preview && (
-                <img src={preview} alt="Preview" className="rounded-xl border border-ink-200 max-h-48 object-contain w-full bg-ink-50" />
               )}
 
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-xs font-semibold text-amber-800 mb-1">Como funciona a extração por IA</p>
                 <p className="text-xs text-amber-700">
-                  O sistema usa visão computacional + Claude para identificar tabelas de MDR, taxas por bandeira, parcelamentos e antecipação.
+                  Envie quantas páginas precisar — cada arquivo é analisado e os dados são mesclados automaticamente.
                   Você poderá revisar e corrigir todos os valores antes de confirmar.
                 </p>
               </div>
@@ -213,8 +272,24 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                 <div className="absolute inset-0 rounded-full border-4 border-brand border-t-transparent animate-spin" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold text-ink-900 mb-1">Analisando proposta…</p>
-                <p className="text-xs text-ink-500">Extração de MDR, taxas e bandeiras via IA</p>
+                <p className="text-sm font-semibold text-ink-900 mb-1">
+                  {files.length > 1
+                    ? `Analisando arquivo ${processingIndex + 1} de ${files.length}…`
+                    : 'Analisando proposta…'}
+                </p>
+                <p className="text-xs text-ink-500">
+                  {files.length > 1 && processingIndex < files.length
+                    ? files[processingIndex]?.name
+                    : 'Extração de MDR, taxas e bandeiras via IA'}
+                </p>
+                {files.length > 1 && (
+                  <div className="mt-4 w-48 mx-auto bg-ink-100 rounded-full h-1.5">
+                    <div
+                      className="bg-brand h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${((processingIndex) / files.length) * 100}%` }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -222,11 +297,15 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
           {/* STEP: review */}
           {step === 'review' && parsed && (
             <div className="flex flex-col gap-5">
-              {/* Confidence + missing data */}
               <div className="flex items-center gap-3 flex-wrap">
                 <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full', CONFIDENCE_LABEL[parsed.confidence].color)}>
                   {CONFIDENCE_LABEL[parsed.confidence].label}
                 </span>
+                {files.length > 1 && (
+                  <span className="text-xs text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full ring-1 ring-blue-200">
+                    {files.length} arquivos mesclados
+                  </span>
+                )}
                 {parsed.missingData.length > 0 && (
                   <span className="text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full ring-1 ring-amber-200">
                     ⚠ Dados não encontrados: {parsed.missingData.slice(0, 3).join(', ')}
@@ -235,7 +314,7 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
                 )}
               </div>
 
-              <p className="text-xs text-ink-500 -mt-2">Revise e edite os valores extraídos antes de confirmar. Células em amarelo tiveram baixa confiança na extração.</p>
+              <p className="text-xs text-ink-500 -mt-2">Revise e edite os valores extraídos antes de confirmar. Células em verde tiveram dados identificados.</p>
 
               {/* MDR table per brand */}
               <div className="overflow-x-auto rounded-xl border border-ink-200">
@@ -342,15 +421,15 @@ export function PDFImportModal({ currentMatrix, onConfirm, onClose }: PDFImportM
             {step === 'upload' && (
               <button
                 onClick={handleAnalyze}
-                disabled={!file}
+                disabled={!files.length}
                 className={cn(
                   'px-5 py-2 rounded-xl text-sm font-semibold text-white transition-all',
-                  file
+                  files.length
                     ? 'bg-brand hover:bg-brand-400 shadow-sm'
                     : 'bg-ink-200 text-ink-500 cursor-not-allowed'
                 )}
               >
-                Analisar com IA →
+                {files.length > 1 ? `Analisar ${files.length} arquivos →` : 'Analisar com IA →'}
               </button>
             )}
             {step === 'review' && (
