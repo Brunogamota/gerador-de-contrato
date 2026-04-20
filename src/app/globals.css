@@ -65,10 +65,15 @@
   }
 }
 
-/* ─── Print styles ──────────────────────────────────────────────── */
-@media print {
-  @page { margin: 20mm 20mm 20mm 25mm; size: A4 portrait; }
+/* ─── Print / PDF ───────────────────────────────────────────────── */
 
+/* @page must be top-level — not inside @media print */
+@page {
+  margin: 20mm 20mm 20mm 25mm;
+  size: A4 portrait;
+}
+
+@media print {
   body { background: white !important; color: black !important; }
   .no-print, header, footer, nav { display: none !important; }
 
@@ -79,12 +84,6 @@
     box-shadow: none !important;
     font-size: 10pt !important;
     line-height: 1.6 !important;
-  }
-
-  /* Prevent orphaned clause headers */
-  .mb-3 {
-    break-inside: avoid;
-    page-break-inside: avoid;
   }
 
   p, li { orphans: 3; widows: 3; }
