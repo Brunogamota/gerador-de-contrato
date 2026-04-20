@@ -128,11 +128,12 @@ model Proposal {
 }
 
 model CostProfile {
-  id        String   @id @default(cuid())
-  name      String
-  mcc       String   @default("") // MCC code(s) que este perfil cobre
-  mdrMatrix String   @default("{}") // taxas da adquirente para este MCC
-  isDefault Boolean  @default(false)
+  id              String   @id @default(cuid())
+  name            String
+  mcc             String   @default("") // MCC code(s) que este perfil cobre
+  mdrMatrix       String   @default("{}") // taxas da adquirente para este MCC (Brasil)
+  intlCostPricing String   @default("{}") // taxas internacionais (Stripe/Radar) — uso interno
+  isDefault       Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

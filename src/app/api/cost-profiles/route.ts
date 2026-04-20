@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
-    const { name, mcc, mdrMatrix, isDefault } = await req.json();
+    const { name, mcc, mdrMatrix, isDefault, intlCostPricing } = await req.json();
     if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
     if (!isMdrMatrix(mdrMatrix)) return NextResponse.json({ error: 'Invalid mdrMatrix' }, { status: 400 });
 
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         mcc: mcc ?? '',
         mdrMatrix: JSON.stringify(mdrMatrix),
+        intlCostPricing: JSON.stringify(intlCostPricing ?? {}),
         isDefault: isDefault ?? false,
       },
     });

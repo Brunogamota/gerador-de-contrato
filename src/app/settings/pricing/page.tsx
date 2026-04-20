@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MDRMatrix } from '@/types/pricing';
+import { MDRMatrix, IntlPricing, DEFAULT_INTL_PRICING } from '@/types/pricing';
 import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { validateMatrix } from '@/lib/calculations/validation';
 import { MDRGrid } from '@/components/mdr/MDRGrid';
 import { PDFImportModal } from '@/components/mdr/PDFImportModal';
+import { IntlPricingForm } from '@/components/proposal/steps/IntlPricingForm';
 import { cn } from '@/lib/utils';
 
 interface CostProfile {
@@ -13,11 +14,13 @@ interface CostProfile {
   name: string;
   mcc: string;
   mdrMatrix: string;
+  intlCostPricing: string;
   isDefault: boolean;
   createdAt: string;
 }
 
 type Mode = 'list' | 'create' | 'edit';
+type Tab = 'brasil' | 'intl';
 
 export default function PricingSettingsPage() {
   const [profiles, setProfiles] = useState<CostProfile[]>([]);
@@ -30,6 +33,8 @@ export default function PricingSettingsPage() {
   const [mcc, setMcc] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [matrix, setMatrix] = useState<MDRMatrix>(createEmptyMatrix);
+  const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
+  const [tab, setTab] = useState<Tab>('brasil');
   const [showImport, setShowImport] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -48,6 +53,8 @@ export default function PricingSettingsPage() {
   function openCreate() {
     setName(''); setMcc(''); setIsDefault(false);
     setMatrix(createEmptyMatrix());
+    setIntlCostPricing(DEFAULT_INTL_PRICING);
+    setTab('brasil');
     setEditingId(null);
     setMode('create');
   }
@@ -55,6 +62,8 @@ export default function PricingSettingsPage() {
   function openEdit(p: CostProfile) {
     setName(p.name); setMcc(p.mcc); setIsDefault(p.isDefault);
     try { setMatrix(JSON.parse(p.mdrMatrix)); } catch { setMatrix(createEmptyMatrix()); }
+    try { setIntlCostPricing(JSON.parse(p.intlCostPricing || '{}')); } catch { setIntlCostPricing(DEFAULT_INTL_PRICING); }
+    setTab('brasil');
     setEditingId(p.id);
     setMode('edit');
   }
@@ -63,7 +72,7 @@ export default function PricingSettingsPage() {
     if (!name.trim()) { alert('Nome é obrigatório.'); return; }
     setSaving(true);
     try {
-      const payload = { name, mcc, isDefault, mdrMatrix: matrix };
+      const payload = { name, mcc, isDefault, mdrMatrix: matrix, intlCostPricing };
       const url = editingId ? `/api/cost-profiles/${editingId}` : '/api/cost-profiles';
       const method = editingId ? 'PATCH' : 'POST';
       const res = await fetch(url, {
@@ -150,20 +159,51 @@ export default function PricingSettingsPage() {
             <span className="text-sm text-ink-300">Usar como padrão (carrega quando MCC não tem perfil específico)</span>
           </label>
 
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-ink-200">Tabela de Custo (Adquirente)</p>
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand/30 bg-brand-950/30 text-brand text-sm font-semibold hover:bg-brand-950/60 transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
-              </svg>
-              Importar com IA
-            </button>
+          {/* Tab selector */}
+          <div className="flex gap-1 p-1 rounded-xl bg-ink-800 w-fit">
+            {(['brasil', 'intl'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all',
+                  tab === t
+                    ? 'bg-ink-950 text-ink-50 shadow'
+                    : 'text-ink-400 hover:text-ink-200'
+                )}
+              >
+                {t === 'brasil' ? 'Brasil' : 'Internacional'}
+              </button>
+            ))}
           </div>
 
-          <MDRGrid matrix={matrix} onChange={setMatrix} issues={validation.issues} />
+          {tab === 'brasil' ? (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink-200">Tabela de Custo — Brasil (Adquirente)</p>
+                <button
+                  onClick={() => setShowImport(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand/30 bg-brand-950/30 text-brand text-sm font-semibold hover:bg-brand-950/60 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
+                  </svg>
+                  Importar com IA
+                </button>
+              </div>
+              <MDRGrid matrix={matrix} onChange={setMatrix} issues={validation.issues} />
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink-200">Custo Internacional — Stripe / Radar</p>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-950/40 text-red-400 border border-red-800/30">
+                  Uso interno — não vai no PDF do cliente
+                </span>
+              </div>
+              <IntlPricingForm value={intlCostPricing} onChange={setIntlCostPricing} />
+            </>
+          )}
 
           {showImport && (
             <PDFImportModal
@@ -243,17 +283,29 @@ export default function PricingSettingsPage() {
             <tbody className="divide-y divide-ink-800">
               {profiles.map((p) => {
                 let filled = 0;
+                let hasIntl = false;
                 try {
                   const m = JSON.parse(p.mdrMatrix) as MDRMatrix;
                   const v = validateMatrix(m);
                   filled = v.stats.reduce((acc, s) => acc + s.filledCount, 0);
+                } catch { /* empty */ }
+                try {
+                  const intl = JSON.parse(p.intlCostPricing || '{}');
+                  hasIntl = !!(intl?.processingRate);
                 } catch { /* empty */ }
 
                 return (
                   <tr key={p.id} className="hover:bg-ink-800/30 transition-colors">
                     <td className="px-6 py-4">
                       <p className="font-medium text-ink-50">{p.name}</p>
-                      <p className="text-xs text-ink-500 mt-0.5">{filled}/60 células preenchidas</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-ink-500">{filled}/60 células MDR Brasil</p>
+                        {hasIntl && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800/30">
+                            + Intl
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-mono text-ink-300 text-xs bg-ink-800 px-2 py-0.5 rounded-lg">

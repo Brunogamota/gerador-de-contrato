@@ -39,6 +39,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (!isMdrMatrix(body.mdrMatrix)) return NextResponse.json({ error: 'Invalid mdrMatrix' }, { status: 400 });
       data.mdrMatrix = JSON.stringify(body.mdrMatrix);
     }
+    if (body.intlCostPricing !== undefined) {
+      data.intlCostPricing = JSON.stringify(body.intlCostPricing);
+    }
 
     if (!Object.keys(data).length) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
 
