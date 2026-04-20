@@ -124,3 +124,44 @@ export async function exportContractToPdf(
 export function printContract(elementId: string): void {
   exportContractToPdf(elementId, '');
 }
+
+/** Renders the contract DOM element as a multi-page A4 PDF and returns base64. */
+export async function getContractPdfBase64(elementId: string): Promise<string> {
+  const element = document.getElementById(elementId);
+  if (!element) throw new Error(`Element #${elementId} not found`);
+
+  // Lazy-load heavy libs so they don't bloat the initial bundle
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    backgroundColor: '#ffffff',
+    windowWidth: element.scrollWidth,
+    windowHeight: element.scrollHeight,
+  });
+
+  const imgData = canvas.toDataURL('image/jpeg', 0.92);
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const pageW = pdf.internal.pageSize.getWidth();   // 210mm
+  const pageH = pdf.internal.pageSize.getHeight();  // 297mm
+  const imgTotalH = (canvas.height * pageW) / canvas.width;
+
+  let yOffset = 0;
+  let page = 0;
+
+  while (yOffset < imgTotalH) {
+    if (page > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, -(yOffset), pageW, imgTotalH);
+    yOffset += pageH;
+    page++;
+  }
+
+  // Return base64 string only (no "data:..." prefix)
+  return pdf.output('datauristring').split(',')[1];
+}

@@ -5,6 +5,7 @@ import { MDRMatrix } from '@/types/pricing';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
 import { PrintButton } from '@/components/contract/PrintButton';
+import { SignaturePanel } from '@/components/contract/SignaturePanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,11 @@ export default async function ContractDetailPage({ params }: { params: { id: str
 
   const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');
 
+  const zapSignStatus = (contract as Record<string, unknown>).zapSignStatus as string | null | undefined;
+  const zapSignSigners = (contract as Record<string, unknown>).zapSignSigners as string | null | undefined;
+  const sentForSignatureAt = (contract as Record<string, unknown>).sentForSignatureAt as Date | null | undefined;
+  const signedAt = (contract as Record<string, unknown>).signedAt as Date | null | undefined;
+
   const statusMap: Record<string, { label: string; color: string }> = {
     draft:  { label: 'Rascunho', color: 'bg-gray-100 text-gray-600' },
     active: { label: 'Ativo',    color: 'bg-emerald-50 text-emerald-700' },
@@ -76,6 +82,20 @@ export default async function ContractDetailPage({ params }: { params: { id: str
           <PrintButton />
         </div>
       </div>
+
+      {/* Signature panel */}
+      <SignaturePanel
+        contractId={contract.id}
+        contractNumber={contract.contractNumber}
+        clientName={contract.contratanteNome}
+        clientEmail={contract.contratanteEmail}
+        repName={contract.repLegalNome ?? undefined}
+        repEmail={contract.repLegalEmail ?? undefined}
+        zapSignStatus={zapSignStatus}
+        zapSignSigners={zapSignSigners}
+        sentForSignatureAt={sentForSignatureAt}
+        signedAt={signedAt}
+      />
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-card overflow-hidden">
         <ContractDocument

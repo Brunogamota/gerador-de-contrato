@@ -59,6 +59,13 @@ model Contract {
   // Status
   status String @default("draft") // draft | active | signed
 
+  // ZapSign digital signature
+  zapSignToken       String?
+  zapSignStatus      String?
+  zapSignSigners     String?   @default("[]")
+  sentForSignatureAt DateTime?
+  signedAt           DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
