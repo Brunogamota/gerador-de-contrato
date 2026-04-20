@@ -262,7 +262,7 @@ export default function PricingSettingsPage() {
               {intlAiError && (
                 <p className="text-xs text-red-400">{intlAiError}</p>
               )}
-              <IntlPricingForm value={intlCostPricing} onChange={setIntlCostPricing} />
+              <IntlPricingForm value={intlCostPricing} onChange={setIntlCostPricing} variant="dark" />
             </>
           )}
 

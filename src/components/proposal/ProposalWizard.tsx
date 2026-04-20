@@ -85,33 +85,48 @@ export function ProposalWizard() {
         intlCostPricing?: string; profileType?: string;
       }> = await res.json();
 
-      const exact = profiles.find((p) => p.mcc === mcc && mcc);
-      const fallback = profiles.find((p) => p.isDefault);
-      const match = exact ?? fallback;
+      if (!profiles.length) return;
 
-      if (match) {
-        // Load MDR table
+      const hasMcc = !!mcc;
+
+      // ── MDR (Brasil) profile: exact MCC → default brasil → any default ──
+      const mdrProfile =
+        (hasMcc && profiles.find((p) => p.mcc === mcc && p.profileType !== 'intl')) ??
+        profiles.find((p) => p.isDefault && p.profileType !== 'intl') ??
+        profiles.find((p) => p.isDefault) ??
+        profiles.find((p) => p.profileType !== 'intl');
+
+      // ── Intl (Stripe) profile: exact MCC intl → default intl → any intl ──
+      const intlProfile =
+        (hasMcc && profiles.find((p) => p.mcc === mcc && p.profileType === 'intl')) ??
+        profiles.find((p) => p.isDefault && p.profileType === 'intl') ??
+        profiles.find((p) => p.profileType === 'intl');
+
+      const loadedNames: string[] = [];
+
+      if (mdrProfile) {
         try {
-          const parsed = JSON.parse(match.mdrMatrix) as MDRMatrix;
+          const parsed = JSON.parse(mdrProfile.mdrMatrix) as MDRMatrix;
           setCostTable(parsed);
           setFinalMatrix(applyMargin(parsed, marginConfig));
+          loadedNames.push(mdrProfile.name);
         } catch { /* ignore */ }
+      }
 
-        // Load intl cost pricing if present
-        if (match.intlCostPricing) {
-          try {
-            const intlParsed = JSON.parse(match.intlCostPricing) as IntlPricing;
-            const hasData = Object.values(intlParsed).some((v) => v && v !== '' && v !== '0.00');
-            if (hasData) setIntlCostPricing(intlParsed);
-          } catch { /* ignore */ }
-        }
+      if (intlProfile) {
+        try {
+          const intlParsed = JSON.parse(intlProfile.intlCostPricing ?? '{}') as IntlPricing;
+          const hasData = Object.values(intlParsed).some((v) => v && v !== '' && v !== '0.00');
+          if (hasData) {
+            setIntlCostPricing(intlParsed);
+            if (!loadedNames.includes(intlProfile.name)) loadedNames.push(intlProfile.name);
+          }
+        } catch { /* ignore */ }
+      }
 
-        setProfileBanner(
-          exact
-            ? `Perfil carregado: "${match.name}"${mcc ? ` (MCC ${mcc})` : ''}`
-            : `Perfil padrão carregado: "${match.name}"`,
-        );
-        setTimeout(() => setProfileBanner(null), 4000);
+      if (loadedNames.length) {
+        setProfileBanner(`Perfis carregados: ${loadedNames.join(' + ')}`);
+        setTimeout(() => setProfileBanner(null), 5000);
       }
     } catch { /* ignore */ }
   }, [marginConfig]);
