@@ -1,36 +1,30 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/supabase-server';
 
 async function getStats() {
-  if (!prisma) return { total: 0, draft: 0, active: 0 };
   try {
-    const [total, draft, active] = await Promise.all([
-      prisma.contract.count(),
-      prisma.contract.count({ where: { status: 'draft' } }),
-      prisma.contract.count({ where: { status: 'active' } }),
-    ]);
-    return { total, draft, active };
+    const { data, error } = await db.from('contracts').select('status');
+    if (error) throw error;
+    const rows = data ?? [];
+    return {
+      total: rows.length,
+      draft: rows.filter((r) => r.status === 'draft').length,
+      active: rows.filter((r) => r.status === 'active').length,
+    };
   } catch {
     return { total: 0, draft: 0, active: 0 };
   }
 }
 
 async function getRecent() {
-  if (!prisma) return [];
   try {
-    return await prisma.contract.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        contractNumber: true,
-        contratanteNome: true,
-        contratanteCnpj: true,
-        status: true,
-        dataInicio: true,
-        createdAt: true,
-      },
-    });
+    const { data, error } = await db
+      .from('contracts')
+      .select('id, contractNumber, contratanteNome, contratanteCnpj, status, dataInicio, createdAt')
+      .order('createdAt', { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    return data ?? [];
   } catch {
     return [];
   }
@@ -61,7 +55,6 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Total de Contratos', value: stats.total, icon: '📄' },
@@ -78,7 +71,6 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent contracts */}
       <div className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card overflow-hidden">
         <div className="px-6 py-4 border-b border-ink-800 flex items-center justify-between">
           <h2 className="font-semibold text-ink-50">Contratos Recentes</h2>
@@ -137,7 +129,6 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Feature cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {

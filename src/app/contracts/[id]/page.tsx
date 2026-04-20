@@ -1,14 +1,15 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/supabase-server';
 import { MDRMatrix } from '@/types/pricing';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
 
 async function getContract(id: string) {
-  if (!prisma) return null;
   try {
-    return await prisma.contract.findUnique({ where: { id } });
+    const { data, error } = await db.from('contracts').select('*').eq('id', id).single();
+    if (error) return null;
+    return data;
   } catch {
     return null;
   }
@@ -28,7 +29,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     vigenciaMeses: contract.vigenciaMeses,
     foro: contract.foro,
     setup: contract.setup,
-    setupParcelas: (contract as any).setupParcelas ?? 1,
+    setupParcelas: contract.setupParcelas ?? 1,
     feeTransacao: contract.feeTransacao,
     taxaAntifraude: contract.taxaAntifraude,
     taxaPix: contract.taxaPix,
@@ -40,7 +41,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     taxaChargeback: contract.taxaChargeback,
     prazoRecebimento: contract.prazoRecebimento,
     valorMinimoMensal: contract.valorMinimoMensal,
-    isencaoFeeAteMeses: (contract as any).isencaoFeeAteMeses ?? 0,
+    isencaoFeeAteMeses: contract.isencaoFeeAteMeses ?? 0,
   };
 
   const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');

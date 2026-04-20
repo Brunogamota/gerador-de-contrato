@@ -1,22 +1,14 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/supabase-server';
 
 async function getContracts() {
-  if (!prisma) return [];
   try {
-    return await prisma.contract.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        contractNumber: true,
-        contratanteNome: true,
-        contratanteCnpj: true,
-        status: true,
-        dataInicio: true,
-        vigenciaMeses: true,
-        createdAt: true,
-      },
-    });
+    const { data, error } = await db
+      .from('contracts')
+      .select('id, contractNumber, contratanteNome, contratanteCnpj, status, dataInicio, vigenciaMeses, createdAt')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
   } catch {
     return [];
   }

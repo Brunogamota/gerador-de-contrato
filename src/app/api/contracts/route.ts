@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { db } from '@/lib/supabase-server';
 import { ContractDataSchema } from '@/types/contract';
 import { MDRMatrix } from '@/types/pricing';
 import { generateContractNumber } from '@/lib/utils';
@@ -8,35 +8,40 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
-    const contracts = await prisma.contract.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(contracts);
+    const { data, error } = await db
+      .from('contracts')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    return NextResponse.json(data);
   } catch (err) {
+    console.error(err);
     return NextResponse.json({ error: 'Failed to fetch contracts' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const body = await req.json();
-    const { data, mdrMatrix, contractNumber } = body as {
+    const { data: formData, mdrMatrix, contractNumber } = body as {
       data: unknown;
       mdrMatrix: MDRMatrix;
       contractNumber?: string;
     };
 
-    const parsed = ContractDataSchema.safeParse(data);
+    const parsed = ContractDataSchema.safeParse(formData);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid data', details: parsed.error.flatten() }, { status: 400 });
     }
 
     const d = parsed.data;
-    const contract = await prisma.contract.create({
-      data: {
+    const now = new Date().toISOString();
+
+    const { data, error } = await db
+      .from('contracts')
+      .insert({
+        id: crypto.randomUUID(),
         contractNumber: contractNumber ?? generateContractNumber(),
         contratanteNome:     d.contratanteNome,
         contratanteCnpj:     d.contratanteCnpj,
@@ -62,10 +67,14 @@ export async function POST(req: NextRequest) {
         isencaoFeeAteMeses:  d.isencaoFeeAteMeses,
         mdrMatrix:           JSON.stringify(mdrMatrix ?? {}),
         status:              'draft',
-      },
-    });
+        createdAt:           now,
+        updatedAt:           now,
+      })
+      .select()
+      .single();
 
-    return NextResponse.json(contract, { status: 201 });
+    if (error) throw error;
+    return NextResponse.json(data, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Failed to create contract' }, { status: 500 });
