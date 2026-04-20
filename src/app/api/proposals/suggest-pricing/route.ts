@@ -7,28 +7,33 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const SUGGEST_PROMPT = (mcc: string, costJson: string, clientJson: string) =>
-  `Você é um especialista em precificação de meios de pagamento no Brasil (adquirência).
+  `Você é um especialista sênior em precificação de meios de pagamento no Brasil (adquirência).
+Sua missão é MAXIMIZAR A MARGEM da empresa, reduzindo o mínimo necessário em relação ao que o cliente paga hoje.
 Gere QUATRO níveis de tabela MDR para uma proposta comercial.
 
 MCC do cliente: ${mcc || 'não informado'}
 
-TABELA DE CUSTO (adquirente — piso absoluto, nunca venda abaixo):
+TABELA DE CUSTO (piso absoluto — nunca venda abaixo disso):
 ${costJson}
 
-TAXAS ATUAIS DO CLIENTE (o que ele paga hoje — todos os níveis devem ser MENORES que isso):
+TAXAS ATUAIS DO CLIENTE (o que ele paga hoje — referência para os percentuais de redução):
 ${clientJson}
 
 REGRAS OBRIGATÓRIAS:
-1. Taxa final > custo em TODOS os casos (nunca venda no prejuízo).
-2. Todos os 4 níveis devem ser MENORES que as taxas atuais do cliente (melhor para o cliente).
-3. Se não houver taxa do cliente, use benchmarks de mercado para o MCC.
-4. 1x tem taxa menor; 12x tem taxa maior — progressão lógica.
+1. Taxa final > custo em TODOS os casos. Piso absoluto = custo + 0.20pp.
+2. Todos os 4 níveis devem ser MENORES que as taxas atuais do cliente.
+3. Calcule a redução como percentual sobre a taxa do cliente, não sobre o spread.
+4. Se a taxa do cliente já estiver próxima do custo (spread < 0.5pp), comprima proporcionalmente as reduções para nunca chegar ao piso.
+5. Se não houver taxa do cliente informada, use benchmarks típicos de mercado para o MCC e aplique as mesmas regras.
+6. 1x tem taxa menor que 12x — progressão de parcelamento lógica.
 
-DEFINIÇÃO DOS NÍVEIS (margem = final - custo):
-- "low":    margem ~0.3–0.5pp — muito competitivo, pouquíssima margem
-- "medium": margem ~0.6–1.0pp — equilibrado, bom para fechar
-- "high":   margem ~1.1–1.6pp — margem boa, ainda competitivo
-- "max":    margem ~1.7–2.5pp — margem máxima sustentável
+DEFINIÇÃO DOS NÍVEIS (redução = (taxaCliente - taxaFinal) / taxaCliente):
+- "low"    → COMPETITIVO: reduz 2–5% em relação ao cliente. Objetivo: vencer concorrência preservando margem máxima.
+- "medium" → POUCA MARGEM: reduz 6–11%. Bom spread, ainda rentável.
+- "high"   → MARGEM MÉDIA: reduz 12–18%. Proposta equilibrada para clientes de médio porte.
+- "max"    → AGRESSIVO: reduz 19–25%. Use apenas se necessário. Nunca abaixo de custo + 0.30pp.
+
+IMPORTANTE: prefira números no topo de cada faixa (ex: 2-5% → use ~3-4%, não 5%). Maximize a margem.
 
 Retorne SOMENTE JSON neste formato exato:
 {
@@ -38,7 +43,7 @@ Retorne SOMENTE JSON neste formato exato:
     "high":   { ... },
     "max":    { ... }
   },
-  "rationale": "Explicação em 2-3 linhas sobre a estratégia e os níveis gerados."
+  "rationale": "Explicação em 2-3 linhas: qual nível recomendar para esse MCC e por quê, destacando a margem esperada."
 }`;
 
 type LevelKey = 'low' | 'medium' | 'high' | 'max';
@@ -107,10 +112,10 @@ export async function POST(req: NextRequest) {
     const parsed = JSON.parse(raw) as { levels: RawLevels; rationale: string };
 
     const LEVEL_META: Record<LevelKey, { label: string; description: string; color: string }> = {
-      low:    { label: 'Baixo Spread',   description: 'Muito competitivo — ideal para fechar clientes sensíveis a preço',   color: 'emerald' },
-      medium: { label: 'Médio Spread',   description: 'Equilibrado — boa chance de fechar com margem saudável',              color: 'blue'    },
-      high:   { label: 'Alto Spread',    description: 'Margem boa — para clientes que valorizam o serviço',                  color: 'amber'   },
-      max:    { label: 'Grande Spread',  description: 'Margem máxima — testar com clientes menos negociadores',              color: 'rose'    },
+      low:    { label: 'Competitivo',   description: 'Redução mínima (2–5%) — mantém margem máxima, ainda mais barato que o cliente paga hoje',  color: 'emerald' },
+      medium: { label: 'Pouca Margem',  description: 'Redução de 6–11% — spread saudável, bom para clientes que negociam pouco',                  color: 'blue'    },
+      high:   { label: 'Margem Média',  description: 'Redução de 12–18% — equilibrado, maior chance de fechar sem sacrificar margem',             color: 'amber'   },
+      max:    { label: 'Agressivo',     description: 'Redução de 19–25% — use só se necessário; margem próxima ao piso sustentável',              color: 'rose'    },
     };
 
     const levels = Object.fromEntries(

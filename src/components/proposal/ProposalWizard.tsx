@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProposalData, ProposalDataSchema, DEFAULT_PROPOSAL_DATA } from '@/types/proposal';
@@ -22,24 +22,58 @@ import { useProposalSave } from './wizard/useProposalSave';
 import { ContractData } from '@/types/contract';
 import { UseFormReturn } from 'react-hook-form';
 
+// ── Draft persistence ────────────────────────────────────────────────────────
+
+const DRAFT_KEY = 'proposal-wizard-draft';
+
+function loadDraft(): Record<string, unknown> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export function clearProposalDraft() {
+  if (typeof window === 'undefined') return;
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 export function ProposalWizard() {
-  const [currentStep, setCurrentStep] = useState<ProposalStepId>('info');
-  const [costTable, setCostTable] = useState<MDRMatrix>(createEmptyMatrix);
-  const [clientRates, setClientRates] = useState<MDRMatrix>(createEmptyMatrix);
-  const [marginConfig, setMarginConfig] = useState<MarginConfig>(DEFAULT_MARGIN_CONFIG);
-  const [finalMatrix, setFinalMatrix] = useState<MDRMatrix>(createEmptyMatrix);
-  const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
-  const [intlProposalPricing, setIntlProposalPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
-  const [setupIntl, setSetupIntl] = useState('0.00');
-  const [proposalNumber] = useState(generateProposalNumber);
+  const draft = useRef(loadDraft()).current;
+
+  const [currentStep, setCurrentStep] = useState<ProposalStepId>((draft?.currentStep as ProposalStepId) ?? 'info');
+  const [costTable, setCostTable] = useState<MDRMatrix>((draft?.costTable as MDRMatrix) ?? createEmptyMatrix());
+  const [clientRates, setClientRates] = useState<MDRMatrix>((draft?.clientRates as MDRMatrix) ?? createEmptyMatrix());
+  const [marginConfig, setMarginConfig] = useState<MarginConfig>((draft?.marginConfig as MarginConfig) ?? DEFAULT_MARGIN_CONFIG);
+  const [finalMatrix, setFinalMatrix] = useState<MDRMatrix>((draft?.finalMatrix as MDRMatrix) ?? createEmptyMatrix());
+  const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>((draft?.intlCostPricing as IntlPricing) ?? DEFAULT_INTL_PRICING);
+  const [intlProposalPricing, setIntlProposalPricing] = useState<IntlPricing>((draft?.intlProposalPricing as IntlPricing) ?? DEFAULT_INTL_PRICING);
+  const [setupIntl, setSetupIntl] = useState<string>((draft?.setupIntl as string) ?? '0.00');
+  const [proposalNumber] = useState<string>((draft?.proposalNumber as string) ?? generateProposalNumber());
   const [profileBanner, setProfileBanner] = useState<string | null>(null);
-  const [marketType, setMarketType] = useState<'brasil' | 'intl' | 'both'>('brasil');
+  const [marketType, setMarketType] = useState<'brasil' | 'intl' | 'both'>((draft?.marketType as 'brasil' | 'intl' | 'both') ?? 'brasil');
+  const [hasDraftBanner, setHasDraftBanner] = useState(!!draft);
 
   const form = useForm<ProposalData>({
     resolver: zodResolver(ProposalDataSchema),
-    defaultValues: DEFAULT_PROPOSAL_DATA,
+    defaultValues: (draft?.formValues as ProposalData) ?? DEFAULT_PROPOSAL_DATA,
     mode: 'onBlur',
   });
+
+  // Auto-save draft on any state change
+  const formValues = form.watch();
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        currentStep, formValues, costTable, clientRates, marginConfig,
+        finalMatrix, intlCostPricing, intlProposalPricing, setupIntl, marketType, proposalNumber,
+      }));
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, costTable, clientRates, marginConfig, finalMatrix, intlCostPricing, intlProposalPricing, setupIntl, marketType, JSON.stringify(formValues)]);
 
   // Auto-load CostProfile when MCC changes (called on goNext from info step)
   const loadCostProfile = useCallback(async (mcc: string) => {
@@ -84,6 +118,7 @@ export function ProposalWizard() {
     intlCostPricing,
     intlProposalPricing,
     setupIntl,
+    onSuccess: clearProposalDraft,
   });
 
   async function goNext() {
@@ -120,14 +155,34 @@ export function ProposalWizard() {
         onGoToStep={setCurrentStep}
       />
 
+      {hasDraftBanner && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Rascunho recuperado — retomando de onde você parou.
+          </span>
+          <button
+            onClick={() => {
+              clearProposalDraft();
+              window.location.reload();
+            }}
+            className="text-xs font-medium text-amber-600 hover:text-amber-800 underline whitespace-nowrap"
+          >
+            Começar do zero
+          </button>
+        </div>
+      )}
+
       {profileBanner && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 animate-fade-in">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
           <span className="text-emerald-500">✓</span>
           {profileBanner}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 md:p-8">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8">
         {currentStep === 'info' && <ProposalInfoStep form={form} />}
         {currentStep === 'cost' && (
           <CostStep

@@ -16,11 +16,12 @@ interface Params {
   intlCostPricing: IntlPricing;
   intlProposalPricing: IntlPricing;
   setupIntl: string;
+  onSuccess?: () => void;
 }
 
 export function useProposalSave({
   getValues, mdrMatrix, costTable, marginConfig, clientRates, proposalNumber,
-  intlCostPricing, intlProposalPricing, setupIntl,
+  intlCostPricing, intlProposalPricing, setupIntl, onSuccess,
 }: Params) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -39,6 +40,7 @@ export function useProposalSave({
       });
       if (!res.ok) throw new Error('Save failed');
       const saved = await res.json();
+      onSuccess?.();
       router.push(`/proposals/${saved.id}`);
     } catch (err) {
       console.error(err);

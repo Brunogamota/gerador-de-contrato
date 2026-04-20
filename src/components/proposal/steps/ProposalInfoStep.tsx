@@ -24,10 +24,12 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
 
   return (
     <div className="flex flex-col gap-8">
+
+      {/* ── Dados do cliente ─────────────────────────────────────── */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Dados do Cliente</h2>
-        <p className="text-sm text-gray-500">
-          Informações da empresa destinatária desta proposta comercial
+        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5">Dados do Cliente</h2>
+        <p className="text-sm text-ink-400">
+          Empresa destinatária desta proposta comercial
         </p>
       </div>
 
@@ -80,20 +82,25 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
         />
       </div>
 
-      {/* Representante Legal */}
-      <div className="rounded-2xl border border-ink-200 overflow-hidden">
+      {/* ── Representante Legal (collapsible) ────────────────────── */}
+      <div className="rounded-xl border border-ink-200 overflow-hidden">
         <button
           type="button"
           onClick={() => setShowRepLegal((v) => !v)}
           className="w-full flex items-center justify-between px-5 py-4 bg-ink-50 hover:bg-ink-100 transition-colors text-left"
         >
           <div>
-            <p className="text-sm font-semibold text-ink-900">Representante Legal</p>
-            <p className="text-xs text-ink-500 mt-0.5">
-              Pessoa física que assina em nome do cliente — aparece na proposta
+            <p className="text-sm font-semibold text-ink-800">Representante Legal</p>
+            <p className="text-xs text-ink-400 mt-0.5">
+              Pessoa física que assina em nome do cliente — opcional
             </p>
           </div>
-          <span className="text-ink-400 text-lg ml-4 flex-shrink-0">{showRepLegal ? '−' : '+'}</span>
+          <svg
+            className={`w-4 h-4 text-ink-400 transition-transform flex-shrink-0 ml-4 ${showRepLegal ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
 
         {showRepLegal && (
@@ -150,11 +157,10 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
         )}
       </div>
 
-      <hr className="border-gray-100" />
-
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Detalhes da Proposta</h2>
-        <p className="text-sm text-gray-500">Validade e observações comerciais</p>
+      {/* ── Detalhes da Proposta ──────────────────────────────────── */}
+      <div className="pt-2 border-t border-ink-100">
+        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5 mt-4">Detalhes da Proposta</h2>
+        <p className="text-sm text-ink-400">Validade e observações comerciais</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -174,17 +180,18 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
         />
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Observações <span className="text-gray-400 font-normal">(opcional)</span>
+          <label className="block text-sm font-medium text-ink-700 mb-1.5">
+            Observações <span className="text-ink-400 font-normal">(opcional)</span>
           </label>
           <textarea
             rows={3}
             placeholder="Condições especiais, descontos negociados, informações adicionais..."
-            className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-all resize-none"
+            className="w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 transition-all resize-none"
             {...register('observacoes')}
           />
         </div>
       </div>
+
     </div>
   );
 }
