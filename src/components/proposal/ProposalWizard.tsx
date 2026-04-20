@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProposalData, ProposalDataSchema, DEFAULT_PROPOSAL_DATA } from '@/types/proposal';
@@ -8,9 +8,11 @@ import { MDRMatrix } from '@/types/pricing';
 import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { validateMatrix } from '@/lib/calculations/validation';
 import { generateProposalNumber } from '@/lib/utils';
+import { applyMargin, DEFAULT_MARGIN_CONFIG, MarginConfig } from '@/lib/pricing/margin';
 import { ProposalInfoStep } from './steps/ProposalInfoStep';
+import { CostStep } from './steps/CostStep';
+import { MarginStep } from './steps/MarginStep';
 import { ProposalPreviewStep } from './steps/ProposalPreviewStep';
-import { MDRStep } from '@/components/contract/steps/MDRStep';
 import { FeesStep } from '@/components/contract/steps/FeesStep';
 import { PROPOSAL_STEPS, ProposalStepId } from './wizard/steps';
 import { ProposalStepIndicator } from './wizard/ProposalStepIndicator';
@@ -21,7 +23,8 @@ import { UseFormReturn } from 'react-hook-form';
 
 export function ProposalWizard() {
   const [currentStep, setCurrentStep] = useState<ProposalStepId>('info');
-  const [mdrMatrix, setMdrMatrix] = useState<MDRMatrix>(createEmptyMatrix);
+  const [costTable, setCostTable] = useState<MDRMatrix>(createEmptyMatrix);
+  const [marginConfig, setMarginConfig] = useState<MarginConfig>(DEFAULT_MARGIN_CONFIG);
   const [proposalNumber] = useState(generateProposalNumber);
 
   const form = useForm<ProposalData>({
@@ -30,12 +33,20 @@ export function ProposalWizard() {
     mode: 'onBlur',
   });
 
+  // finalMatrix is always derived from costTable + marginConfig
+  const finalMatrix = useMemo(
+    () => applyMargin(costTable, marginConfig),
+    [costTable, marginConfig],
+  );
+
   const stepIndex = PROPOSAL_STEPS.findIndex((s) => s.id === currentStep);
-  const mdrValidation = validateMatrix(mdrMatrix);
+  const costValidation = validateMatrix(costTable);
 
   const { handleSave, isSaving } = useProposalSave({
     getValues: form.getValues,
-    mdrMatrix,
+    mdrMatrix: finalMatrix,
+    costTable,
+    marginConfig,
     proposalNumber,
   });
 
@@ -60,7 +71,6 @@ export function ProposalWizard() {
     if (prevIdx >= 0) setCurrentStep(PROPOSAL_STEPS[prevIdx].id);
   }
 
-  // ProposalData is a superset of ContractData; cast is safe for FeesStep
   const contractForm = form as unknown as UseFormReturn<ContractData>;
 
   return (
@@ -73,14 +83,22 @@ export function ProposalWizard() {
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 md:p-8">
         {currentStep === 'info' && <ProposalInfoStep form={form} />}
-        {currentStep === 'mdr' && (
-          <MDRStep matrix={mdrMatrix} onChange={setMdrMatrix} />
+        {currentStep === 'cost' && (
+          <CostStep matrix={costTable} onChange={setCostTable} />
+        )}
+        {currentStep === 'margin' && (
+          <MarginStep
+            costTable={costTable}
+            marginConfig={marginConfig}
+            finalMatrix={finalMatrix}
+            onMarginChange={setMarginConfig}
+          />
         )}
         {currentStep === 'fees' && <FeesStep form={contractForm} />}
         {currentStep === 'preview' && (
           <ProposalPreviewStep
             proposalData={form.getValues()}
-            mdrMatrix={mdrMatrix}
+            mdrMatrix={finalMatrix}
             proposalNumber={proposalNumber}
             onSave={handleSave}
             isSaving={isSaving}
@@ -92,8 +110,8 @@ export function ProposalWizard() {
         <ProposalNavigation
           currentStep={currentStep}
           stepIndex={stepIndex}
-          mdrIsValid={mdrValidation.isValid}
-          mdrCanGenerate={mdrValidation.canGenerateContract}
+          mdrIsValid={costValidation.isValid}
+          mdrCanGenerate={costValidation.canGenerateContract}
           onBack={goBack}
           onNext={goNext}
         />

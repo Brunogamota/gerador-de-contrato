@@ -41,6 +41,7 @@ type ProposalRecord = {
   prazoRecebimento: string;
   valorMinimoMensal: string;
   mdrMatrix: string;
+  mcc?: string | null;
   validadeAte: string;
   observacoes?: string | null;
 };
@@ -152,6 +153,7 @@ export default function ProposalDetailPage() {
     taxaChargeback:      proposal.taxaChargeback,
     prazoRecebimento:    proposal.prazoRecebimento,
     valorMinimoMensal:   proposal.valorMinimoMensal,
+    mcc:                 proposal.mcc          ?? '',
     validadeAte:         proposal.validadeAte,
     observacoes:         proposal.observacoes ?? '',
   };

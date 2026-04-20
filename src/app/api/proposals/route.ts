@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
   if (!prisma) return NextResponse.json({ error: 'Database not configured' }, { status: 503 });
   try {
     const body = await req.json();
-    const { data, mdrMatrix, proposalNumber } = body as {
+    const { data, mdrMatrix, costTable, marginConfig, proposalNumber } = body as {
       data: unknown;
       mdrMatrix: unknown;
+      costTable?: unknown;
+      marginConfig?: unknown;
       proposalNumber?: string;
     };
 
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (!isMdrMatrix(mdrMatrix)) {
       console.warn('[proposals] POST invalid mdrMatrix shape');
-      return NextResponse.json({ error: 'Invalid mdrMatrix: expected object with all brand keys' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid mdrMatrix' }, { status: 400 });
     }
 
     const d = parsed.data;
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
         repLegalEmail:       d.repLegalEmail    || null,
         repLegalTelefone:    d.repLegalTelefone || null,
         repLegalCargo:       d.repLegalCargo    || null,
+        mcc:                 d.mcc              || null,
         setup:               d.setup,
         feeTransacao:        d.feeTransacao,
         taxaAntifraude:      d.taxaAntifraude,
@@ -73,9 +76,11 @@ export async function POST(req: NextRequest) {
         prazoRecebimento:    d.prazoRecebimento,
         valorMinimoMensal:   d.valorMinimoMensal,
         mdrMatrix:           JSON.stringify(mdrMatrix as MDRMatrix),
+        costTable:           costTable ? JSON.stringify(costTable) : '{}',
+        marginConfig:        marginConfig ? JSON.stringify(marginConfig) : '{}',
         validadeAte:         d.validadeAte,
         observacoes:         d.observacoes || '',
-        status:              'rascunho',
+        status:              'draft',
       },
     });
 

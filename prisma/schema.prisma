@@ -50,6 +50,12 @@ model Contract {
   // MDR Matrix serialized as JSON
   mdrMatrix String @default("{}")
 
+  // Proposal reference (rastreabilidade)
+  proposalId String?
+
+  // MCC do cliente
+  mcc String? @default("")
+
   // Status
   status String @default("draft") // draft | active | signed
 
@@ -90,16 +96,26 @@ model Proposal {
   prazoRecebimento  String @default("D0")
   valorMinimoMensal String @default("0.00")
 
-  // MDR Matrix serialized as JSON
-  mdrMatrix String @default("{}")
+  // MCC do cliente
+  mcc String? @default("")
+
+  // Pricing tables (JSON strings)
+  costTable    String @default("{}") // taxas da adquirente — NUNCA no PDF
+  marginConfig String @default("{}") // configuração de margem — NUNCA no PDF
+  mdrMatrix    String @default("{}") // finalPricingTable = custo + margem — vai no PDF
 
   // Proposta-specific
   validadeAte String
   observacoes String? @default("")
 
-  // Status: rascunho | enviada | aprovada | expirada
-  status     String  @default("rascunho")
-  contractId String? // populated after conversion
+  // Status: draft | generated | sent | viewed | accepted | rejected | expired | converted_to_contract
+  status     String  @default("draft")
+  contractId String?
+
+  // Timestamps de ciclo de vida
+  sentAt     DateTime?
+  viewedAt   DateTime?
+  acceptedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

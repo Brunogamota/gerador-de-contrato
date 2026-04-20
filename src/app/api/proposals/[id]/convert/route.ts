@@ -12,6 +12,8 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
   try {
     const proposal = await prisma.proposal.findUnique({ where: { id: params.id } });
     if (!proposal) return NextResponse.json({ error: 'Proposal not found' }, { status: 404 });
+
+    // Idempotent: if already converted, return existing contract
     if (proposal.contractId) {
       return NextResponse.json({ contractId: proposal.contractId });
     }
@@ -23,6 +25,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
       prisma.contract.create({
         data: {
           contractNumber,
+          proposalId:          proposal.id,
           contratanteNome:     proposal.contratanteNome,
           contratanteCnpj:     proposal.contratanteCnpj,
           contratanteEndereco: proposal.contratanteEndereco,
@@ -34,6 +37,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
           repLegalEmail:       proposal.repLegalEmail,
           repLegalTelefone:    proposal.repLegalTelefone,
           repLegalCargo:       proposal.repLegalCargo,
+          mcc:                 proposal.mcc,
           dataInicio:          today,
           vigenciaMeses:       12,
           foro:                'São Paulo/SP',
@@ -49,17 +53,19 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
           taxaChargeback:      proposal.taxaChargeback,
           prazoRecebimento:    proposal.prazoRecebimento,
           valorMinimoMensal:   proposal.valorMinimoMensal,
-          mdrMatrix:           proposal.mdrMatrix,
+          mdrMatrix:           proposal.mdrMatrix, // final pricing table from proposal
           status:              'draft',
         },
       }),
       prisma.proposal.update({
         where: { id: params.id },
-        data: { status: 'aprovada' },
+        data: {
+          status:    'converted_to_contract',
+          acceptedAt: new Date(),
+        },
       }),
     ]);
 
-    // Link contractId in a second update (after we have contract.id)
     await prisma.proposal.update({
       where: { id: params.id },
       data: { contractId: contract.id },
@@ -68,7 +74,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string } 
     console.log(`[proposals:convert] proposal=${params.id} → contract=${contract.id} num=${contractNumber}`);
     return NextResponse.json({ contractId: contract.id });
   } catch (err) {
-    console.error(`[proposals:convert] error:`, err);
+    console.error('[proposals:convert] error:', err);
     return NextResponse.json({ error: 'Failed to convert proposal' }, { status: 500 });
   }
 }

@@ -166,6 +166,13 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
           {...register('validadeAte')}
         />
 
+        <Input
+          label="MCC"
+          placeholder="Ex: 5411"
+          error={errors.mcc?.message}
+          {...register('mcc')}
+        />
+
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Observações <span className="text-gray-400 font-normal">(opcional)</span>
