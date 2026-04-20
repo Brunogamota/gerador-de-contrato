@@ -100,11 +100,14 @@ export default function PricingSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
       await loadProfiles();
       setMode('list');
-    } catch {
-      alert('Erro ao salvar. Tente novamente.');
+    } catch (err) {
+      alert('Erro ao salvar: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
