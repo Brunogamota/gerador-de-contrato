@@ -65,9 +65,22 @@
   }
 }
 
-/* ─── Print styles ──────────────────────────────────────────────── */
+/* ─── Print styles ─────────────────────────────────────────────────
+ * Single source of truth for all print / PDF rules.
+ * generator.ts opens a popup window and mirrors the page stylesheets,
+ * so these rules apply for both direct window.print() and the PDF export.
+ * ─────────────────────────────────────────────────────────────────── */
 @media print {
-  @page { margin: 20mm 25mm 20mm 30mm; size: A4; }
+  @page {
+    size: A4;
+    margin: 20mm 25mm 20mm 30mm;
+  }
+
+  /* force exact color rendering: SVG logo, gradient divider, table bg */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
   body { background: white !important; color: black !important; }
 
@@ -77,7 +90,7 @@
   [data-radix-popper-content-wrapper],
   [role="dialog"] { display: none !important; }
 
-  /* contract container fills the page */
+  /* contract container fills the A4 column */
   #contract-document {
     padding: 0 !important;
     margin: 0 !important;
@@ -87,10 +100,31 @@
     line-height: 1.5 !important;
   }
 
-  /* prevent single lines from being stranded at top/bottom of page */
+  /* ── Page-break helpers ─────────────────────────────────────────
+   * Explicit rules back up the Tailwind-generated classes
+   * (break-before-page, break-inside-avoid) in case the compiled
+   * CSS isn't fully resolved when the popup window renders.
+   * ─────────────────────────────────────────────────────────────── */
+  .break-before-page {
+    break-before: page !important;
+    page-break-before: always !important; /* legacy Safari/Firefox */
+  }
+
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* keep headings glued to the paragraph that follows them */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* prevent orphaned / widowed lines */
   p, li { orphans: 3; widows: 3; }
 
-  /* tables stay together where possible */
+  /* tables: avoid splitting short tables; repeat header on long ones */
   table { break-inside: avoid; }
   thead { display: table-header-group; }
 }

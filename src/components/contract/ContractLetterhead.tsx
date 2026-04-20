@@ -1,16 +1,8 @@
 import { RebornMark } from '@/components/brand/RebornLogo';
 
-interface ContractLetterheadProps {
-  forPrint?: boolean;
-}
-
-export function ContractLetterhead({ forPrint = false }: ContractLetterheadProps) {
-  const base = forPrint
-    ? { container: 'mb-8 pb-6', border: '2px solid #f72662' }
-    : { container: 'mb-8 pb-6', border: '2px solid #f72662' };
-
+export function ContractLetterhead() {
   return (
-    <div className={base.container}>
+    <div className="mb-8 pb-6">
       <div className="flex items-start justify-between gap-6">
         {/* Left: Logo + company name */}
         <div className="flex items-start gap-4">
@@ -44,7 +36,7 @@ export function ContractLetterhead({ forPrint = false }: ContractLetterheadProps
         </div>
       </div>
 
-      {/* Brand divider */}
+      {/* Brand gradient divider — preserved in print via print-color-adjust: exact */}
       <div
         className="mt-5"
         style={{ height: '2px', background: 'linear-gradient(90deg, #f72662 0%, #771339 60%, transparent 100%)' }}

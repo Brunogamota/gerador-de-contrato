@@ -22,7 +22,7 @@ export function ContractDocument({ contractData: d, mdrMatrix, contractNumber }:
       className="bg-white font-serif text-xs text-gray-900 leading-relaxed p-10 max-w-4xl mx-auto"
       style={{ fontFamily: 'Times New Roman, serif', fontSize: '10pt', lineHeight: '1.6' }}
     >
-      <ContractLetterhead forPrint />
+      <ContractLetterhead />
 
       <p className="text-center font-bold text-sm uppercase tracking-wide mb-6">
         CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE GATEWAY E ORQUESTRADOR DE PAGAMENTO COM SOLUÇÃO ANTIFRAUDE
