@@ -35,8 +35,8 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
 
       {/* ── Tipo de proposta ─────────────────────────────────────── */}
       <div>
-        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5">Tipo de Proposta</h2>
-        <p className="text-sm text-ink-400 mb-4">Selecione o mercado para esta proposta</p>
+        <h2 className="text-base font-semibold text-white tracking-tight mb-0.5">Tipo de Proposta</h2>
+        <p className="text-sm text-white/40 mb-4">Selecione o mercado para esta proposta</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {TIPO_OPTIONS.map((opt) => (
             <button
@@ -46,11 +46,11 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
               className={cn(
                 'text-left rounded-xl border-2 px-4 py-3.5 transition-all',
                 tipoMercado === opt.id
-                  ? 'border-brand bg-brand/5 shadow-sm'
-                  : 'border-ink-200 bg-white hover:border-ink-300',
+                  ? 'border-brand bg-brand/10 shadow-sm'
+                  : 'border-white/[0.09] bg-white/[0.04] hover:border-white/20',
               )}
             >
-              <p className={cn('text-sm font-semibold', tipoMercado === opt.id ? 'text-brand' : 'text-ink-900')}>
+              <p className={cn('text-sm font-semibold', tipoMercado === opt.id ? 'text-brand' : 'text-white')}>
                 {opt.label}
               </p>
               <p className="text-xs text-ink-400 mt-0.5">{opt.desc}</p>
@@ -61,8 +61,8 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
 
       {/* ── Dados do cliente ─────────────────────────────────────── */}
       <div>
-        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5">Dados do Cliente</h2>
-        <p className="text-sm text-ink-400">
+        <h2 className="text-base font-semibold text-white tracking-tight mb-0.5">Dados do Cliente</h2>
+        <p className="text-sm text-white/40">
           Empresa destinatária desta proposta comercial
         </p>
       </div>
@@ -117,20 +117,20 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
       </div>
 
       {/* ── Representante Legal (collapsible) ────────────────────── */}
-      <div className="rounded-xl border border-ink-200 overflow-hidden">
+      <div className="rounded-xl border border-white/[0.08] overflow-hidden">
         <button
           type="button"
           onClick={() => setShowRepLegal((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-4 bg-ink-50 hover:bg-ink-100 transition-colors text-left"
+          className="w-full flex items-center justify-between px-5 py-4 bg-white/[0.04] hover:bg-white/[0.07] transition-colors text-left"
         >
           <div>
-            <p className="text-sm font-semibold text-ink-800">Representante Legal</p>
-            <p className="text-xs text-ink-400 mt-0.5">
+            <p className="text-sm font-semibold text-white">Representante Legal</p>
+            <p className="text-xs text-white/40 mt-0.5">
               Pessoa física que assina em nome do cliente — opcional
             </p>
           </div>
           <svg
-            className={`w-4 h-4 text-ink-400 transition-transform flex-shrink-0 ml-4 ${showRepLegal ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 text-white/40 transition-transform flex-shrink-0 ml-4 ${showRepLegal ? 'rotate-180' : ''}`}
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -138,7 +138,7 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
         </button>
 
         {showRepLegal && (
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-ink-200 bg-white">
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-white/[0.08] bg-[#1F1F23]">
             <div className="md:col-span-2">
               <Input
                 label="Nome Completo"
@@ -192,9 +192,9 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
       </div>
 
       {/* ── Detalhes da Proposta ──────────────────────────────────── */}
-      <div className="pt-2 border-t border-ink-100">
-        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5 mt-4">Detalhes da Proposta</h2>
-        <p className="text-sm text-ink-400">Validade e observações comerciais</p>
+      <div className="pt-2 border-t border-white/[0.06]">
+        <h2 className="text-base font-semibold text-white tracking-tight mb-0.5 mt-4">Detalhes da Proposta</h2>
+        <p className="text-sm text-white/40">Validade e observações comerciais</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -214,13 +214,13 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
         />
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-ink-700 mb-1.5">
-            Observações <span className="text-ink-400 font-normal">(opcional)</span>
+          <label className="block text-[10px] font-semibold text-white/50 uppercase tracking-[0.09em] mb-2">
+            Observações <span className="text-white/30 font-normal normal-case">(opcional)</span>
           </label>
           <textarea
             rows={3}
             placeholder="Condições especiais, descontos negociados, informações adicionais..."
-            className="w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand/50 transition-all resize-none"
+            className="w-full rounded-xl border border-white/[0.09] bg-[#1F1F23] px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand transition-all resize-none"
             {...register('observacoes')}
           />
         </div>

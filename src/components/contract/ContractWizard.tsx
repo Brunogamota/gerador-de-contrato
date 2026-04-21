@@ -66,7 +66,7 @@ export function ContractWizard() {
         onGoToStep={setCurrentStep}
       />
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 md:p-8">
+      <div className="bg-[#18181B] rounded-2xl border border-white/[0.06] shadow-card p-6 md:p-8">
         {currentStep === 'client' && <ClientInfoStep form={form} />}
         {currentStep === 'mdr' && (
           <MDRStep matrix={mdrMatrix} onChange={setMdrMatrix} />

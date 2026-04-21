@@ -44,10 +44,10 @@ function GroupSection({ title, icon, fields, register }: {
   register: UseFormReturn<ContractData>['register'];
 }) {
   return (
-    <div className="rounded-2xl border border-ink-200 overflow-hidden">
-      <div className="flex items-center gap-2.5 px-5 py-3.5 bg-ink-50 border-b border-ink-200">
+    <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
         <span className="text-base">{icon}</span>
-        <h3 className="text-sm font-semibold text-ink-800">{title}</h3>
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
         {fields.map((field) => (
@@ -74,18 +74,18 @@ export function FeesStep({ form }: FeesStepProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-ink-900 mb-1">Taxas e Tarifas</h2>
-        <p className="text-sm text-ink-500">
+        <h2 className="text-lg font-semibold text-white mb-1">Taxas e Tarifas</h2>
+        <p className="text-sm text-white/50">
           Configure todas as cobranças operacionais. Esses valores serão refletidos no Anexo II do contrato.
         </p>
       </div>
 
       <GroupSection title="Operacionais" icon="⚙" fields={OPERACIONAIS} register={register} />
 
-      <div className="rounded-2xl border border-ink-200 overflow-hidden">
-        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-ink-50 border-b border-ink-200">
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
           <span className="text-base">📅</span>
-          <h3 className="text-sm font-semibold text-ink-800">Financeiras</h3>
+          <h3 className="text-sm font-semibold text-white">Financeiras</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
           {FINANCEIRAS.map((field) => (

@@ -26,8 +26,8 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h2 className="text-lg font-semibold text-ink-900 mb-1">Dados do Contratante</h2>
-        <p className="text-sm text-ink-500">
+        <h2 className="text-lg font-semibold text-white mb-1">Dados do Contratante</h2>
+        <p className="text-sm text-white/50">
           Informações da empresa que vai assinar o contrato como CONTRATANTE
         </p>
       </div>
@@ -77,23 +77,23 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
       </div>
 
       {/* Representante Legal */}
-      <div className="rounded-2xl border border-ink-200 overflow-hidden">
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
         <button
           type="button"
           onClick={() => setShowRepLegal((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-4 bg-ink-50 hover:bg-ink-100 transition-colors text-left"
+          className="w-full flex items-center justify-between px-5 py-4 bg-white/[0.04] hover:bg-white/[0.07] transition-colors text-left"
         >
           <div>
-            <p className="text-sm font-semibold text-ink-900">Representante Legal</p>
-            <p className="text-xs text-ink-500 mt-0.5">
+            <p className="text-sm font-semibold text-white">Representante Legal</p>
+            <p className="text-xs text-white/50 mt-0.5">
               Pessoa física que assina em nome do CONTRATANTE — aparece no contrato e na assinatura
             </p>
           </div>
-          <span className="text-ink-400 text-lg ml-4 flex-shrink-0">{showRepLegal ? '−' : '+'}</span>
+          <span className="text-white/40 text-lg ml-4 flex-shrink-0">{showRepLegal ? '−' : '+'}</span>
         </button>
 
         {showRepLegal && (
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-ink-200 bg-white">
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-white/[0.08] bg-[#1F1F23]">
             <div className="md:col-span-2">
               <Input
                 label="Nome Completo"
@@ -146,11 +146,11 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
         )}
       </div>
 
-      <hr className="border-gray-100" />
+      <hr className="border-white/[0.06]" />
 
       <div>
-        <h2 className="text-lg font-semibold text-ink-900 mb-1">Termos do Contrato</h2>
-        <p className="text-sm text-ink-500">Vigência, datas e foro</p>
+        <h2 className="text-lg font-semibold text-white mb-1">Termos do Contrato</h2>
+        <p className="text-sm text-white/50">Vigência, datas e foro</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
