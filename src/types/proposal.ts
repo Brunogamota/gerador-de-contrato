@@ -6,9 +6,10 @@ export type { MarginConfig };
 export { DEFAULT_MARGIN_CONFIG };
 
 export const ProposalDataSchema = ContractDataSchema.extend({
-  mcc:        z.string().default(''),
-  validadeAte: z.string().min(1, 'Validade obrigatória'),
-  observacoes: z.string().optional().default(''),
+  mcc:          z.string().default(''),
+  tipoMercado:  z.enum(['brasil', 'intl', 'both']).default('brasil'),
+  validadeAte:  z.string().min(1, 'Validade obrigatória'),
+  observacoes:  z.string().optional().default(''),
 });
 
 export type ProposalData = z.infer<typeof ProposalDataSchema>;
@@ -78,6 +79,7 @@ export const DEFAULT_PROPOSAL_DATA: ProposalData = {
   prazoRecebimento: 'D0',
   valorMinimoMensal: '0.00',
   mcc: '',
+  tipoMercado: 'brasil' as const,
   validadeAte: '',
   observacoes: '',
 };

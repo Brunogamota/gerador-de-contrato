@@ -15,7 +15,7 @@ import { ClientRatesStep } from './steps/ClientRatesStep';
 import { PricingStep } from './steps/PricingStep';
 import { ProposalPreviewStep } from './steps/ProposalPreviewStep';
 import { FeesStep } from '@/components/contract/steps/FeesStep';
-import { PROPOSAL_STEPS, ProposalStepId } from './wizard/steps';
+import { PROPOSAL_STEPS, getProposalSteps, ProposalStepId } from './wizard/steps';
 import { ProposalStepIndicator } from './wizard/ProposalStepIndicator';
 import { ProposalNavigation } from './wizard/ProposalNavigation';
 import { useProposalSave } from './wizard/useProposalSave';
@@ -37,9 +37,10 @@ export interface ProposalInitialData {
 interface ProposalWizardProps {
   initialData?: ProposalInitialData;
   editId?: string;
+  defaultTipoMercado?: 'brasil' | 'intl' | 'both';
 }
 
-export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}) {
+export function ProposalWizard({ initialData, editId, defaultTipoMercado }: ProposalWizardProps = {}) {
   const [currentStep, setCurrentStep] = useState<ProposalStepId>('info');
   const [costTable, setCostTable] = useState<MDRMatrix>(() => initialData?.costTable ?? createEmptyMatrix());
   const [clientRates, setClientRates] = useState<MDRMatrix>(() => initialData?.clientRates ?? createEmptyMatrix());
@@ -54,9 +55,15 @@ export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}
 
   const form = useForm<ProposalData>({
     resolver: zodResolver(ProposalDataSchema),
-    defaultValues: initialData?.formData ?? DEFAULT_PROPOSAL_DATA,
+    defaultValues: {
+      ...(initialData?.formData ?? DEFAULT_PROPOSAL_DATA),
+      ...(defaultTipoMercado && !initialData ? { tipoMercado: defaultTipoMercado } : {}),
+    },
     mode: 'onBlur',
   });
+
+  const tipoMercado = form.watch('tipoMercado') ?? 'brasil';
+  const activeSteps = getProposalSteps(tipoMercado);
 
   // Auto-load CostProfile when MCC changes (called on goNext from info step)
   const loadCostProfile = useCallback(async (mcc: string) => {
@@ -84,7 +91,7 @@ export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}
     } catch { /* ignore */ }
   }, [marginConfig]);
 
-  const stepIndex = PROPOSAL_STEPS.findIndex((s) => s.id === currentStep);
+  const stepIndex = activeSteps.findIndex((s) => s.id === currentStep);
   const costValidation = validateMatrix(costTable);
 
   const handleMarginChange = useCallback((config: MarginConfig) => {
@@ -115,15 +122,17 @@ export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}
         'validadeAte',
       ]);
       if (!valid) return;
-      await loadCostProfile(form.getValues('mcc') ?? '');
+      if (tipoMercado !== 'intl') {
+        await loadCostProfile(form.getValues('mcc') ?? '');
+      }
     }
     const nextIdx = stepIndex + 1;
-    if (nextIdx < PROPOSAL_STEPS.length) setCurrentStep(PROPOSAL_STEPS[nextIdx].id);
+    if (nextIdx < activeSteps.length) setCurrentStep(activeSteps[nextIdx].id);
   }
 
   function goBack() {
     const prevIdx = stepIndex - 1;
-    if (prevIdx >= 0) setCurrentStep(PROPOSAL_STEPS[prevIdx].id);
+    if (prevIdx >= 0) setCurrentStep(activeSteps[prevIdx].id);
   }
 
   const contractForm = form as unknown as UseFormReturn<ContractData>;
@@ -136,6 +145,7 @@ export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}
         currentStep={currentStep}
         stepIndex={stepIndex}
         onGoToStep={setCurrentStep}
+        steps={activeSteps}
       />
 
       {profileBanner && (
@@ -156,8 +166,8 @@ export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}
             }}
             intlCostPricing={intlCostPricing}
             onIntlCostChange={setIntlCostPricing}
-            marketType={marketType}
-            onMarketTypeChange={setMarketType}
+            marketType={tipoMercado === 'intl' ? 'intl' : tipoMercado === 'both' ? 'both' : marketType}
+            onMarketTypeChange={tipoMercado === 'intl' ? () => {} : setMarketType}
           />
         )}
         {currentStep === 'client-rates' && (
@@ -178,6 +188,7 @@ export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}
             onIntlProposalChange={setIntlProposalPricing}
             setupIntl={setupIntl}
             onSetupIntlChange={setSetupIntl}
+            defaultMarket={tipoMercado === 'intl' ? 'intl' : undefined}
           />
         )}
         {currentStep === 'fees' && <FeesStep form={contractForm} />}

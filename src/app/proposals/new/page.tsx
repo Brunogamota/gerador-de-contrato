@@ -1,7 +1,21 @@
 import { ProposalWizard } from '@/components/proposal/ProposalWizard';
 
-export const metadata = { title: 'Nova Proposta · RebornPay' };
+interface Props {
+  searchParams: { tipo?: string };
+}
 
-export default function NewProposalPage() {
-  return <ProposalWizard />;
+export function generateMetadata({ searchParams }: Props) {
+  return {
+    title: searchParams.tipo === 'intl'
+      ? 'Nova Proposta Internacional · RebornPay'
+      : 'Nova Proposta · RebornPay',
+  };
+}
+
+export default function NewProposalPage({ searchParams }: Props) {
+  const tipo = searchParams.tipo === 'intl' ? 'intl'
+             : searchParams.tipo === 'both' ? 'both'
+             : undefined;
+
+  return <ProposalWizard defaultTipoMercado={tipo} />;
 }

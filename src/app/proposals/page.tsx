@@ -42,13 +42,22 @@ export default async function ProposalsPage() {
             {proposals.length} proposta{proposals.length !== 1 ? 's' : ''} no sistema
           </p>
         </div>
-        <HardNavLink
-          href="/proposals/new"
-          className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm"
-          style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
-        >
-          + Nova Proposta
-        </HardNavLink>
+        <div className="flex items-center gap-2">
+          <HardNavLink
+            href="/proposals/new?tipo=intl"
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm"
+            style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)' }}
+          >
+            🌐 + Internacional
+          </HardNavLink>
+          <HardNavLink
+            href="/proposals/new"
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm"
+            style={{ background: 'linear-gradient(135deg,#f72662,#771339)' }}
+          >
+            + Nova Proposta
+          </HardNavLink>
+        </div>
       </div>
 
       <div className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card overflow-hidden">

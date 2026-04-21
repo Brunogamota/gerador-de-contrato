@@ -4,7 +4,13 @@ import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { ProposalData } from '@/types/proposal';
 import { Input } from '@/components/ui/Input';
-import { formatCnpj, formatPhone } from '@/lib/utils';
+import { formatCnpj, formatPhone, cn } from '@/lib/utils';
+
+const TIPO_OPTIONS = [
+  { id: 'brasil', label: '🇧🇷 Brasil (MDR)',         desc: 'Tabela MDR + taxas operacionais' },
+  { id: 'intl',   label: '🌐 Internacional',          desc: 'Processamento internacional (cross-border)' },
+  { id: 'both',   label: '🌍 Brasil + Internacional', desc: 'Proposta completa com ambos os mercados' },
+] as const;
 
 interface ProposalInfoStepProps {
   form: UseFormReturn<ProposalData>;
@@ -22,8 +28,36 @@ export function ProposalInfoStep({ form }: ProposalInfoStepProps) {
     !!(watch('repLegalNome') || watch('repLegalCpf'))
   );
 
+  const tipoMercado = watch('tipoMercado') ?? 'brasil';
+
   return (
     <div className="flex flex-col gap-8">
+
+      {/* ── Tipo de proposta ─────────────────────────────────────── */}
+      <div>
+        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5">Tipo de Proposta</h2>
+        <p className="text-sm text-ink-400 mb-4">Selecione o mercado para esta proposta</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {TIPO_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setValue('tipoMercado', opt.id)}
+              className={cn(
+                'text-left rounded-xl border-2 px-4 py-3.5 transition-all',
+                tipoMercado === opt.id
+                  ? 'border-brand bg-brand/5 shadow-sm'
+                  : 'border-ink-200 bg-white hover:border-ink-300',
+              )}
+            >
+              <p className={cn('text-sm font-semibold', tipoMercado === opt.id ? 'text-brand' : 'text-ink-900')}>
+                {opt.label}
+              </p>
+              <p className="text-xs text-ink-400 mt-0.5">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* ── Dados do cliente ─────────────────────────────────────── */}
       <div>

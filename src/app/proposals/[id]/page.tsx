@@ -153,6 +153,7 @@ export default function ProposalDetailPage() {
     prazoRecebimento:    proposal.prazoRecebimento,
     valorMinimoMensal:   proposal.valorMinimoMensal,
     mcc:                 proposal.mcc          ?? '',
+    tipoMercado:         (proposal as { tipoMercado?: string }).tipoMercado as 'brasil' | 'intl' | 'both' ?? 'brasil',
     validadeAte:         proposal.validadeAte,
     observacoes:         proposal.observacoes ?? '',
   };

@@ -104,18 +104,18 @@ export function IntlPricingForm({ value: v, onChange, readOnly, variant = 'light
       </Section>
 
       <Section title="Commitment" description="Volume mínimo de fees por ano" variant={variant}>
-        <Field label="Year 1 (Stripe Fees)" value={v.year1Commitment} onChange={set('year1Commitment')} prefix="$" {...p} />
-        <Field label="Year 2 (Stripe Fees)" value={v.year2Commitment} onChange={set('year2Commitment')} prefix="$" {...p} />
+        <Field label="Year 1 (Commitment)" value={v.year1Commitment} onChange={set('year1Commitment')} prefix="$" {...p} />
+        <Field label="Year 2 (Commitment)" value={v.year2Commitment} onChange={set('year2Commitment')} prefix="$" {...p} />
       </Section>
 
-      <Section title="Stripe Connect" description="Sub-contas e payouts" variant={variant}>
+      <Section title="Connect" description="Sub-contas e payouts" variant={variant}>
         <Field label="Taxa payout" value={v.connectPayoutRate} onChange={set('connectPayoutRate')} suffix="%" {...p} />
         <Field label="Fee payout fixo" value={v.connectPayoutFlatFee} onChange={set('connectPayoutFlatFee')} prefix="$" {...p} />
         <Field label="Mensalidade por conta" value={v.connectMonthlyFee} onChange={set('connectMonthlyFee')} prefix="$" {...p} />
         <Field label="Ativação de conta" value={v.connectActivationFee} onChange={set('connectActivationFee')} prefix="$" {...p} />
       </Section>
 
-      <Section title="Radar" description="Antifraude Stripe" variant={variant}>
+      <Section title="Radar" description="Antifraude" variant={variant}>
         <Field label="Standard / transação" value={v.radarStandardFee} onChange={set('radarStandardFee')} prefix="$" {...p} />
         <Field label="Rules & Filters / tx" value={v.radarRfftFee} onChange={set('radarRfftFee')} prefix="$" {...p} />
       </Section>

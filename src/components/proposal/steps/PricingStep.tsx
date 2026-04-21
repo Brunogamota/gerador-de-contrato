@@ -44,6 +44,7 @@ interface PricingStepProps {
   onIntlProposalChange: (v: IntlPricing) => void;
   setupIntl: string;
   onSetupIntlChange: (v: string) => void;
+  defaultMarket?: Market;
 }
 
 const COLOR_MAP: Record<string, { card: string; badge: string; btn: string }> = {
@@ -57,9 +58,9 @@ export function PricingStep({
   costTable, clientRates, marginConfig, finalMatrix,
   onMarginChange, onFinalMatrixChange, mcc, clientName,
   intlCostPricing, intlProposalPricing, onIntlProposalChange,
-  setupIntl, onSetupIntlChange,
+  setupIntl, onSetupIntlChange, defaultMarket,
 }: PricingStepProps) {
-  const [market, setMarket] = useState<Market>('brasil');
+  const [market, setMarket] = useState<Market>(defaultMarket ?? 'brasil');
   const [mode, setMode] = useState<PricingMode>('margin');
   const [editBrand, setEditBrand] = useState<BrandName>('visa');
   const [blockedCell, setBlockedCell] = useState<{ brand: BrandName; inst: InstallmentNumber; cost: number } | null>(null);

@@ -8,3 +8,10 @@ export const PROPOSAL_STEPS = [
 ] as const;
 
 export type ProposalStepId = (typeof PROPOSAL_STEPS)[number]['id'];
+
+export function getProposalSteps(tipoMercado: 'brasil' | 'intl' | 'both') {
+  if (tipoMercado === 'intl') {
+    return PROPOSAL_STEPS.filter((s) => ['info', 'cost', 'pricing', 'preview'].includes(s.id));
+  }
+  return PROPOSAL_STEPS;
+}

@@ -1,16 +1,19 @@
 import { cn } from '@/lib/utils';
 import { PROPOSAL_STEPS, ProposalStepId } from './steps';
 
+type Step = typeof PROPOSAL_STEPS[number];
+
 interface Props {
   currentStep: ProposalStepId;
   stepIndex: number;
   onGoToStep: (id: ProposalStepId) => void;
+  steps?: readonly Step[];
 }
 
-export function ProposalStepIndicator({ currentStep, stepIndex, onGoToStep }: Props) {
+export function ProposalStepIndicator({ currentStep, stepIndex, onGoToStep, steps = PROPOSAL_STEPS }: Props) {
   return (
     <div className="flex items-center gap-0 select-none">
-      {PROPOSAL_STEPS.map((step, idx) => {
+      {steps.map((step, idx) => {
         const isDone    = idx < stepIndex;
         const isActive  = currentStep === step.id;
         const isFuture  = idx > stepIndex;
@@ -45,7 +48,7 @@ export function ProposalStepIndicator({ currentStep, stepIndex, onGoToStep }: Pr
               </span>
               <span className="hidden sm:block">{step.shortLabel}</span>
             </button>
-            {idx < PROPOSAL_STEPS.length - 1 && (
+            {idx < steps.length - 1 && (
               <div className={cn(
                 'flex-1 h-px mx-1 transition-colors',
                 isDone ? 'bg-emerald-300' : 'bg-ink-100',
