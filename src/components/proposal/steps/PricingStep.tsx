@@ -167,19 +167,19 @@ function HeatmapTable({
       <div className="overflow-x-auto rounded-xl border border-ink-200">
         <table className="w-full text-xs" style={{ minWidth: editable ? '640px' : '480px' }}>
           <thead>
-            <tr className="bg-ink-50 border-b border-ink-200">
-              <th className="px-3 py-2 text-left font-semibold text-ink-700 min-w-[120px]">Modo</th>
-              <th className="px-3 py-2 text-center font-semibold text-ink-400 w-24">Custo (%)</th>
+            <tr className="bg-ink-50 border-b-2 border-ink-200">
+              <th className="px-3 py-3 text-left text-[10px] font-semibold text-ink-500 uppercase tracking-[0.08em] min-w-[120px]">Modo</th>
+              <th className="px-3 py-3 text-center text-[10px] font-semibold text-ink-400 uppercase tracking-[0.08em] w-24">Custo (%)</th>
               {editable ? (
                 <>
-                  <th className="px-3 py-2 text-center font-medium text-ink-700 bg-brand/5 border-l-2 border-brand/20 w-28">Tx (%)</th>
-                  <th className="px-3 py-2 text-center font-medium text-ink-700 bg-brand/5 w-28">Ant. (%)</th>
-                  <th className="px-3 py-2 text-center font-semibold text-ink-900 bg-brand/5 w-28">Final (%)</th>
+                  <th className="px-3 py-3 text-center text-[10px] font-semibold text-ink-600 uppercase tracking-[0.08em] bg-brand/5 border-l-2 border-brand/20 w-28">Tx (%)</th>
+                  <th className="px-3 py-3 text-center text-[10px] font-semibold text-ink-600 uppercase tracking-[0.08em] bg-brand/5 w-28">Ant. (%)</th>
+                  <th className="px-3 py-3 text-center text-[10px] font-semibold text-ink-800 uppercase tracking-[0.08em] bg-brand/5 w-28">Final (%)</th>
                 </>
               ) : (
-                <th className="px-3 py-2 text-center font-semibold text-ink-700 w-28">Taxa Final (%)</th>
+                <th className="px-3 py-3 text-center text-[10px] font-semibold text-ink-700 uppercase tracking-[0.08em] w-28">Taxa Final (%)</th>
               )}
-              <th className="px-3 py-2 text-center font-semibold text-emerald-700 bg-emerald-50/60 border-l-2 border-emerald-200 w-24">Spread</th>
+              <th className="px-3 py-3 text-center text-[10px] font-semibold text-emerald-700 uppercase tracking-[0.08em] bg-emerald-50/60 border-l-2 border-emerald-200 w-24">Spread</th>
             </tr>
           </thead>
           <tbody>
@@ -192,44 +192,44 @@ function HeatmapTable({
               const isBlocked = blockedCell?.brand === brand && blockedCell?.inst === (inst as InstallmentNumber);
 
               return (
-                <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/20')}>
-                  <td className="px-3 py-2 text-ink-700 font-medium">{INSTALLMENT_LABELS[inst as number]}</td>
-                  <td className="px-3 py-2 text-center font-mono text-ink-400">
+                <tr key={inst} className={cn('border-b border-ink-100 last:border-0 transition-colors', i % 2 === 0 ? 'bg-white hover:bg-ink-50/40' : 'bg-ink-50/20 hover:bg-ink-50/50')}>
+                  <td className="px-3 py-2.5 text-ink-800 text-[13px] font-medium">{INSTALLMENT_LABELS[inst as number]}</td>
+                  <td className="px-3 py-2.5 text-center font-mono text-ink-400">
                     {costFinal !== null ? costFinal.toFixed(2).replace('.', ',') + '%' : '—'}
                   </td>
 
                   {editable ? (
                     <>
-                      <td className={cn('px-2 py-1.5 border-l-2', isBlocked ? 'bg-red-50 border-red-200' : 'bg-brand/5 border-brand/20')}>
+                      <td className={cn('px-2 py-2 border-l-2', isBlocked ? 'bg-red-50 border-red-200' : 'bg-brand/5 border-brand/20')}>
                         <input type="text" value={entry?.mdrBase ?? ''}
                           onChange={(e) => onUpdate?.(brand, inst as InstallmentNumber, 'mdrBase', e.target.value)}
-                          className={cn('w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1',
+                          className={cn('w-full text-center rounded-lg border px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-1',
                             isBlocked ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
                               : entry?.mdrBase ? 'border-emerald-200 bg-white text-emerald-800 focus:ring-brand'
                               : 'border-ink-200 bg-white text-ink-400 focus:ring-brand')}
                           placeholder="—"
                         />
                       </td>
-                      <td className={cn('px-2 py-1.5', isBlocked ? 'bg-red-50' : 'bg-brand/5')}>
+                      <td className={cn('px-2 py-2', isBlocked ? 'bg-red-50' : 'bg-brand/5')}>
                         <input type="text" value={entry?.anticipationRate ?? ''}
                           onChange={(e) => onUpdate?.(brand, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
-                          className={cn('w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1',
+                          className={cn('w-full text-center rounded-lg border px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-1',
                             isBlocked ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
                               : 'border-ink-200 bg-white text-ink-600 focus:ring-brand')}
                           placeholder="0"
                         />
                       </td>
-                      <td className={cn('px-3 py-2 text-center font-mono font-semibold bg-brand/5', isBlocked ? 'text-red-600' : 'text-ink-900')}>
+                      <td className={cn('px-3 py-2.5 text-center font-mono font-semibold text-[13px] bg-brand/5', isBlocked ? 'text-red-600' : 'text-ink-900')}>
                         {propFinal !== null ? propFinal.toFixed(2).replace('.', ',') + '%' : '—'}
                       </td>
                     </>
                   ) : (
-                    <td className="px-3 py-2 text-center font-mono font-semibold text-ink-900">
+                    <td className="px-3 py-2.5 text-center font-mono font-semibold text-[13px] text-ink-900">
                       {propFinal !== null ? propFinal.toFixed(2).replace('.', ',') + '%' : '—'}
                     </td>
                   )}
 
-                  <td className={cn('px-3 py-2 text-center font-mono font-semibold border-l-2 border-emerald-200',
+                  <td className={cn('px-3 py-2.5 text-center font-mono font-semibold text-[13px] border-l-2 border-emerald-200',
                     spread !== null ? spreadBg(spread) : 'text-ink-300 bg-emerald-50/20')}>
                     {spread !== null ? (spread >= 0 ? '+' : '') + spread.toFixed(2).replace('.', ',') + ' pp' : '—'}
                   </td>

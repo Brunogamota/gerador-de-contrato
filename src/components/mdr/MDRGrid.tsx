@@ -211,20 +211,20 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
       <div className="overflow-x-auto rounded-xl border border-gray-200">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+            <tr className="bg-gray-50 border-b-2 border-gray-200">
+              <th className="px-4 py-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-[0.08em]">
                 Modo
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <th className="px-3 py-3 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em]">
                 Transação (%)
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <th className="px-3 py-3 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em]">
                 Antecipação (%)
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide bg-gray-100">
-                Taxa de Interm. (%)
+              <th className="px-3 py-3 text-center text-[10px] font-semibold text-gray-700 uppercase tracking-[0.08em] bg-gray-100/80 border-l border-gray-200">
+                Taxa Final (%)
               </th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">
+              <th className="px-3 py-3 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-[0.08em] w-28">
                 Ações
               </th>
             </tr>
@@ -243,17 +243,17 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                 <tr
                   key={inst}
                   className={cn(
-                    'border-b border-gray-100 last:border-0 group',
-                    rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                    'border-b border-gray-100 last:border-0 group transition-colors',
+                    rowIdx % 2 === 0 ? 'bg-white hover:bg-slate-50/70' : 'bg-gray-50/40 hover:bg-slate-50/70'
                   )}
                 >
                   {/* Installment label */}
-                  <td className="px-4 py-2.5">
-                    <span className="text-gray-700 text-xs">{INSTALLMENT_LABELS[inst as number]}</span>
+                  <td className="px-4 py-3">
+                    <span className="text-gray-800 text-[13px] font-medium">{INSTALLMENT_LABELS[inst as number]}</span>
                   </td>
 
                   {/* MDR Base */}
-                  <td className="px-2 py-1.5">
+                  <td className="px-2 py-2">
                     {editingCell?.brand === selectedBrand &&
                     editingCell?.installment === inst &&
                     editingCell?.field === 'mdrBase' ? (
@@ -265,15 +265,15 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={commitEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full text-center rounded border-2 border-brand-500 bg-white text-gray-900 px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20 placeholder:text-gray-400"
+                        className="w-full text-center rounded border-2 border-brand-500 bg-white text-gray-900 px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20 placeholder:text-gray-400"
                       />
                     ) : (
                       <button
                         onClick={() => !readOnly && startEdit(selectedBrand, inst, 'mdrBase')}
                         className={cn(
-                          'w-full text-center rounded px-2 py-1 text-sm font-mono transition-colors',
-                          'border hover:border-brand-400 hover:bg-gray-50',
-                          entry.mdrBase ? 'text-gray-800 border-gray-200 bg-white' : 'text-gray-400 border-dashed border-gray-200 bg-gray-50/50',
+                          'w-full text-center rounded px-2 py-1.5 text-sm font-mono transition-colors',
+                          'border hover:border-brand-400 hover:bg-white',
+                          entry.mdrBase ? 'text-gray-800 border-gray-200 bg-white' : 'text-gray-300 border-dashed border-gray-200 bg-gray-50/50',
                           readOnly && 'cursor-default hover:border-gray-200 hover:bg-white'
                         )}
                       >
@@ -283,7 +283,7 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                   </td>
 
                   {/* Anticipation */}
-                  <td className="px-2 py-1.5">
+                  <td className="px-2 py-2">
                     {editingCell?.brand === selectedBrand &&
                     editingCell?.installment === inst &&
                     editingCell?.field === 'anticipationRate' ? (
@@ -295,17 +295,17 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={commitEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full text-center rounded border-2 border-brand-500 bg-white text-gray-900 px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20 placeholder:text-gray-400"
+                        className="w-full text-center rounded border-2 border-brand-500 bg-white text-gray-900 px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20 placeholder:text-gray-400"
                       />
                     ) : (
                       <button
                         onClick={() => !readOnly && startEdit(selectedBrand, inst, 'anticipationRate')}
                         className={cn(
-                          'w-full text-center rounded px-2 py-1 text-sm font-mono transition-colors',
-                          'border hover:border-brand-400 hover:bg-gray-50',
+                          'w-full text-center rounded px-2 py-1.5 text-sm font-mono transition-colors',
+                          'border hover:border-brand-400 hover:bg-white',
                           entry.anticipationRate
                             ? 'text-gray-800 border-gray-200 bg-white'
-                            : 'text-gray-400 border-dashed border-gray-200 bg-gray-50/50',
+                            : 'text-gray-300 border-dashed border-gray-200 bg-gray-50/50',
                           readOnly && 'cursor-default hover:border-gray-200 hover:bg-white'
                         )}
                       >
@@ -317,10 +317,10 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                   </td>
 
                   {/* Final MDR (computed) */}
-                  <td className="px-2 py-1.5 bg-gray-50/80">
+                  <td className="px-2 py-2 bg-gray-50/60 border-l border-gray-100">
                     <div
                       className={cn(
-                        'w-full text-center rounded px-2 py-1 text-sm font-mono font-semibold border',
+                        'w-full text-center rounded px-2 py-1.5 text-sm font-mono font-semibold border',
                         severity === 'error' && 'bg-red-50 border-red-200 text-red-700',
                         severity === 'warning' && 'bg-amber-50 border-amber-200 text-amber-700',
                         severity === 'ok' && 'bg-emerald-50 border-emerald-200 text-emerald-700',
@@ -338,7 +338,7 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                   </td>
 
                   {/* Actions */}
-                  <td className="px-2 py-1.5">
+                  <td className="px-2 py-2">
                     <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {entry.isManualOverride && (
                         <button
@@ -364,11 +364,11 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
           </tbody>
           <tfoot>
             <tr className="bg-gray-100 border-t-2 border-gray-200">
-              <td className="px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Média</td>
+              <td className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-[0.08em]">Média</td>
               <td colSpan={2} />
-              <td className="px-2 py-2.5 text-center">
+              <td className="px-2 py-3 text-center border-l border-gray-200">
                 {currentBrandStats?.avgMdr ? (
-                  <span className="text-sm font-bold text-gray-700 font-mono">
+                  <span className="text-sm font-bold text-gray-800 font-mono">
                     {parseFloat(currentBrandStats.avgMdr).toFixed(2)}%
                   </span>
                 ) : (
