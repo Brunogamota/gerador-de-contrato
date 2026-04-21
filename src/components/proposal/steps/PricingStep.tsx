@@ -260,40 +260,87 @@ export function PricingStep({
             <div className="flex flex-col gap-3">
               <BrandTabs selected={editBrand} onChange={setEditBrand} matrix={finalMatrix} />
               <div className="overflow-x-auto rounded-xl border border-ink-200">
-                <table className="w-full text-xs">
+                <table className="w-full text-xs" style={{ minWidth: '700px' }}>
                   <thead>
-                    <tr className="bg-ink-50 border-b border-ink-200">
-                      <th className="px-3 py-2.5 text-left font-semibold text-ink-700 min-w-48">Modo</th>
-                      <th className="px-3 py-2.5 text-center font-semibold text-ink-600 w-32">Transação (%)</th>
-                      <th className="px-3 py-2.5 text-center font-semibold text-ink-600 w-32">Antecipação (%)</th>
-                      <th className="px-3 py-2.5 text-center font-semibold text-ink-900 w-36 bg-ink-100">Taxa de Interm. (%)</th>
+                    {/* Section headers */}
+                    <tr className="border-b border-ink-200">
+                      <th className="px-3 py-2 bg-ink-50 text-left text-ink-500 font-medium" rowSpan={2}>
+                        Modo
+                      </th>
+                      <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-400 bg-ink-50 border-l-2 border-ink-200">
+                        Custo (referência interna)
+                      </th>
+                      <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-brand bg-brand/5 border-l-2 border-brand/20">
+                        Sua Proposta
+                      </th>
+                      <th className="px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 border-l-2 border-emerald-200">
+                        Margem
+                      </th>
+                    </tr>
+                    {/* Column sub-headers */}
+                    <tr className="border-b border-ink-200">
+                      <th className="px-2 py-1.5 text-center font-normal text-ink-400 bg-ink-50 text-[11px] border-l-2 border-ink-200 w-24">Tx (%)</th>
+                      <th className="px-2 py-1.5 text-center font-normal text-ink-400 bg-ink-50 text-[11px] w-24">Ant. (%)</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-ink-500 bg-ink-50 text-[11px] w-24">Total (%)</th>
+                      <th className="px-2 py-1.5 text-center font-medium text-ink-700 bg-brand/5 text-[11px] border-l-2 border-brand/20 w-28">Transação (%)</th>
+                      <th className="px-2 py-1.5 text-center font-medium text-ink-700 bg-brand/5 text-[11px] w-28">Antecipação (%)</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-ink-900 bg-brand/5 text-[11px] w-28">Taxa Final (%)</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-emerald-700 bg-emerald-50 text-[11px] border-l-2 border-emerald-200 w-24">+ pp</th>
                     </tr>
                   </thead>
                   <tbody>
                     {INSTALLMENTS.map((inst, i) => {
-                      const entry = finalMatrix[editBrand][inst as InstallmentNumber];
-                      const finalV = entry?.finalMdr ? parseFloat(entry.finalMdr).toFixed(2).replace('.', ',') + ' %' : '—';
+                      const costEntry = costTable[editBrand]?.[inst as InstallmentNumber];
+                      const entry    = finalMatrix[editBrand][inst as InstallmentNumber];
+
+                      const costTx    = costEntry?.mdrBase        ? parseFloat(costEntry.mdrBase) : null;
+                      const costAnt   = costEntry?.anticipationRate ? parseFloat(costEntry.anticipationRate) : null;
+                      const costTotal = costEntry?.finalMdr        ? parseFloat(costEntry.finalMdr)
+                                      : (costTx !== null ? (costTx ?? 0) + (costAnt ?? 0) : null);
+
+                      const propFinal = entry?.finalMdr ? parseFloat(entry.finalMdr) : null;
+                      const margin    = propFinal !== null && costTotal !== null ? +(propFinal - costTotal).toFixed(2) : null;
+
+                      const fmt = (v: number | null) => v !== null ? v.toFixed(2).replace('.', ',') + ' %' : '—';
+
                       return (
-                        <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/30')}>
-                          <td className="px-3 py-2 text-ink-700">{INSTALLMENT_LABELS[inst as number]}</td>
-                          <td className="px-2 py-1.5 text-center">
+                        <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/20')}>
+                          <td className="px-3 py-2 text-ink-700 font-medium">{INSTALLMENT_LABELS[inst as number]}</td>
+
+                          {/* Cost reference — read-only, muted */}
+                          <td className="px-2 py-2 text-center font-mono text-ink-400 bg-ink-50/60 border-l-2 border-ink-200">{fmt(costTx)}</td>
+                          <td className="px-2 py-2 text-center font-mono text-ink-400 bg-ink-50/60">{fmt(costAnt)}</td>
+                          <td className="px-2 py-2 text-center font-mono font-semibold text-ink-500 bg-ink-50/60">{fmt(costTotal)}</td>
+
+                          {/* Proposal inputs */}
+                          <td className="px-2 py-1.5 text-center bg-brand/5 border-l-2 border-brand/20">
                             <input type="text" value={entry?.mdrBase ?? ''}
                               onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'mdrBase', e.target.value)}
                               className={cn(
-                                'w-24 text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand',
-                                entry?.mdrBase ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-ink-200 bg-white text-ink-400',
+                                'w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand',
+                                entry?.mdrBase ? 'border-emerald-200 bg-white text-emerald-800' : 'border-ink-200 bg-white text-ink-400',
                               )}
                               placeholder="—"
                             />
                           </td>
-                          <td className="px-2 py-1.5 text-center">
+                          <td className="px-2 py-1.5 text-center bg-brand/5">
                             <input type="text" value={entry?.anticipationRate ?? ''}
                               onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
-                              className="w-24 text-center rounded-lg border border-ink-200 bg-white px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand text-ink-600"
+                              className="w-full text-center rounded-lg border border-ink-200 bg-white px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand text-ink-600"
                               placeholder="0"
                             />
                           </td>
-                          <td className="px-3 py-2 text-center font-mono font-semibold text-ink-900 bg-ink-50/50">{finalV}</td>
+                          <td className="px-2 py-2 text-center font-mono font-semibold text-ink-900 bg-brand/5">
+                            {propFinal !== null ? propFinal.toFixed(2).replace('.', ',') + ' %' : '—'}
+                          </td>
+
+                          {/* Margin */}
+                          <td className={cn(
+                            'px-2 py-2 text-center font-mono font-semibold bg-emerald-50 border-l-2 border-emerald-200',
+                            margin === null ? 'text-ink-300' : margin > 0 ? 'text-emerald-600' : margin < 0 ? 'text-red-500' : 'text-ink-400',
+                          )}>
+                            {margin === null ? '—' : (margin >= 0 ? '+' : '') + margin.toFixed(2).replace('.', ',') + ' pp'}
+                          </td>
                         </tr>
                       );
                     })}
