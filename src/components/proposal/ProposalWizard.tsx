@@ -138,24 +138,66 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
   const contractForm = form as unknown as UseFormReturn<ContractData>;
   const mccValue = form.watch('mcc') ?? '';
   const clientNameValue = form.watch('contratanteNome') ?? '';
+  const clientName = clientNameValue;
+  const statusLabel = editId ? 'Rascunho' : 'Nova';
 
   return (
-    <div className="flex flex-col gap-6 min-h-screen pb-12">
-      <ProposalStepIndicator
-        currentStep={currentStep}
-        stepIndex={stepIndex}
-        onGoToStep={setCurrentStep}
-        steps={activeSteps}
-      />
+    <div className="flex flex-col gap-0 min-h-screen">
+      {/* ── Top bar ── */}
+      <div className="sticky top-0 z-30 bg-[#111111] border-b border-white/5 px-0 py-4">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 mb-3 text-xs text-white/35">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span className="hover:text-white/60 cursor-pointer" onClick={() => window.history.back()}>Voltar para propostas</span>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-lg font-bold text-white">Proposta Comercial</h1>
+            <span className="text-xs font-mono text-white/40 bg-white/5 px-2 py-1 rounded-lg">{proposalNumber}</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-400 bg-amber-500/10">{statusLabel}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-4 py-2 rounded-xl text-sm font-medium border border-white/10 text-white/70 hover:text-white hover:border-white/20 bg-white/5 transition-all"
+            >
+              {isSaving ? 'Salvando…' : 'Salvar rascunho'}
+            </button>
+            <button
+              onClick={goNext}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
+              style={{ background: 'linear-gradient(135deg,#f72662,#771339)', boxShadow: '0 0 16px rgba(247,38,98,0.35)' }}
+            >
+              <span style={{ color: '#ffd700' }}>⚡</span>
+              {currentStep === 'pricing' ? 'Rodar engine' : 'Continuar'}
+            </button>
+          </div>
+        </div>
+
+        {/* Step indicator */}
+        <div className="mt-4">
+          <ProposalStepIndicator
+            currentStep={currentStep}
+            stepIndex={stepIndex}
+            onGoToStep={setCurrentStep}
+            steps={activeSteps}
+          />
+        </div>
+      </div>
 
       {profileBanner && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 animate-fade-in">
-          <span className="text-emerald-500">✓</span>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400 mx-0 mt-4">
+          <span>✓</span>
           {profileBanner}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-card p-6 md:p-8">
+      <div className="flex-1 py-6">
         {currentStep === 'info' && <ProposalInfoStep form={form} />}
         {currentStep === 'cost' && (
           <CostStep
@@ -204,18 +246,17 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
             saveLabel={editId ? 'Salvar Alterações' : undefined}
           />
         )}
+        {/* Back button — shown on non-first steps */}
+        {stepIndex > 0 && currentStep !== 'preview' && (
+          <div className="mt-6 flex items-center gap-3">
+            <button onClick={goBack}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 bg-white/5 transition-all"
+            >
+              ← Voltar
+            </button>
+          </div>
+        )}
       </div>
-
-      {currentStep !== 'preview' && (
-        <ProposalNavigation
-          currentStep={currentStep}
-          stepIndex={stepIndex}
-          mdrIsValid={costValidation.isValid}
-          mdrCanGenerate={costValidation.canGenerateContract}
-          onBack={goBack}
-          onNext={goNext}
-        />
-      )}
     </div>
   );
 }
