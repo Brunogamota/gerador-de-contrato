@@ -22,21 +22,38 @@ import { useProposalSave } from './wizard/useProposalSave';
 import { ContractData } from '@/types/contract';
 import { UseFormReturn } from 'react-hook-form';
 
-export function ProposalWizard() {
+export interface ProposalInitialData {
+  formData: ProposalData;
+  mdrMatrix: MDRMatrix;
+  costTable: MDRMatrix;
+  clientRates: MDRMatrix;
+  marginConfig: MarginConfig;
+  intlCostPricing: IntlPricing;
+  intlProposalPricing: IntlPricing;
+  setupIntl: string;
+  proposalNumber: string;
+}
+
+interface ProposalWizardProps {
+  initialData?: ProposalInitialData;
+  editId?: string;
+}
+
+export function ProposalWizard({ initialData, editId }: ProposalWizardProps = {}) {
   const [currentStep, setCurrentStep] = useState<ProposalStepId>('info');
-  const [costTable, setCostTable] = useState<MDRMatrix>(createEmptyMatrix);
-  const [clientRates, setClientRates] = useState<MDRMatrix>(createEmptyMatrix);
-  const [marginConfig, setMarginConfig] = useState<MarginConfig>(DEFAULT_MARGIN_CONFIG);
-  const [finalMatrix, setFinalMatrix] = useState<MDRMatrix>(createEmptyMatrix);
-  const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
-  const [intlProposalPricing, setIntlProposalPricing] = useState<IntlPricing>(DEFAULT_INTL_PRICING);
-  const [setupIntl, setSetupIntl] = useState('0.00');
-  const [proposalNumber] = useState(generateProposalNumber);
+  const [costTable, setCostTable] = useState<MDRMatrix>(() => initialData?.costTable ?? createEmptyMatrix());
+  const [clientRates, setClientRates] = useState<MDRMatrix>(() => initialData?.clientRates ?? createEmptyMatrix());
+  const [marginConfig, setMarginConfig] = useState<MarginConfig>(() => initialData?.marginConfig ?? DEFAULT_MARGIN_CONFIG);
+  const [finalMatrix, setFinalMatrix] = useState<MDRMatrix>(() => initialData?.mdrMatrix ?? createEmptyMatrix());
+  const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(() => initialData?.intlCostPricing ?? DEFAULT_INTL_PRICING);
+  const [intlProposalPricing, setIntlProposalPricing] = useState<IntlPricing>(() => initialData?.intlProposalPricing ?? DEFAULT_INTL_PRICING);
+  const [setupIntl, setSetupIntl] = useState(() => initialData?.setupIntl ?? '0.00');
+  const [proposalNumber] = useState(() => initialData?.proposalNumber ?? generateProposalNumber());
   const [profileBanner, setProfileBanner] = useState<string | null>(null);
 
   const form = useForm<ProposalData>({
     resolver: zodResolver(ProposalDataSchema),
-    defaultValues: DEFAULT_PROPOSAL_DATA,
+    defaultValues: initialData?.formData ?? DEFAULT_PROPOSAL_DATA,
     mode: 'onBlur',
   });
 
@@ -83,6 +100,7 @@ export function ProposalWizard() {
     intlCostPricing,
     intlProposalPricing,
     setupIntl,
+    editId,
   });
 
   async function goNext() {
@@ -169,6 +187,7 @@ export function ProposalWizard() {
             setupIntl={setupIntl}
             onSave={handleSave}
             isSaving={isSaving}
+            saveLabel={editId ? 'Salvar Alterações' : undefined}
           />
         )}
       </div>
