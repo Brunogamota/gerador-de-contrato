@@ -15,6 +15,7 @@ interface ProposalPreviewStepProps {
   isSaving: boolean;
   intlProposalPricing?: IntlPricing;
   setupIntl?: string;
+  saveLabel?: string;
 }
 
 export function ProposalPreviewStep({
@@ -25,6 +26,7 @@ export function ProposalPreviewStep({
   isSaving,
   intlProposalPricing,
   setupIntl,
+  saveLabel = 'Salvar Proposta',
 }: ProposalPreviewStepProps) {
   const [exporting, setExporting] = useState(false);
 
@@ -63,7 +65,7 @@ export function ProposalPreviewStep({
             Exportar PDF
           </Button>
           <Button onClick={onSave} loading={isSaving}>
-            Salvar Proposta
+            {saveLabel}
           </Button>
         </div>
       </div>

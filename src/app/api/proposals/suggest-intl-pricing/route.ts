@@ -6,57 +6,54 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const PROMPT = (costJson: string) =>
-  `Você é especialista em pricing de pagamentos internacionais via Stripe.
+type LevelKey = 'max' | 'high' | 'medium' | 'low';
 
-Aqui estão os CUSTOS que a Stripe nos cobra (uso interno — nunca mostrado ao cliente):
+const PRICING_FIELDS = [
+  'processingRate','processingFlatFee','pricingModel',
+  'year1Commitment','year2Commitment',
+  'connectPayoutRate','connectPayoutFlatFee','connectMonthlyFee','connectActivationFee',
+  'radarStandardFee','radarRfftFee',
+  'intel3dsFee','intelAdaptiveRate','intelCardUpdaterFee','intelNetworkTokenFee',
+  'fxFeeRate','disputeLostFee','disputeFee',
+];
+
+const PROMPT = (costJson: string) =>
+  `Você é especialista sênior em pricing de pagamentos internacionais (Stripe/adquirência global).
+
+CUSTOS DO FORNECEDOR (Stripe — uso interno, nunca mostrado ao cliente):
 ${costJson}
 
-Sua missão: gerar uma SUGESTÃO DE PROPOSTA para cobrar do cliente com markup razoável e rentável.
+Gere QUATRO NÍVEIS de proposta para cobrar do cliente, do mais agressivo ao mais rentável.
+Cada nível inclui uma tabela de pricing completa + valor de setup OPP Internacional.
 
-REGRAS DE MARKUP:
-1. processingRate (%): adicionar 25–35% sobre o custo (ex: custo 2.89% → proposta 3.70–3.90%)
-2. processingFlatFee ($): adicionar 15–20% (ex: custo $1.00 → proposta $1.20)
-3. connectPayoutRate (%): markup de 20–30%
-4. connectPayoutFlatFee ($): markup de 15–20%
-5. connectMonthlyFee ($): markup de 10–15% (já é receita recorrente)
-6. connectActivationFee ($): markup de 10–20%
-7. radarStandardFee / radarRfftFee ($): repassar sem ou com markup mínimo (5–10%) — é custo de segurança
-8. intel3dsFee / intelCardUpdaterFee / intelNetworkTokenFee ($): markup de 10–15%
-9. intelAdaptiveRate (%): markup de 10–20%
-10. fxFeeRate (%): adicionar 0.5–1.0pp absoluto (ex: 2.0% → 2.75%)
-11. disputeLostFee / disputeFee ($): markup de 20–30%
-12. year1Commitment / year2Commitment: manter ou reduzir levemente (benefício para o cliente)
-13. pricingModel: manter igual
+DEFINIÇÃO DOS NÍVEIS E MARKUPS:
+- "max" → AGRESSIVO: markup de 50–150% sobre taxas percentuais, 30–80% sobre fees fixos.
+  Setup: entre $2.000–$5.000. Para clientes price-sensitive ou grandes volumes.
+- "high" → COMPETITIVO: markup de 150–300% sobre taxas %, 80–150% sobre fees fixos.
+  Setup: entre $5.000–$10.000. Boa margem com preço ainda atrativo.
+- "medium" → MARGEM BOA: markup de 300–500% sobre taxas %, 150–250% sobre fees fixos.
+  Setup: entre $10.000–$25.000. Excelente margem para clientes de médio porte.
+- "low" → RENTÁVEL: markup de 500–700% sobre taxas %, 250–400% sobre fees fixos.
+  Setup: entre $25.000–$60.000. Margem máxima — clientes que não pesquisam muito.
 
-IMPORTANTE:
-- Arredonde todos os valores para 2 casas decimais
-- Se um campo estiver vazio ou zerado no custo, retorne vazio ("") no mesmo campo
-- Maximize a margem sem perder competitividade
+REGRAS OBRIGATÓRIAS:
+1. Se um campo estiver vazio ("") no custo, retorne "" no mesmo campo em todos os níveis.
+2. pricingModel: manter igual ao custo em todos os níveis.
+3. Commitment (year1/year2): pode reduzir até 20% do custo como incentivo comercial — NÃO aumentar.
+4. fxFeeRate (%): adicionar percentual absoluto, não multiplicar (ex: custo 1.5% → high: 3.5%, low: 6.5%).
+5. Arredonde todos os valores para 2 casas decimais.
+6. setup é em dólares, apenas o número (ex: "8000.00").
+7. Maximize a margem — quanto mais alto o nível, mais agressivo o markup deve ser.
 
-Retorne SOMENTE este JSON:
+Retorne SOMENTE este JSON (sem texto extra):
 {
-  "pricing": {
-    "processingRate": "X.XX",
-    "processingFlatFee": "X.XX",
-    "pricingModel": "...",
-    "year1Commitment": "X.XX",
-    "year2Commitment": "X.XX",
-    "connectPayoutRate": "X.XX",
-    "connectPayoutFlatFee": "X.XX",
-    "connectMonthlyFee": "X.XX",
-    "connectActivationFee": "X.XX",
-    "radarStandardFee": "X.XX",
-    "radarRfftFee": "X.XX",
-    "intel3dsFee": "X.XX",
-    "intelAdaptiveRate": "X.XX",
-    "intelCardUpdaterFee": "X.XX",
-    "intelNetworkTokenFee": "X.XX",
-    "fxFeeRate": "X.XX",
-    "disputeLostFee": "X.XX",
-    "disputeFee": "X.XX"
+  "levels": {
+    "max":    { "setup": "X.XX", "pricing": { ${PRICING_FIELDS.map((f) => `"${f}": "X.XX"`).join(', ')} } },
+    "high":   { "setup": "X.XX", "pricing": { ... } },
+    "medium": { "setup": "X.XX", "pricing": { ... } },
+    "low":    { "setup": "X.XX", "pricing": { ... } }
   },
-  "rationale": "Explicação em 1-2 linhas da estratégia de markup aplicada."
+  "rationale": "2-3 linhas explicando qual nível recomendar e por quê, destacando a margem esperada."
 }`;
 
 export async function POST(req: NextRequest) {
@@ -66,28 +63,45 @@ export async function POST(req: NextRequest) {
   try {
     const { costPricing } = await req.json() as { costPricing: IntlPricing };
 
-    const hasData = Object.values(costPricing).some((v) => v && v !== '' && v !== '0.00');
+    const hasData = !!(costPricing.processingRate && costPricing.processingRate !== '' && costPricing.processingRate !== '0.00');
     if (!hasData) {
-      return NextResponse.json({ error: 'Preencha primeiro os custos do fornecedor internacional na aba Custo.' }, { status: 400 });
+      return NextResponse.json({ error: 'Preencha o campo "Processing Rate" nos custos do fornecedor antes de gerar sugestões.' }, { status: 400 });
     }
-
-    const costJson = JSON.stringify(costPricing, null, 2);
 
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 1024,
+      max_tokens: 2048,
       temperature: 0.2,
-      messages: [{ role: 'user', content: PROMPT(costJson) }],
+      messages: [{ role: 'user', content: PROMPT(JSON.stringify(costPricing, null, 2)) }],
       response_format: { type: 'json_object' },
     });
 
     const raw = response.choices[0]?.message?.content ?? '';
-    const parsed = JSON.parse(raw) as { pricing: IntlPricing; rationale: string };
+    const parsed = JSON.parse(raw) as {
+      levels: Record<LevelKey, { setup: string; pricing: IntlPricing }>;
+      rationale: string;
+    };
 
-    const pricing: IntlPricing = { ...DEFAULT_INTL_PRICING, ...parsed.pricing };
+    const LEVEL_META: Record<LevelKey, { label: string; description: string; color: string }> = {
+      max:    { label: 'Agressivo',   description: 'Markup 50–150% — preço competitivo, boa para grandes volumes',       color: 'rose'    },
+      high:   { label: 'Competitivo', description: 'Markup 150–300% — margem saudável com preço ainda atrativo',         color: 'amber'   },
+      medium: { label: 'Margem Boa',  description: 'Markup 300–500% — excelente margem para clientes de médio porte',    color: 'blue'    },
+      low:    { label: 'Rentável',    description: 'Markup 500–700% — margem máxima para clientes menos price-sensitive', color: 'emerald' },
+    };
 
-    return NextResponse.json({ pricing, rationale: parsed.rationale });
+    const levels = Object.fromEntries(
+      (Object.keys(parsed.levels) as LevelKey[]).map((k) => [
+        k,
+        {
+          ...LEVEL_META[k],
+          setup: parsed.levels[k].setup ?? '0.00',
+          pricing: { ...DEFAULT_INTL_PRICING, ...parsed.levels[k].pricing },
+        },
+      ]),
+    );
+
+    return NextResponse.json({ levels, rationale: parsed.rationale });
   } catch (err) {
     console.error('[suggest-intl-pricing] error:', err);
     return NextResponse.json({ error: 'Falha ao gerar sugestão de pricing internacional' }, { status: 500 });

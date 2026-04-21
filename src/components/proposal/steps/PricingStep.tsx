@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, Fragment } from 'react';
-import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing } from '@/types/pricing';
+import { useState } from 'react';
+import { MDRMatrix, BRANDS, BRAND_LABELS, BRAND_COLORS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing } from '@/types/pricing';
+import { INSTALLMENT_LABELS } from '@/components/contract/document/formatters';
 import { MarginConfig } from '@/lib/pricing/margin';
 import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { updateMatrixEntry } from '@/lib/calculations/mdr';
@@ -19,6 +20,14 @@ type SpreadLevel = {
   description: string;
   color: string;
   matrix: MDRMatrix;
+};
+
+type IntlSpreadLevel = {
+  label: string;
+  description: string;
+  color: string;
+  setup: string;
+  pricing: IntlPricing;
 };
 
 interface PricingStepProps {
@@ -52,8 +61,8 @@ export function PricingStep({
 }: PricingStepProps) {
   const [market, setMarket] = useState<Market>('brasil');
   const [mode, setMode] = useState<PricingMode>('margin');
-
-  // Brasil AI state
+  const [editBrand, setEditBrand] = useState<BrandName>('visa');
+  const [blockedCell, setBlockedCell] = useState<{ brand: BrandName; inst: InstallmentNumber; cost: number } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRationale, setAiRationale] = useState('');
   const [aiLevels, setAiLevels] = useState<Record<string, SpreadLevel> | null>(null);
@@ -62,7 +71,8 @@ export function PricingStep({
   // Intl AI state
   const [intlAiLoading, setIntlAiLoading] = useState(false);
   const [intlAiRationale, setIntlAiRationale] = useState('');
-  const [intlAiApplied, setIntlAiApplied] = useState(false);
+  const [intlAiLevels, setIntlAiLevels] = useState<Record<string, IntlSpreadLevel> | null>(null);
+  const [intlSelectedLevel, setIntlSelectedLevel] = useState<string | null>(null);
 
   async function handleAiSuggest() {
     setAiLoading(true);
@@ -87,14 +97,15 @@ export function PricingStep({
   }
 
   async function handleIntlAiSuggest() {
-    const hasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+    const hasData = !!(intlCostPricing.processingRate && intlCostPricing.processingRate !== '' && intlCostPricing.processingRate !== '0.00');
     if (!hasData) {
-      alert('Preencha primeiro os custos do fornecedor internacional na aba Custo (passo anterior).');
+      alert('Preencha o campo "Processing Rate" nos custos do fornecedor internacional (passo Custo) antes de gerar sugestões.');
       return;
     }
     setIntlAiLoading(true);
     setIntlAiRationale('');
-    setIntlAiApplied(false);
+    setIntlAiLevels(null);
+    setIntlSelectedLevel(null);
     try {
       const res = await fetch('/api/proposals/suggest-intl-pricing', {
         method: 'POST',
@@ -103,14 +114,19 @@ export function PricingStep({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Erro');
-      onIntlProposalChange(data.pricing as IntlPricing);
+      setIntlAiLevels(data.levels as Record<string, IntlSpreadLevel>);
       setIntlAiRationale(data.rationale as string);
-      setIntlAiApplied(true);
     } catch (err) {
       alert(`Erro ao gerar sugestão: ${err instanceof Error ? err.message : 'Verifique a OPENAI_API_KEY.'}`);
     } finally {
       setIntlAiLoading(false);
     }
+  }
+
+  function selectIntlLevel(key: string) {
+    setIntlSelectedLevel(key);
+    onIntlProposalChange(intlAiLevels![key].pricing);
+    onSetupIntlChange(intlAiLevels![key].setup);
   }
 
   function selectLevel(key: string) {
@@ -124,7 +140,18 @@ export function PricingStep({
   }
 
   function updateCell(brand: BrandName, inst: InstallmentNumber, field: 'mdrBase' | 'anticipationRate', value: string) {
-    onFinalMatrixChange(updateMatrixEntry(finalMatrix, brand, inst, field, value));
+    const newMatrix = updateMatrixEntry(finalMatrix, brand, inst, field, value);
+    const newFinal = parseFloat(newMatrix[brand][inst].finalMdr ?? '0');
+    const costFinal = parseFloat(costTable[brand]?.[inst]?.finalMdr ?? '0');
+
+    if (costFinal > 0 && newFinal > 0 && newFinal < costFinal) {
+      setBlockedCell({ brand, inst, cost: costFinal });
+      setTimeout(() => setBlockedCell(null), 3000);
+      return;
+    }
+
+    setBlockedCell(null);
+    onFinalMatrixChange(newMatrix);
   }
 
   function switchMode(m: PricingMode) {
@@ -132,13 +159,13 @@ export function PricingStep({
     setMode(m);
   }
 
-  const intlCostHasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+  const intlCostHasData = !!(intlCostPricing.processingRate && intlCostPricing.processingRate !== '' && intlCostPricing.processingRate !== '0.00');
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-base font-semibold text-ink-950 tracking-tight mb-0.5">Precificação Final</h2>
-        <p className="text-sm text-ink-400">Defina as taxas que aparecerão na proposta.</p>
+        <h2 className="text-lg font-semibold text-ink-950 mb-1">Precificação Final</h2>
+        <p className="text-sm text-ink-500">Defina as taxas que aparecerão na proposta.</p>
       </div>
 
       {/* Market tab selector */}
@@ -242,57 +269,117 @@ export function PricingStep({
 
           {/* ── MANUAL ── */}
           {mode === 'manual' && (
-            <div className="overflow-x-auto rounded-xl border border-ink-200">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-ink-50 border-b border-ink-200">
-                    <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
-                    {BRANDS.map((b) => (
-                      <th key={b} colSpan={2} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">{BRAND_LABELS[b]}</th>
-                    ))}
-                  </tr>
-                  <tr className="bg-ink-50/50 border-b border-ink-100">
-                    <th className="px-3 py-1" />
-                    {BRANDS.map((b) => (
-                      <Fragment key={b}>
-                        <th className="px-2 py-1 text-center font-normal text-ink-500 border-l border-ink-100">Base</th>
-                        <th className="px-2 py-1 text-center font-normal text-ink-400">Ant.</th>
-                      </Fragment>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {INSTALLMENTS.map((inst) => (
-                    <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
-                      <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
-                      {BRANDS.map((b) => {
-                        const entry = finalMatrix[b as BrandName][inst as InstallmentNumber];
-                        return (
-                          <Fragment key={b}>
-                            <td className="px-1 py-1 border-l border-ink-100">
-                              <input type="text" value={entry?.mdrBase ?? ''}
-                                onChange={(e) => updateCell(b as BrandName, inst as InstallmentNumber, 'mdrBase', e.target.value)}
-                                className={cn(
-                                  'w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand',
-                                  entry?.mdrBase ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-ink-200 bg-white text-ink-500',
-                                )}
-                                placeholder="—"
-                              />
-                            </td>
-                            <td className="px-1 py-1">
-                              <input type="text" value={entry?.anticipationRate ?? ''}
-                                onChange={(e) => updateCell(b as BrandName, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
-                                className="w-14 text-center rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand text-ink-600"
-                                placeholder="0"
-                              />
-                            </td>
-                          </Fragment>
-                        );
-                      })}
+            <div className="flex flex-col gap-3">
+              {blockedCell && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  <span>
+                    <strong>Taxa bloqueada:</strong> não é possível oferecer abaixo do custo da adquirente. Mínimo: <strong className="font-mono">{blockedCell.cost.toFixed(2).replace('.', ',')}%</strong>
+                  </span>
+                </div>
+              )}
+              <BrandTabs selected={editBrand} onChange={setEditBrand} matrix={finalMatrix} />
+              <div className="overflow-x-auto rounded-xl border border-ink-200">
+                <table className="w-full text-xs" style={{ minWidth: '700px' }}>
+                  <thead>
+                    {/* Section headers */}
+                    <tr className="border-b border-ink-200">
+                      <th className="px-3 py-2 bg-ink-50 text-left text-ink-500 font-medium" rowSpan={2}>
+                        Modo
+                      </th>
+                      <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-400 bg-ink-50 border-l-2 border-ink-200">
+                        Custo (referência interna)
+                      </th>
+                      <th colSpan={3} className="px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-brand bg-brand/5 border-l-2 border-brand/20">
+                        Sua Proposta
+                      </th>
+                      <th className="px-3 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 border-l-2 border-emerald-200">
+                        Margem
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                    {/* Column sub-headers */}
+                    <tr className="border-b border-ink-200">
+                      <th className="px-2 py-1.5 text-center font-normal text-ink-400 bg-ink-50 text-[11px] border-l-2 border-ink-200 w-24">Tx (%)</th>
+                      <th className="px-2 py-1.5 text-center font-normal text-ink-400 bg-ink-50 text-[11px] w-24">Ant. (%)</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-ink-500 bg-ink-50 text-[11px] w-24">Total (%)</th>
+                      <th className="px-2 py-1.5 text-center font-medium text-ink-700 bg-brand/5 text-[11px] border-l-2 border-brand/20 w-28">Transação (%)</th>
+                      <th className="px-2 py-1.5 text-center font-medium text-ink-700 bg-brand/5 text-[11px] w-28">Antecipação (%)</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-ink-900 bg-brand/5 text-[11px] w-28">Taxa Final (%)</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-emerald-700 bg-emerald-50 text-[11px] border-l-2 border-emerald-200 w-24">+ pp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {INSTALLMENTS.map((inst, i) => {
+                      const costEntry = costTable[editBrand]?.[inst as InstallmentNumber];
+                      const entry    = finalMatrix[editBrand][inst as InstallmentNumber];
+
+                      const costTx    = costEntry?.mdrBase        ? parseFloat(costEntry.mdrBase) : null;
+                      const costAnt   = costEntry?.anticipationRate ? parseFloat(costEntry.anticipationRate) : null;
+                      const costTotal = costEntry?.finalMdr        ? parseFloat(costEntry.finalMdr)
+                                      : (costTx !== null ? (costTx ?? 0) + (costAnt ?? 0) : null);
+
+                      const propFinal = entry?.finalMdr ? parseFloat(entry.finalMdr) : null;
+                      const margin    = propFinal !== null && costTotal !== null ? +(propFinal - costTotal).toFixed(2) : null;
+
+                      const fmt = (v: number | null) => v !== null ? v.toFixed(2).replace('.', ',') + ' %' : '—';
+
+                      const isBlocked = blockedCell?.brand === editBrand && blockedCell?.inst === (inst as InstallmentNumber);
+
+                      return (
+                        <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/20')}>
+                          <td className="px-3 py-2 text-ink-700 font-medium">{INSTALLMENT_LABELS[inst as number]}</td>
+
+                          {/* Cost reference — read-only, muted */}
+                          <td className="px-2 py-2 text-center font-mono text-ink-400 bg-ink-50/60 border-l-2 border-ink-200">{fmt(costTx)}</td>
+                          <td className="px-2 py-2 text-center font-mono text-ink-400 bg-ink-50/60">{fmt(costAnt)}</td>
+                          <td className="px-2 py-2 text-center font-mono font-semibold text-ink-500 bg-ink-50/60">{fmt(costTotal)}</td>
+
+                          {/* Proposal inputs */}
+                          <td className={cn('px-2 py-1.5 text-center border-l-2', isBlocked ? 'bg-red-50 border-red-200' : 'bg-brand/5 border-brand/20')}>
+                            <input type="text" value={entry?.mdrBase ?? ''}
+                              onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'mdrBase', e.target.value)}
+                              className={cn(
+                                'w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1',
+                                isBlocked
+                                  ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
+                                  : entry?.mdrBase
+                                    ? 'border-emerald-200 bg-white text-emerald-800 focus:ring-brand'
+                                    : 'border-ink-200 bg-white text-ink-400 focus:ring-brand',
+                              )}
+                              placeholder="—"
+                            />
+                          </td>
+                          <td className={cn('px-2 py-1.5 text-center', isBlocked ? 'bg-red-50' : 'bg-brand/5')}>
+                            <input type="text" value={entry?.anticipationRate ?? ''}
+                              onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
+                              className={cn(
+                                'w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1',
+                                isBlocked
+                                  ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
+                                  : 'border-ink-200 bg-white text-ink-600 focus:ring-brand',
+                              )}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className={cn('px-2 py-2 text-center font-mono font-semibold', isBlocked ? 'bg-red-50 text-red-600' : 'bg-brand/5 text-ink-900')}>
+                            {propFinal !== null ? propFinal.toFixed(2).replace('.', ',') + ' %' : '—'}
+                          </td>
+
+                          {/* Margin */}
+                          <td className={cn(
+                            'px-2 py-2 text-center font-mono font-semibold bg-emerald-50 border-l-2 border-emerald-200',
+                            margin === null ? 'text-ink-300' : margin > 0 ? 'text-emerald-600' : margin < 0 ? 'text-red-500' : 'text-ink-400',
+                          )}>
+                            {margin === null ? '—' : (margin >= 0 ? '+' : '') + margin.toFixed(2).replace('.', ',') + ' pp'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -301,13 +388,15 @@ export function PricingStep({
             <div className="flex flex-col gap-5">
               <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
                     <span className="text-brand font-bold text-lg">✦</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-ink-900 mb-1">Sugestão de pricing por IA — 4 níveis</p>
                     <p className="text-xs text-ink-500 leading-relaxed">
-                      A IA analisa o custo e as taxas do cliente, gera 4 opções ordenadas do mais agressivo (menor preço) ao mais rentável (maior margem). Escolha um e edite.
+                      A IA analisa seu custo e as taxas atuais do cliente e gera 4 opções de pricing.
+                      Todos os níveis são melhores que a taxa atual do cliente.
+                      Escolha um nível e edite livremente.
                     </p>
                     {mcc && <p className="text-xs text-ink-400 mt-1">MCC: <span className="font-mono text-ink-600">{mcc}</span>{clientName && ` · ${clientName}`}</p>}
                   </div>
@@ -315,7 +404,7 @@ export function PricingStep({
                 <button onClick={handleAiSuggest} disabled={aiLoading}
                   className={cn(
                     'self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all',
-                    aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand/90 shadow-sm',
+                    aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand-700 shadow-sm',
                   )}
                 >
                   {aiLoading
@@ -341,10 +430,8 @@ export function PricingStep({
                       return (
                         <div key={key}
                           className={cn(
-                            'rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all cursor-pointer hover:shadow-sm',
-                            isSelected
-                              ? `${c.card} ring-2 ring-offset-1`
-                              : `${c.card} opacity-90 hover:opacity-100`,
+                            'rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all cursor-pointer',
+                            isSelected ? `${c.card} border-opacity-100 ring-2 ring-offset-1 ring-current` : `${c.card} border-opacity-60 hover:border-opacity-100`,
                           )}
                           onClick={() => selectLevel(key)}
                         >
@@ -353,10 +440,10 @@ export function PricingStep({
                               <span className={cn('inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold', c.badge)}>
                                 {level.label}
                               </span>
-                              <p className="text-xs text-ink-500 mt-1 leading-relaxed">{level.description}</p>
+                              <p className="text-xs text-ink-500 mt-1">{level.description}</p>
                             </div>
                             {isSelected && (
-                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">✓ Selecionado</span>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Selecionado</span>
                             )}
                           </div>
 
@@ -365,13 +452,13 @@ export function PricingStep({
                               const e1  = level.matrix[b]?.[1 as InstallmentNumber];
                               const e6  = level.matrix[b]?.[6 as InstallmentNumber];
                               const e12 = level.matrix[b]?.[12 as InstallmentNumber];
-                              const val = (e: typeof e1) => e?.finalMdr ? `${parseFloat(e.finalMdr).toFixed(2)}%` : (e?.mdrBase ? `${parseFloat(e.mdrBase).toFixed(2)}%` : '—');
+                              const val = (e: typeof e1) => e?.finalMdr ? `${parseFloat(e.finalMdr).toFixed(2)} %` : '—';
                               return (
                                 <div key={b} className="flex flex-col gap-0.5">
-                                  <span className="text-ink-500 capitalize font-medium">{b === 'mastercard' ? 'Master' : 'Visa'}</span>
-                                  <span>1x: <strong>{val(e1)}</strong></span>
-                                  <span>6x: <strong>{val(e6)}</strong></span>
-                                  <span>12x: <strong>{val(e12)}</strong></span>
+                                  <span className="text-ink-500 font-semibold text-[10px] uppercase tracking-wide" style={{ color: BRAND_COLORS[b] }}>{BRAND_LABELS[b]}</span>
+                                  <span className="text-ink-600">À Vista: <strong className="text-ink-900">{val(e1)}</strong></span>
+                                  <span className="text-ink-600">6x: <strong className="text-ink-900">{val(e6)}</strong></span>
+                                  <span className="text-ink-600">12x: <strong className="text-ink-900">{val(e12)}</strong></span>
                                 </div>
                               );
                             })}
@@ -384,9 +471,9 @@ export function PricingStep({
                   {selectedLevel && (
                     <div className="flex gap-3 pt-2">
                       <button onClick={acceptAndEdit}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand/90 shadow-sm transition-all"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand-700 shadow-sm transition-all"
                       >
-                        ✓ Usar nível selecionado e editar
+                        ✓ Usar nível selecionado e editar →
                       </button>
                     </div>
                   )}
@@ -416,39 +503,87 @@ export function PricingStep({
             <span>Esses valores aparecerão na proposta internacional para o cliente.</span>
           </div>
 
-          {/* AI suggestion for intl */}
-          <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-brand/20 bg-brand/5">
-            <div className="flex items-center gap-3">
-              <span className="text-brand font-bold text-lg">✦</span>
+          {/* AI suggestion for intl — 4 levels */}
+          <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-brand font-bold text-lg">✦</span>
+              </div>
               <div>
-                <p className="text-sm font-semibold text-ink-900">Sugestão de pricing por IA</p>
-                <p className="text-xs text-ink-500">
+                <p className="text-sm font-semibold text-ink-900 mb-1">Sugestão de pricing por IA — 4 níveis</p>
+                <p className="text-xs text-ink-500 leading-relaxed">
                   {intlCostHasData
-                    ? 'Gera proposta com markup inteligente baseado nos seus custos Stripe.'
-                    : 'Preencha os custos do fornecedor no passo Custo para habilitar.'}
+                    ? 'A IA gera 4 opções do mais agressivo ao mais rentável (markup até 700%) com setup por nível. Escolha um nível para aplicar automaticamente.'
+                    : 'Preencha os custos do fornecedor no passo Custo para habilitar a sugestão por IA.'}
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleIntlAiSuggest}
-              disabled={intlAiLoading || !intlCostHasData}
+            <button onClick={handleIntlAiSuggest} disabled={intlAiLoading || !intlCostHasData}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all whitespace-nowrap flex-shrink-0',
-                intlAiLoading || !intlCostHasData
-                  ? 'bg-ink-300 cursor-not-allowed'
-                  : 'bg-brand hover:bg-brand/90 shadow-sm',
+                'self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all',
+                intlAiLoading || !intlCostHasData ? 'bg-ink-300 cursor-not-allowed' : 'bg-brand hover:bg-brand/90 shadow-sm',
               )}
             >
               {intlAiLoading
-                ? <><div className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />Gerando…</>
-                : <>✦ {intlAiApplied ? 'Gerar novamente' : 'Gerar sugestão'}</>}
+                ? <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Gerando 4 níveis…</>
+                : <>✦ {intlAiLevels ? 'Gerar novamente' : 'Gerar sugestões'}</>}
             </button>
           </div>
 
-          {intlAiRationale && (
-            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
-              <span className="text-blue-400 flex-shrink-0">💡</span>
-              <p className="text-sm text-blue-800 leading-relaxed">{intlAiRationale}</p>
+          {intlAiLevels && (
+            <div className="flex flex-col gap-4">
+              {intlAiRationale && (
+                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
+                  <span className="text-blue-400 flex-shrink-0">💡</span>
+                  <p className="text-sm text-blue-800 leading-relaxed">{intlAiRationale}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {AI_LEVEL_ORDER.filter((k) => intlAiLevels[k]).map((key) => {
+                  const level = intlAiLevels[key];
+                  const c = COLOR_MAP[level.color] ?? COLOR_MAP.blue;
+                  const isSelected = intlSelectedLevel === key;
+                  return (
+                    <div key={key}
+                      className={cn(
+                        'rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all cursor-pointer hover:shadow-sm',
+                        isSelected
+                          ? `${c.card} ring-2 ring-offset-1`
+                          : `${c.card} opacity-90 hover:opacity-100`,
+                      )}
+                      onClick={() => selectIntlLevel(key)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={cn('inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold', c.badge)}>
+                            {level.label}
+                          </span>
+                          <p className="text-xs text-ink-500 mt-1 leading-relaxed">{level.description}</p>
+                        </div>
+                        {isSelected && (
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">✓ Aplicado</span>
+                        )}
+                      </div>
+
+                      <div className="flex gap-6 text-xs font-mono">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-ink-500 font-medium">Processing</span>
+                          <span className="font-semibold text-ink-800">{level.pricing.processingRate ? `${level.pricing.processingRate}%` : '—'}</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-ink-500 font-medium">Connect payout</span>
+                          <span className="font-semibold text-ink-800">{level.pricing.connectPayoutRate ? `${level.pricing.connectPayoutRate}%` : '—'}</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 ml-auto">
+                          <span className="text-ink-500 font-medium">Setup</span>
+                          <span className="font-semibold text-ink-800">{level.setup ? `$${parseFloat(level.setup).toLocaleString('en-US', { minimumFractionDigits: 0 })}` : '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -470,18 +605,19 @@ export function PricingStep({
             </div>
           </div>
 
-          <IntlPricingForm value={intlProposalPricing} onChange={onIntlProposalChange} />
+          <IntlPricingForm
+            value={intlProposalPricing}
+            onChange={onIntlProposalChange}
+          />
 
           {/* Reference: cost from supplier */}
-          {intlCostHasData && (
-            <details className="rounded-xl border border-ink-200 overflow-hidden">
-              <summary className="px-4 py-3 bg-ink-50 text-xs font-semibold text-ink-500 uppercase tracking-wide cursor-pointer hover:bg-ink-100 transition-colors">
+          {intlCostPricing.processingRate && (
+            <div className="rounded-xl border border-ink-100 bg-ink-50 p-4">
+              <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-3">
                 Custo do fornecedor (referência — uso interno)
-              </summary>
-              <div className="p-4 border-t border-ink-200">
-                <IntlPricingForm value={intlCostPricing} readOnly />
-              </div>
-            </details>
+              </p>
+              <IntlPricingForm value={intlCostPricing} readOnly />
+            </div>
           )}
         </div>
       )}
@@ -489,52 +625,70 @@ export function PricingStep({
   );
 }
 
-function MarginPreviewTable({ costTable, finalMatrix }: { costTable: MDRMatrix; finalMatrix: MDRMatrix }) {
+function BrandTabs({ selected, onChange, matrix }: { selected: BrandName; onChange: (b: BrandName) => void; matrix: MDRMatrix }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-ink-200">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="bg-ink-50 border-b border-ink-200">
-            <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
-            {BRANDS.map((b) => (
-              <th key={b} colSpan={3} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">{BRAND_LABELS[b]}</th>
-            ))}
-          </tr>
-          <tr className="bg-ink-50/50 border-b border-ink-100">
-            <th className="px-3 py-1" />
-            {BRANDS.map((b) => (
-              <Fragment key={b}>
-                <th className="px-2 py-1 text-center font-normal text-red-500 border-l border-ink-100">Custo</th>
-                <th className="px-2 py-1 text-center font-normal text-amber-600">+Mg</th>
-                <th className="px-2 py-1 text-center font-semibold text-emerald-600">Final</th>
-              </Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {INSTALLMENTS.map((inst) => (
-            <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
-              <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
-              {BRANDS.map((b) => {
-                const bd = computeMarginBreakdown(costTable, finalMatrix, b as BrandName, inst as InstallmentNumber);
-                return bd ? (
-                  <Fragment key={b}>
-                    <td className="px-2 py-1.5 text-center font-mono text-red-600 border-l border-ink-100">{bd.cost}%</td>
-                    <td className="px-2 py-1.5 text-center font-mono text-amber-600">+{bd.margin}%</td>
-                    <td className="px-2 py-1.5 text-center font-mono font-semibold text-emerald-700">{bd.final}%</td>
-                  </Fragment>
-                ) : (
-                  <Fragment key={b}>
-                    <td className="px-2 py-1.5 text-center text-ink-300 border-l border-ink-100">—</td>
-                    <td className="px-2 py-1.5 text-center text-ink-300">—</td>
-                    <td className="px-2 py-1.5 text-center text-ink-300">—</td>
-                  </Fragment>
-                );
-              })}
+    <div className="flex gap-1 p-1 rounded-xl bg-ink-100 w-fit flex-wrap">
+      {BRANDS.map((b) => {
+        const hasData = Object.values(matrix[b as BrandName]).some((e) => e.finalMdr);
+        return (
+          <button key={b}
+            onClick={() => onChange(b as BrandName)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all',
+              selected === b
+                ? 'bg-white shadow-sm text-ink-950'
+                : 'text-ink-500 hover:text-ink-800',
+            )}
+          >
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: hasData ? BRAND_COLORS[b as BrandName] : '#d1d5db' }} />
+            {BRAND_LABELS[b as BrandName]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MarginPreviewTable({ costTable, finalMatrix }: { costTable: MDRMatrix; finalMatrix: MDRMatrix }) {
+  const [brand, setBrand] = useState<BrandName>('visa');
+  return (
+    <div className="flex flex-col gap-3">
+      <BrandTabs selected={brand} onChange={setBrand} matrix={finalMatrix} />
+      <div className="overflow-x-auto rounded-xl border border-ink-200">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-ink-50 border-b border-ink-200">
+              <th className="px-3 py-2.5 text-left font-semibold text-ink-700 min-w-48">Modo</th>
+              <th className="px-3 py-2.5 text-center font-semibold text-red-500 w-28">Custo (%)</th>
+              <th className="px-3 py-2.5 text-center font-semibold text-amber-600 w-28">+ Margem</th>
+              <th className="px-3 py-2.5 text-center font-semibold text-emerald-700 w-36 bg-emerald-50/50">Taxa Final (%)</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {INSTALLMENTS.map((inst, i) => {
+              const bd = computeMarginBreakdown(costTable, finalMatrix, brand, inst as InstallmentNumber);
+              return (
+                <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/30')}>
+                  <td className="px-3 py-2 text-ink-700">{INSTALLMENT_LABELS[inst as number]}</td>
+                  {bd ? (
+                    <>
+                      <td className="px-3 py-2 text-center font-mono text-red-600">{bd.cost}%</td>
+                      <td className="px-3 py-2 text-center font-mono text-amber-600">+{bd.margin}%</td>
+                      <td className="px-3 py-2 text-center font-mono font-semibold text-emerald-700 bg-emerald-50/30">{bd.final}%</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2 text-center text-ink-300">—</td>
+                      <td className="px-3 py-2 text-center text-ink-300">—</td>
+                      <td className="px-3 py-2 text-center text-ink-300 bg-emerald-50/10">—</td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
