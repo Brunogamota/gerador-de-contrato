@@ -35,6 +35,16 @@ export function ProposalDocument({
       <ContractLetterhead />
 
       <ProposalHeader proposalNumber={proposalNumber} validadeAte={d.validadeAte} />
+
+      {/* Brief company intro */}
+      <div style={{ marginBottom: '24px', padding: '12px 16px', background: '#fafafa', borderLeft: '3px solid #f72662', borderRadius: '0 6px 6px 0' }}>
+        <p style={{ fontSize: '10px', color: '#374151', lineHeight: '1.6', margin: 0 }}>
+          A <strong>RebornPay</strong> é uma empresa especializada em infraestrutura de pagamentos, oferecendo
+          soluções completas de adquirência, processamento e liquidação financeira para negócios que exigem
+          performance, segurança e flexibilidade operacional. Esta proposta foi preparada exclusivamente para{' '}
+          <strong>{d.contratanteNome}</strong> e contempla as condições comerciais negociadas para o período de validade indicado.
+        </p>
+      </div>
       <ProposalClientSummary d={d} />
       <ProposalPricingSection
         d={d}
