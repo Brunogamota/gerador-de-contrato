@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { StrategyProfile, EnrichedRow } from '@/lib/mdr-analyzer/types';
 import {
@@ -33,6 +35,8 @@ export function AnalyzerSidebar({
   onRecalculate,
   onApplyOptimization,
 }: AnalyzerSidebarProps) {
+  const router = useRouter();
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const client = SAMPLE_CLIENT;
   const selectedIdx = STRATEGY_ORDER.indexOf(strategy);
 
@@ -56,7 +60,7 @@ export function AnalyzerSidebar({
       <div className="px-5 pt-6 pb-5 border-b border-white/[0.06]">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] font-semibold tracking-widest uppercase text-white/35">Cliente</span>
-          <button className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">Editar</button>
+          <button onClick={() => router.push('/proposals/new')} className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">Editar</button>
         </div>
 
         <div className="flex items-center justify-between mb-3">
@@ -121,10 +125,12 @@ export function AnalyzerSidebar({
       <div className="px-5 py-5 flex-1">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[10px] font-semibold tracking-widest uppercase text-white/35">Histórico de execuções</p>
-          <button className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">Ver todas</button>
+          <button onClick={() => setShowAllHistory((v) => !v)} className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">
+            {showAllHistory ? 'Ocultar' : 'Ver todas'}
+          </button>
         </div>
         <div className="flex flex-col gap-3">
-          {SAMPLE_HISTORY.map((run) => (
+          {(showAllHistory ? SAMPLE_HISTORY : SAMPLE_HISTORY.slice(0, 3)).map((run) => (
             <div key={run.id} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: run.dotColor }} />

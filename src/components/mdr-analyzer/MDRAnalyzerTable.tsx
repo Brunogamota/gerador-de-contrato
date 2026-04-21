@@ -8,6 +8,7 @@ import {
   BRAND_COLORS,
   BRAND_LABELS_MAP,
   ALL_BRANDS,
+  getClassificationConfig,
   getIntelligentClassConfig,
   getSpreadCellClass,
   fmtPct,
@@ -30,6 +31,9 @@ export function MDRAnalyzerTable({
   onAutoAdjust,
 }: MDRAnalyzerTableProps) {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [editingRow, setEditingRow]   = useState<number | null>(null);
+  const [editValue, setEditValue]     = useState('');
+  const [customizeMode, setCustomizeMode] = useState(false);
 
   const avgCost   = enrichedRows.reduce((a, b) => a + b.cost,      0) / enrichedRows.length;
   const avgSpread = enrichedRows.reduce((a, b) => a + b.spread,    0) / enrichedRows.length;
@@ -37,7 +41,29 @@ export function MDRAnalyzerTable({
   const stratCfg  = STRATEGY_CONFIG[strategy];
 
   function toggleExpand(inst: number) {
+    if (editingRow !== null) return;
     setExpandedRow((prev) => (prev === inst ? null : inst));
+  }
+
+  function startEdit(e: React.MouseEvent, inst: number, spread: number) {
+    e.stopPropagation();
+    setExpandedRow(null);
+    setEditingRow(inst);
+    setEditValue(spread.toFixed(2).replace('.', ','));
+  }
+
+  function saveEdit(installmentIdx: number) {
+    const raw = editValue.replace(',', '.');
+    const val = parseFloat(raw);
+    if (!isNaN(val) && val > 0) {
+      onAutoAdjust(installmentIdx, parseFloat(val.toFixed(2)));
+    }
+    setEditingRow(null);
+  }
+
+  function cancelEdit(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    setEditingRow(null);
   }
 
   return (
@@ -47,7 +73,7 @@ export function MDRAnalyzerTable({
         <div>
           <h2 className="text-base font-semibold text-white">Estrutura de Pricing</h2>
           <p className="text-xs text-white/40 mt-0.5">
-            Clique em qualquer linha para ver detalhes e ajuste automático.
+            Edite diretamente os valores ou ajuste a estratégia para recalcular.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -55,14 +81,34 @@ export function MDRAnalyzerTable({
             <span>Estratégia aplicada:</span>
             <span className="font-semibold" style={{ color: stratCfg.color }}>{stratCfg.label}</span>
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/[0.09] text-white/60 hover:text-white hover:border-white/20 transition-all">
+          <button
+            onClick={() => setCustomizeMode((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              customizeMode
+                ? 'bg-white/[0.08] text-white border-white/20'
+                : 'border-white/[0.09] text-white/60 hover:text-white hover:border-white/20',
+            )}
+          >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
-            Personalizar
+            {customizeMode ? 'Concluir' : 'Personalizar'}
           </button>
         </div>
       </div>
+
+      {/* Customize-mode banner */}
+      {customizeMode && (
+        <div className="mx-6 mb-3 px-4 py-2.5 rounded-xl flex items-center gap-2 border border-brand/25 bg-brand/[0.05]">
+          <svg className="w-3.5 h-3.5 text-brand shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span className="text-xs text-white/55">
+            Modo de personalização ativo — clique no ícone de edição para ajustar o spread de qualquer parcela.
+          </span>
+        </div>
+      )}
 
       {/* Brand filter tabs */}
       <div className="flex items-center gap-0.5 px-6 pb-4 overflow-x-auto">
@@ -83,18 +129,18 @@ export function MDRAnalyzerTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/[0.06]">
-              <th className="px-6 py-3 text-left text-[10px] font-semibold tracking-widest uppercase text-white/35 w-36">
+              <th className="px-6 py-3 text-left text-[10px] font-semibold tracking-widest uppercase text-white/35 w-40">
                 Parcelas
               </th>
               <th className="px-4 py-3 text-right text-[10px] font-semibold tracking-widest uppercase text-white/35">
                 <div>Custo (%)</div>
                 <div className="font-normal normal-case tracking-normal text-white/25">Adquirente</div>
               </th>
-              <th className="px-4 py-3 text-right text-[10px] font-semibold tracking-widest uppercase text-white/35">
+              <th className="px-4 py-3 text-center text-[10px] font-semibold tracking-widest uppercase text-white/35">
                 <div>Spread (%)</div>
                 <div className="font-normal normal-case tracking-normal text-white/25">Margem aplicada</div>
               </th>
-              <th className="px-4 py-3 text-right text-[10px] font-semibold tracking-widest uppercase text-white/35">
+              <th className="px-4 py-3 text-center text-[10px] font-semibold tracking-widest uppercase text-white/35">
                 <div>Taxa final (%)</div>
                 <div className="font-normal normal-case tracking-normal text-white/25">Cobrado do cliente</div>
               </th>
@@ -108,9 +154,10 @@ export function MDRAnalyzerTable({
           </thead>
           <tbody>
             {enrichedRows.map((row) => {
-              const intlCfg    = getIntelligentClassConfig(row.intelligentClass);
-              const spreadCls  = getSpreadCellClass(row.classification);
-              const isExpanded = expandedRow === row.installment;
+              const classCfg      = getClassificationConfig(row.classification);
+              const spreadCls     = getSpreadCellClass(row.classification);
+              const isExpanded    = expandedRow === row.installment;
+              const isEditingThis = editingRow === row.installment;
 
               return (
                 <>
@@ -119,71 +166,107 @@ export function MDRAnalyzerTable({
                     onClick={() => toggleExpand(row.installment)}
                     className={cn(
                       'group border-b border-white/[0.04] cursor-pointer transition-colors',
-                      isExpanded ? 'bg-white/[0.04]' : 'hover:bg-white/[0.025]',
+                      isExpanded && !isEditingThis ? 'bg-white/[0.04]' : 'hover:bg-white/[0.025]',
+                      isEditingThis && 'cursor-default',
                     )}
                   >
-                    {/* Parcelas — shows hover mini-detail */}
+                    {/* Parcelas — revenue detail fades in on hover */}
                     <td className="px-6 py-0">
                       <div className="py-2.5">
                         <p className="font-medium text-white/90 leading-none">{row.label}</p>
-                        {/* Fades in on hover — always takes space to avoid layout shift */}
                         <p className="text-[10px] font-mono text-transparent group-hover:text-emerald-400/70 transition-colors mt-1 leading-none">
                           {fmtCurrency(row.detail.revenueMonthly)}/mês · {fmtCurrency(row.detail.revenuePerTx)}/tx
                         </p>
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 text-right font-mono text-white/60">{fmtPct(row.cost)}</td>
-
-                    {/* Spread — heatmap cell */}
-                    <td className="px-0 py-0">
-                      <div className={cn('px-4 py-3 text-right font-mono font-semibold h-full', spreadCls)}>
-                        {fmtPct(row.spread)}
-                      </div>
+                    {/* Custo */}
+                    <td className="px-4 py-3 text-right font-mono text-white/60">
+                      {fmtPct(row.cost)}
                     </td>
 
-                    <td className="px-4 py-3 text-right font-mono font-semibold text-white">
+                    {/* Spread — full-cell heatmap background */}
+                    <td
+                      className={cn(
+                        'px-4 py-3 text-center font-mono font-semibold transition-colors',
+                        !isEditingThis ? spreadCls : 'text-white',
+                      )}
+                      onClick={(e) => isEditingThis && e.stopPropagation()}
+                    >
+                      {isEditingThis ? (
+                        <div className="flex items-center justify-center">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter')  saveEdit(row.installment - 1);
+                              if (e.key === 'Escape') cancelEdit();
+                            }}
+                            onBlur={() => saveEdit(row.installment - 1)}
+                            autoFocus
+                            className="w-20 bg-white/10 border border-brand/60 rounded-lg px-2 py-1 text-sm font-mono text-center text-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/30"
+                          />
+                        </div>
+                      ) : (
+                        fmtPct(row.spread)
+                      )}
+                    </td>
+
+                    {/* Taxa final */}
+                    <td className="px-4 py-3 text-center font-mono font-semibold text-white">
                       {fmtPct(row.finalRate)}
                     </td>
 
-                    {/* Classification — new intelligent system */}
+                    {/* Classification — SpreadClassification labels */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: intlCfg.dotColor }}
-                        />
-                        <span className={cn('text-xs font-semibold', intlCfg.textColor)}>
-                          {intlCfg.label}
-                        </span>
-                      </div>
+                      <span className={cn('text-sm font-semibold', classCfg.textColor)}>
+                        {classCfg.label}
+                      </span>
                     </td>
 
-                    {/* Action */}
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                    {/* Action — pencil / save+cancel */}
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      {isEditingThis ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => saveEdit(row.installment - 1)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => cancelEdit(e)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
                         <button
-                          onClick={(e) => { e.stopPropagation(); toggleExpand(row.installment); }}
+                          onClick={(e) => startEdit(e, row.installment, row.spread)}
                           className={cn(
-                            'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
-                            isExpanded
-                              ? 'text-white bg-white/[0.08]'
-                              : 'text-white/30 hover:text-white/70 hover:bg-white/[0.06]',
+                            'w-7 h-7 rounded-lg flex items-center justify-center transition-all mx-auto',
+                            customizeMode
+                              ? 'text-brand/70 bg-brand/10 hover:text-brand'
+                              : 'text-white/25 hover:text-white/60 hover:bg-white/[0.06]',
                           )}
                         >
-                          <svg
-                            className={cn('w-3 h-3 transition-transform duration-200', isExpanded && 'rotate-180')}
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                           </svg>
                         </button>
-                      </div>
+                      )}
                     </td>
                   </tr>
 
                   {/* Expand detail panel */}
-                  {isExpanded && (
+                  {isExpanded && !isEditingThis && (
                     <tr key={`${row.installment}-detail`} className="border-b border-white/[0.06]">
                       <td colSpan={6} className="px-0 py-0">
                         <RowDetailPanel
@@ -201,13 +284,13 @@ export function MDRAnalyzerTable({
             })}
           </tbody>
 
-          {/* Summary row */}
+          {/* Summary footer */}
           <tfoot>
             <tr className="bg-white/[0.03] border-t border-white/[0.08]">
               <td className="px-6 py-3 text-[10px] font-semibold tracking-widest uppercase text-white/40">Média</td>
               <td className="px-4 py-3 text-right font-mono text-sm text-white/50">{fmtPct(avgCost)}</td>
-              <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-white/70">{fmtPct(avgSpread)}</td>
-              <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-white">{fmtPct(avgFinal)}</td>
+              <td className="px-4 py-3 text-center font-mono text-sm font-semibold text-white/70">{fmtPct(avgSpread)}</td>
+              <td className="px-4 py-3 text-center font-mono text-sm font-semibold text-white">{fmtPct(avgFinal)}</td>
               <td colSpan={2} />
             </tr>
           </tfoot>
@@ -217,7 +300,7 @@ export function MDRAnalyzerTable({
   );
 }
 
-// ─── Row detail expand panel ────────────────────────────────────────────────
+// ─── Row detail expand panel ─────────────────────────────────────────────────
 
 function RowDetailPanel({
   row,
@@ -228,15 +311,12 @@ function RowDetailPanel({
 }) {
   const { detail } = row;
   const intlCfg = getIntelligentClassConfig(row.intelligentClass);
-
   const benchmarkPositive = detail.benchmark.delta > 0.08;
   const benchmarkNegative = detail.benchmark.delta < -0.08;
 
   return (
     <div className="px-6 py-4 bg-white/[0.02]">
-      {/* 3-column detail grid */}
       <div className="grid grid-cols-3 gap-5 mb-4">
-
         {/* Revenue */}
         <div className="flex flex-col gap-2">
           <p className="text-[10px] font-semibold tracking-widest uppercase text-white/30">Receita estimada</p>
@@ -280,7 +360,7 @@ function RowDetailPanel({
           </div>
         </div>
 
-        {/* Classification + risk */}
+        {/* Intelligent classification */}
         <div className="flex flex-col gap-2">
           <p className="text-[10px] font-semibold tracking-widest uppercase text-white/30">Análise da faixa</p>
           <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg self-start', intlCfg.bgColor)}>
@@ -298,8 +378,7 @@ function RowDetailPanel({
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
           <div className="flex items-center gap-2">
             <svg className="w-3.5 h-3.5 text-brand shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <span className="text-xs text-white/50">
               Spread sugerido:{' '}
@@ -323,7 +402,7 @@ function RowDetailPanel({
   );
 }
 
-// ─── Brand tab ────────────────────────────────────────────────────────────────
+// ─── Brand tab ───────────────────────────────────────────────────────────────
 
 function BrandTab({
   label, dot, active, onClick,

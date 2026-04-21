@@ -186,11 +186,11 @@ export function getClassificationConfig(c: SpreadClassification): { label: strin
 
 export function getSpreadCellClass(c: SpreadClassification): string {
   const map: Record<SpreadClassification, string> = {
-    competitivo:   'bg-amber-500/[0.10] text-amber-300',
-    equilibrado:   'bg-yellow-500/[0.10] text-yellow-200',
-    agressivo:     'bg-lime-500/[0.10] text-lime-300',
-    alta_margem:   'bg-emerald-500/[0.12] text-emerald-300',
-    maxima_margem: 'bg-green-500/[0.18] text-green-300',
+    competitivo:   'bg-amber-500/20 text-white',
+    equilibrado:   'bg-yellow-600/20 text-white',
+    agressivo:     'bg-lime-600/[0.18] text-white',
+    alta_margem:   'bg-emerald-600/[0.22] text-white',
+    maxima_margem: 'bg-green-600/30 text-white',
   };
   return map[c];
 }
