@@ -74,8 +74,8 @@ export function FeesStep({ form }: FeesStepProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Taxas e Tarifas</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-lg font-semibold text-ink-900 mb-1">Taxas e Tarifas</h2>
+        <p className="text-sm text-ink-500">
           Configure todas as cobranças operacionais. Esses valores serão refletidos no Anexo II do contrato.
         </p>
       </div>

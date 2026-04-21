@@ -26,8 +26,8 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Dados do Contratante</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-lg font-semibold text-ink-900 mb-1">Dados do Contratante</h2>
+        <p className="text-sm text-ink-500">
           Informações da empresa que vai assinar o contrato como CONTRATANTE
         </p>
       </div>
@@ -149,8 +149,8 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
       <hr className="border-gray-100" />
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Termos do Contrato</h2>
-        <p className="text-sm text-gray-500">Vigência, datas e foro</p>
+        <h2 className="text-lg font-semibold text-ink-900 mb-1">Termos do Contrato</h2>
+        <p className="text-sm text-ink-500">Vigência, datas e foro</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
