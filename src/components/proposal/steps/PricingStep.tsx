@@ -62,6 +62,7 @@ export function PricingStep({
   const [market, setMarket] = useState<Market>('brasil');
   const [mode, setMode] = useState<PricingMode>('margin');
   const [editBrand, setEditBrand] = useState<BrandName>('visa');
+  const [blockedCell, setBlockedCell] = useState<{ brand: BrandName; inst: InstallmentNumber; cost: number } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRationale, setAiRationale] = useState('');
   const [aiLevels, setAiLevels] = useState<Record<string, SpreadLevel> | null>(null);
@@ -139,7 +140,18 @@ export function PricingStep({
   }
 
   function updateCell(brand: BrandName, inst: InstallmentNumber, field: 'mdrBase' | 'anticipationRate', value: string) {
-    onFinalMatrixChange(updateMatrixEntry(finalMatrix, brand, inst, field, value));
+    const newMatrix = updateMatrixEntry(finalMatrix, brand, inst, field, value);
+    const newFinal = parseFloat(newMatrix[brand][inst].finalMdr ?? '0');
+    const costFinal = parseFloat(costTable[brand]?.[inst]?.finalMdr ?? '0');
+
+    if (costFinal > 0 && newFinal > 0 && newFinal < costFinal) {
+      setBlockedCell({ brand, inst, cost: costFinal });
+      setTimeout(() => setBlockedCell(null), 3000);
+      return;
+    }
+
+    setBlockedCell(null);
+    onFinalMatrixChange(newMatrix);
   }
 
   function switchMode(m: PricingMode) {
@@ -258,6 +270,16 @@ export function PricingStep({
           {/* ── MANUAL ── */}
           {mode === 'manual' && (
             <div className="flex flex-col gap-3">
+              {blockedCell && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  <span>
+                    <strong>Taxa bloqueada:</strong> não é possível oferecer abaixo do custo da adquirente. Mínimo: <strong className="font-mono">{blockedCell.cost.toFixed(2).replace('.', ',')}%</strong>
+                  </span>
+                </div>
+              )}
               <BrandTabs selected={editBrand} onChange={setEditBrand} matrix={finalMatrix} />
               <div className="overflow-x-auto rounded-xl border border-ink-200">
                 <table className="w-full text-xs" style={{ minWidth: '700px' }}>
@@ -303,6 +325,8 @@ export function PricingStep({
 
                       const fmt = (v: number | null) => v !== null ? v.toFixed(2).replace('.', ',') + ' %' : '—';
 
+                      const isBlocked = blockedCell?.brand === editBrand && blockedCell?.inst === (inst as InstallmentNumber);
+
                       return (
                         <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/20')}>
                           <td className="px-3 py-2 text-ink-700 font-medium">{INSTALLMENT_LABELS[inst as number]}</td>
@@ -313,24 +337,33 @@ export function PricingStep({
                           <td className="px-2 py-2 text-center font-mono font-semibold text-ink-500 bg-ink-50/60">{fmt(costTotal)}</td>
 
                           {/* Proposal inputs */}
-                          <td className="px-2 py-1.5 text-center bg-brand/5 border-l-2 border-brand/20">
+                          <td className={cn('px-2 py-1.5 text-center border-l-2', isBlocked ? 'bg-red-50 border-red-200' : 'bg-brand/5 border-brand/20')}>
                             <input type="text" value={entry?.mdrBase ?? ''}
                               onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'mdrBase', e.target.value)}
                               className={cn(
-                                'w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand',
-                                entry?.mdrBase ? 'border-emerald-200 bg-white text-emerald-800' : 'border-ink-200 bg-white text-ink-400',
+                                'w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1',
+                                isBlocked
+                                  ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
+                                  : entry?.mdrBase
+                                    ? 'border-emerald-200 bg-white text-emerald-800 focus:ring-brand'
+                                    : 'border-ink-200 bg-white text-ink-400 focus:ring-brand',
                               )}
                               placeholder="—"
                             />
                           </td>
-                          <td className="px-2 py-1.5 text-center bg-brand/5">
+                          <td className={cn('px-2 py-1.5 text-center', isBlocked ? 'bg-red-50' : 'bg-brand/5')}>
                             <input type="text" value={entry?.anticipationRate ?? ''}
                               onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
-                              className="w-full text-center rounded-lg border border-ink-200 bg-white px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand text-ink-600"
+                              className={cn(
+                                'w-full text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1',
+                                isBlocked
+                                  ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300'
+                                  : 'border-ink-200 bg-white text-ink-600 focus:ring-brand',
+                              )}
                               placeholder="0"
                             />
                           </td>
-                          <td className="px-2 py-2 text-center font-mono font-semibold text-ink-900 bg-brand/5">
+                          <td className={cn('px-2 py-2 text-center font-mono font-semibold', isBlocked ? 'bg-red-50 text-red-600' : 'bg-brand/5 text-ink-900')}>
                             {propFinal !== null ? propFinal.toFixed(2).replace('.', ',') + ' %' : '—'}
                           </td>
 
