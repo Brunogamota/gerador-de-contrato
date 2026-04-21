@@ -44,7 +44,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-60 flex-shrink-0 h-screen sticky top-0 flex flex-col bg-[#0f0f0f] border-r border-white/5 overflow-y-auto">
+    <aside className="fixed left-0 top-0 w-60 h-screen flex flex-col bg-[#0f0f0f] border-r border-white/5 overflow-y-auto z-30">
       {/* Logo */}
       <div className="px-5 py-5 flex items-center gap-2.5">
         <RebornMark size={24} color="#f72662" />

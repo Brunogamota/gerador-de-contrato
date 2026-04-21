@@ -19,15 +19,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`dark ${inter.variable}`}>
-      <body className="bg-[#0a0a0a] text-ink-50">
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto bg-[#111111]">
-            <div className="min-h-full px-8 py-8">
-              {children}
-            </div>
-          </main>
-        </div>
+      <body className="bg-[#111111] text-white">
+        <Sidebar />
+        <main className="ml-60 min-h-screen bg-[#111111]">
+          <div className="px-8 py-8">
+            {children}
+          </div>
+        </main>
       </body>
     </html>
   );
