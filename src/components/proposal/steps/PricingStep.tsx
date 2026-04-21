@@ -11,11 +11,22 @@ import { cn } from '@/lib/utils';
 type PricingMode = 'margin' | 'manual' | 'ai';
 type Market = 'brasil' | 'intl';
 
+// Display order: most aggressive (cheapest for client) → most conservative (max margin)
+const AI_LEVEL_ORDER = ['max', 'high', 'medium', 'low'] as const;
+
 type SpreadLevel = {
   label: string;
   description: string;
   color: string;
   matrix: MDRMatrix;
+};
+
+type IntlSpreadLevel = {
+  label: string;
+  description: string;
+  color: string;
+  setup: string;
+  pricing: IntlPricing;
 };
 
 interface PricingStepProps {
@@ -54,6 +65,12 @@ export function PricingStep({
   const [aiLevels, setAiLevels] = useState<Record<string, SpreadLevel> | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
+  // Intl AI state
+  const [intlAiLoading, setIntlAiLoading] = useState(false);
+  const [intlAiRationale, setIntlAiRationale] = useState('');
+  const [intlAiLevels, setIntlAiLevels] = useState<Record<string, IntlSpreadLevel> | null>(null);
+  const [intlSelectedLevel, setIntlSelectedLevel] = useState<string | null>(null);
+
   async function handleAiSuggest() {
     setAiLoading(true);
     setAiRationale('');
@@ -76,6 +93,39 @@ export function PricingStep({
     }
   }
 
+  async function handleIntlAiSuggest() {
+    const hasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+    if (!hasData) {
+      alert('Preencha primeiro os custos do fornecedor internacional na aba Custo (passo anterior).');
+      return;
+    }
+    setIntlAiLoading(true);
+    setIntlAiRationale('');
+    setIntlAiLevels(null);
+    setIntlSelectedLevel(null);
+    try {
+      const res = await fetch('/api/proposals/suggest-intl-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ costPricing: intlCostPricing }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erro');
+      setIntlAiLevels(data.levels as Record<string, IntlSpreadLevel>);
+      setIntlAiRationale(data.rationale as string);
+    } catch (err) {
+      alert(`Erro ao gerar sugestão: ${err instanceof Error ? err.message : 'Verifique a OPENAI_API_KEY.'}`);
+    } finally {
+      setIntlAiLoading(false);
+    }
+  }
+
+  function selectIntlLevel(key: string) {
+    setIntlSelectedLevel(key);
+    onIntlProposalChange(intlAiLevels![key].pricing);
+    onSetupIntlChange(intlAiLevels![key].setup);
+  }
+
   function selectLevel(key: string) {
     setSelectedLevel(key);
     onFinalMatrixChange(aiLevels![key].matrix);
@@ -94,6 +144,8 @@ export function PricingStep({
     if (m === 'margin') onFinalMatrixChange(applyMargin(costTable, marginConfig));
     setMode(m);
   }
+
+  const intlCostHasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
 
   return (
     <div className="flex flex-col gap-6">
@@ -297,7 +349,8 @@ export function PricingStep({
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {Object.entries(aiLevels).map(([key, level]) => {
+                    {AI_LEVEL_ORDER.filter((k) => aiLevels[k]).map((key) => {
+                      const level = aiLevels[key];
                       const c = COLOR_MAP[level.color] ?? COLOR_MAP.blue;
                       const isSelected = selectedLevel === key;
                       return (
@@ -374,6 +427,90 @@ export function PricingStep({
             </svg>
             <span>Esses valores aparecerão na proposta internacional para o cliente.</span>
           </div>
+
+          {/* AI suggestion for intl — 4 levels */}
+          <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-brand font-bold text-lg">✦</span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-ink-900 mb-1">Sugestão de pricing por IA — 4 níveis</p>
+                <p className="text-xs text-ink-500 leading-relaxed">
+                  {intlCostHasData
+                    ? 'A IA gera 4 opções do mais agressivo ao mais rentável (markup até 700%) com setup por nível. Escolha um nível para aplicar automaticamente.'
+                    : 'Preencha os custos do fornecedor no passo Custo para habilitar a sugestão por IA.'}
+                </p>
+              </div>
+            </div>
+            <button onClick={handleIntlAiSuggest} disabled={intlAiLoading || !intlCostHasData}
+              className={cn(
+                'self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all',
+                intlAiLoading || !intlCostHasData ? 'bg-ink-300 cursor-not-allowed' : 'bg-brand hover:bg-brand/90 shadow-sm',
+              )}
+            >
+              {intlAiLoading
+                ? <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Gerando 4 níveis…</>
+                : <>✦ {intlAiLevels ? 'Gerar novamente' : 'Gerar sugestões'}</>}
+            </button>
+          </div>
+
+          {intlAiLevels && (
+            <div className="flex flex-col gap-4">
+              {intlAiRationale && (
+                <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
+                  <span className="text-blue-400 flex-shrink-0">💡</span>
+                  <p className="text-sm text-blue-800 leading-relaxed">{intlAiRationale}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {AI_LEVEL_ORDER.filter((k) => intlAiLevels[k]).map((key) => {
+                  const level = intlAiLevels[key];
+                  const c = COLOR_MAP[level.color] ?? COLOR_MAP.blue;
+                  const isSelected = intlSelectedLevel === key;
+                  return (
+                    <div key={key}
+                      className={cn(
+                        'rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all cursor-pointer hover:shadow-sm',
+                        isSelected
+                          ? `${c.card} ring-2 ring-offset-1`
+                          : `${c.card} opacity-90 hover:opacity-100`,
+                      )}
+                      onClick={() => selectIntlLevel(key)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={cn('inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold', c.badge)}>
+                            {level.label}
+                          </span>
+                          <p className="text-xs text-ink-500 mt-1 leading-relaxed">{level.description}</p>
+                        </div>
+                        {isSelected && (
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">✓ Aplicado</span>
+                        )}
+                      </div>
+
+                      <div className="flex gap-6 text-xs font-mono">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-ink-500 font-medium">Processing</span>
+                          <span className="font-semibold text-ink-800">{level.pricing.processingRate ? `${level.pricing.processingRate}%` : '—'}</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-ink-500 font-medium">Connect payout</span>
+                          <span className="font-semibold text-ink-800">{level.pricing.connectPayoutRate ? `${level.pricing.connectPayoutRate}%` : '—'}</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 ml-auto">
+                          <span className="text-ink-500 font-medium">Setup</span>
+                          <span className="font-semibold text-ink-800">{level.setup ? `$${parseFloat(level.setup).toLocaleString('en-US', { minimumFractionDigits: 0 })}` : '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Setup OPP Internacional */}
           <div className="flex items-center gap-4 p-4 rounded-xl border border-ink-200 bg-ink-50">
