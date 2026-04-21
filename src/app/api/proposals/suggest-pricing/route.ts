@@ -5,6 +5,7 @@ import { createEmptyMatrix, updateMatrixEntry } from '@/lib/calculations/mdr';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `Você é um Head of Payments de uma empresa de adquirência global (nível Adyen/Stripe).
 Sua função é construir pricing de adquirência dinâmico, orientado por comportamento, risco e contexto operacional.
@@ -184,8 +185,8 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 4096,
+      model: 'gpt-4o-mini',
+      max_tokens: 2048,
       temperature: 0.2,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },

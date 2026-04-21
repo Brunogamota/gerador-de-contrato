@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 2048,
+      model: 'gpt-4o-mini',
+      max_tokens: 1536,
       temperature: 0.2,
       messages: [{ role: 'user', content: PROMPT(JSON.stringify(costPricing, null, 2)) }],
       response_format: { type: 'json_object' },
