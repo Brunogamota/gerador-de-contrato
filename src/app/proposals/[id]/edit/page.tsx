@@ -33,7 +33,7 @@ export default function ProposalEditPage() {
           repLegalTelefone:    proposal.repLegalTelefone ?? '',
           repLegalCargo:       proposal.repLegalCargo    ?? '',
           mcc:                 proposal.mcc              ?? '',
-          tipoMercado:         proposal.tipoMercado      ?? 'brasil',
+          tipoMercado:         (proposal.tipoMercado as 'brasil' | 'intl' | 'both') ?? 'brasil',
           setup:               proposal.setup,
           feeTransacao:        proposal.feeTransacao,
           taxaAntifraude:      proposal.taxaAntifraude,

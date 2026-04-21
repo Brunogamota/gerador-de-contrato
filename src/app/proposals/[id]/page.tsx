@@ -47,6 +47,7 @@ type ProposalRecord = {
   intlProposalPricing?: string | null;
   setupIntl?: string | null;
   mcc?: string | null;
+  tipoMercado?: string | null;
   validadeAte: string;
   observacoes?: string | null;
 };
@@ -153,7 +154,7 @@ export default function ProposalDetailPage() {
     prazoRecebimento:    proposal.prazoRecebimento,
     valorMinimoMensal:   proposal.valorMinimoMensal,
     mcc:                 proposal.mcc          ?? '',
-    tipoMercado:         (proposal as { tipoMercado?: string }).tipoMercado as 'brasil' | 'intl' | 'both' ?? 'brasil',
+    tipoMercado:         (proposal.tipoMercado as 'brasil' | 'intl' | 'both') ?? 'brasil',
     validadeAte:         proposal.validadeAte,
     observacoes:         proposal.observacoes ?? '',
   };

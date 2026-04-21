@@ -54,6 +54,13 @@ const COLOR_MAP: Record<string, { card: string; badge: string; btn: string }> = 
   rose:    { card: 'border-rose-200 bg-rose-50',       badge: 'bg-rose-100 text-rose-700',       btn: 'bg-rose-600 hover:bg-rose-700'       },
 };
 
+const ENGINE_LOADING_STEPS = [
+  'Analisando perfil do cliente…',
+  'Calculando custo base…',
+  'Otimizando margens por segmento…',
+  'Gerando estratégias de pricing…',
+];
+
 export function PricingStep({
   costTable, clientRates, marginConfig, finalMatrix,
   onMarginChange, onFinalMatrixChange, mcc, clientName,
@@ -61,6 +68,7 @@ export function PricingStep({
   setupIntl, onSetupIntlChange, defaultMarket,
 }: PricingStepProps) {
   const [market, setMarket] = useState<Market>(defaultMarket ?? 'brasil');
+  const [engineLoadingStep, setEngineLoadingStep] = useState(0);
   const [mode, setMode] = useState<PricingMode>('margin');
   const [editBrand, setEditBrand] = useState<BrandName>('visa');
   const [blockedCell, setBlockedCell] = useState<{ brand: BrandName; inst: InstallmentNumber; cost: number } | null>(null);
@@ -80,6 +88,13 @@ export function PricingStep({
     setAiRationale('');
     setAiLevels(null);
     setSelectedLevel(null);
+    setEngineLoadingStep(0);
+
+    // Cycle through loading steps for UX
+    const stepInterval = setInterval(() => {
+      setEngineLoadingStep((s) => (s + 1) % ENGINE_LOADING_STEPS.length);
+    }, 300);
+
     try {
       const res = await fetch('/api/proposals/suggest-pricing', {
         method: 'POST',
@@ -91,8 +106,9 @@ export function PricingStep({
       setAiLevels(levels);
       setAiRationale(rationale);
     } catch {
-      alert('Erro ao gerar sugestão. Verifique a OPENAI_API_KEY.');
+      alert('Erro ao gerar estratégias de pricing. Tente novamente.');
     } finally {
+      clearInterval(stepInterval);
       setAiLoading(false);
     }
   }
@@ -100,13 +116,19 @@ export function PricingStep({
   async function handleIntlAiSuggest() {
     const hasData = !!(intlCostPricing.processingRate && intlCostPricing.processingRate !== '' && intlCostPricing.processingRate !== '0.00');
     if (!hasData) {
-      alert('Preencha o campo "Processing Rate" nos custos do fornecedor internacional (passo Custo) antes de gerar sugestões.');
+      alert('Preencha o campo "Processing Rate" nos custos do fornecedor internacional (passo Custo) antes de gerar estratégias.');
       return;
     }
     setIntlAiLoading(true);
     setIntlAiRationale('');
     setIntlAiLevels(null);
     setIntlSelectedLevel(null);
+    setEngineLoadingStep(0);
+
+    const stepInterval = setInterval(() => {
+      setEngineLoadingStep((s) => (s + 1) % ENGINE_LOADING_STEPS.length);
+    }, 300);
+
     try {
       const res = await fetch('/api/proposals/suggest-intl-pricing', {
         method: 'POST',
@@ -118,8 +140,9 @@ export function PricingStep({
       setIntlAiLevels(data.levels as Record<string, IntlSpreadLevel>);
       setIntlAiRationale(data.rationale as string);
     } catch (err) {
-      alert(`Erro ao gerar sugestão: ${err instanceof Error ? err.message : 'Verifique a OPENAI_API_KEY.'}`);
+      alert(`Erro ao gerar estratégias: ${err instanceof Error ? err.message : 'Tente novamente.'}`);
     } finally {
+      clearInterval(stepInterval);
       setIntlAiLoading(false);
     }
   }
@@ -203,9 +226,9 @@ export function PricingStep({
           {/* Mode selector */}
           <div className="flex gap-2 flex-wrap">
             {([
-              { id: 'margin', label: 'Margem global', icon: '%' },
-              { id: 'manual', label: 'Editar célula a célula', icon: '✏' },
-              { id: 'ai',     label: 'Sugestão IA (4 níveis)', icon: '✦' },
+              { id: 'margin', label: 'Margem global',              icon: '%' },
+              { id: 'manual', label: 'Editar célula a célula',     icon: '✏' },
+              { id: 'ai',     label: 'Engine (4 estratégias)',      icon: '◈' },
             ] as const).map((m) => (
               <button
                 key={m.id}
@@ -384,20 +407,19 @@ export function PricingStep({
             </div>
           )}
 
-          {/* ── IA ── */}
+          {/* ── ENGINE ── */}
           {mode === 'ai' && (
             <div className="flex flex-col gap-5">
               <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center flex-shrink-0">
-                    <span className="text-brand font-bold text-lg">✦</span>
+                  <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-brand font-bold text-lg">◈</span>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-ink-900 mb-1">Sugestão de pricing por IA — 4 níveis</p>
+                    <p className="text-sm font-semibold text-ink-900 mb-1">Engine de Pricing — 4 estratégias</p>
                     <p className="text-xs text-ink-500 leading-relaxed">
-                      A IA analisa seu custo e as taxas atuais do cliente e gera 4 opções de pricing.
-                      Todos os níveis são melhores que a taxa atual do cliente.
-                      Escolha um nível e edite livremente.
+                      O engine analisa o custo base, classifica o perfil pelo MCC e gera 4 estratégias de precificação.
+                      Escolha uma estratégia e edite livremente.
                     </p>
                     {mcc && <p className="text-xs text-ink-400 mt-1">MCC: <span className="font-mono text-ink-600">{mcc}</span>{clientName && ` · ${clientName}`}</p>}
                   </div>
@@ -405,12 +427,12 @@ export function PricingStep({
                 <button onClick={handleAiSuggest} disabled={aiLoading}
                   className={cn(
                     'self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all',
-                    aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand-700 shadow-sm',
+                    aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand/90 shadow-sm',
                   )}
                 >
                   {aiLoading
-                    ? <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Gerando 4 níveis…</>
-                    : <>✦ {aiLevels ? 'Gerar novamente' : 'Gerar sugestões'}</>}
+                    ? <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />{ENGINE_LOADING_STEPS[engineLoadingStep]}</>
+                    : <>◈ {aiLevels ? 'Recalcular' : 'Gerar estratégias'}</>}
                 </button>
               </div>
 
@@ -472,9 +494,9 @@ export function PricingStep({
                   {selectedLevel && (
                     <div className="flex gap-3 pt-2">
                       <button onClick={acceptAndEdit}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand-700 shadow-sm transition-all"
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand/90 shadow-sm transition-all"
                       >
-                        ✓ Usar nível selecionado e editar →
+                        ✓ Aplicar estratégia e editar →
                       </button>
                     </div>
                   )}
@@ -504,18 +526,18 @@ export function PricingStep({
             <span>Esses valores aparecerão na proposta internacional para o cliente.</span>
           </div>
 
-          {/* AI suggestion for intl — 4 levels */}
+          {/* Engine suggestion for intl — 4 levels */}
           <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-brand font-bold text-lg">✦</span>
+                <span className="text-brand font-bold text-lg">◈</span>
               </div>
               <div>
-                <p className="text-sm font-semibold text-ink-900 mb-1">Sugestão de pricing por IA — 4 níveis</p>
+                <p className="text-sm font-semibold text-ink-900 mb-1">Engine de Pricing Internacional — 4 estratégias</p>
                 <p className="text-xs text-ink-500 leading-relaxed">
                   {intlCostHasData
-                    ? 'A IA gera 4 opções do mais agressivo ao mais rentável (markup até 700%) com setup por nível. Escolha um nível para aplicar automaticamente.'
-                    : 'Preencha os custos do fornecedor no passo Custo para habilitar a sugestão por IA.'}
+                    ? 'O engine calcula 4 estratégias do mais agressivo ao mais rentável (markup até 700%) com setup por nível. Escolha uma estratégia para aplicar automaticamente.'
+                    : 'Preencha os custos do fornecedor no passo Custo para habilitar o engine de pricing.'}
                 </p>
               </div>
             </div>
@@ -526,8 +548,8 @@ export function PricingStep({
               )}
             >
               {intlAiLoading
-                ? <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Gerando 4 níveis…</>
-                : <>✦ {intlAiLevels ? 'Gerar novamente' : 'Gerar sugestões'}</>}
+                ? <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />{ENGINE_LOADING_STEPS[engineLoadingStep]}</>
+                : <>◈ {intlAiLevels ? 'Recalcular' : 'Gerar estratégias'}</>}
             </button>
           </div>
 
