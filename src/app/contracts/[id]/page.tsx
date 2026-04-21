@@ -13,8 +13,11 @@ async function getContract(id: string) {
   const prisma = getPrisma();
   if (!prisma) return null;
   try {
-    return await prisma.contract.findUnique({ where: { id } });
-  } catch {
+    const byId = await prisma.contract.findUnique({ where: { id } });
+    if (byId) return byId;
+    return await prisma.contract.findUnique({ where: { contractNumber: id } });
+  } catch (e) {
+    console.error('[getContract] error:', e);
     return null;
   }
 }
