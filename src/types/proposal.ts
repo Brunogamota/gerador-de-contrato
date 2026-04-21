@@ -64,7 +64,7 @@ export const DEFAULT_PROPOSAL_DATA: ProposalData = {
   repLegalEmail: '',
   repLegalTelefone: '',
   repLegalCargo: '',
-  dataInicio: new Date().toLocaleDateString('pt-BR'),
+  dataInicio: '',
   vigenciaMeses: 12,
   foro: 'São Paulo/SP',
   setup: '0.00',

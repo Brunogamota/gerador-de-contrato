@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ProposalData, PROPOSAL_STATUS_LABELS, ProposalStatus } from '@/types/proposal';
 import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing, DEFAULT_INTL_PRICING } from '@/types/pricing';
+import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { MarginConfig } from '@/lib/pricing/margin';
 import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { ProposalDocument } from '@/components/proposal/ProposalDocument';
@@ -63,11 +64,13 @@ export default function ProposalDetailPage() {
   const [showInternal, setShowInternal] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/proposals/${params.id}`)
+    const controller = new AbortController();
+    fetch(`/api/proposals/${params.id}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setProposal)
-      .catch(() => router.push('/proposals'))
+      .catch((err) => { if (err?.name !== 'AbortError') router.push('/proposals'); })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [params.id, router]);
 
   async function handleConvert() {
@@ -138,7 +141,7 @@ export default function ProposalDetailPage() {
     repLegalEmail:       proposal.repLegalEmail    ?? '',
     repLegalTelefone:    proposal.repLegalTelefone ?? '',
     repLegalCargo:       proposal.repLegalCargo    ?? '',
-    dataInicio:          new Date().toLocaleDateString('pt-BR'),
+    dataInicio:          '',
     vigenciaMeses:       12,
     foro:                'São Paulo/SP',
     setup:               proposal.setup,
@@ -160,13 +163,13 @@ export default function ProposalDetailPage() {
   };
 
   const mdrMatrix: MDRMatrix = (() => {
-    try { return JSON.parse(proposal.mdrMatrix || '{}'); } catch { return {}; }
+    try { return JSON.parse(proposal.mdrMatrix || '') as MDRMatrix; } catch { return createEmptyMatrix(); }
   })();
   const costTable: MDRMatrix = (() => {
-    try { return JSON.parse(proposal.costTable || '{}'); } catch { return {}; }
+    try { return JSON.parse(proposal.costTable || '') as MDRMatrix; } catch { return createEmptyMatrix(); }
   })();
   const clientRates: MDRMatrix = (() => {
-    try { return JSON.parse(proposal.clientRates || '{}'); } catch { return {}; }
+    try { return JSON.parse(proposal.clientRates || '') as MDRMatrix; } catch { return createEmptyMatrix(); }
   })();
   const marginConfig: MarginConfig = (() => {
     try { return JSON.parse(proposal.marginConfig || '{}'); } catch { return { type: 'percent', value: '0' }; }
@@ -192,14 +195,14 @@ export default function ProposalDetailPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <Link href="/proposals" className="text-sm text-gray-500 hover:text-gray-700">← Propostas</Link>
-            <span className="text-gray-300">/</span>
+            <Link href="/proposals" className="text-sm text-white/40 hover:text-white/70 transition-colors">← Propostas</Link>
+            <span className="text-white/20">/</span>
             <span className={cn('inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium', statusInfo.color)}>
               {statusInfo.label}
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{proposal.contratanteNome}</h1>
-          <p className="text-sm text-gray-500 font-mono mt-1">{proposal.proposalNumber}</p>
+          <h1 className="text-2xl font-bold text-white">{proposal.contratanteNome}</h1>
+          <p className="text-sm text-white/40 font-mono mt-1">{proposal.proposalNumber}</p>
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -268,12 +271,12 @@ export default function ProposalDetailPage() {
       </div>
 
       {/* View toggle */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 bg-white/[0.05] rounded-xl w-fit">
         <button
           onClick={() => setShowInternal(false)}
           className={cn(
             'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
-            !showInternal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            !showInternal ? 'bg-white/10 text-white shadow-sm' : 'text-white/50 hover:text-white/70'
           )}
         >
           Visualização do Cliente
@@ -283,7 +286,7 @@ export default function ProposalDetailPage() {
             onClick={() => setShowInternal(true)}
             className={cn(
               'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
-              showInternal ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              showInternal ? 'bg-white/10 text-white shadow-sm' : 'text-white/50 hover:text-white/70'
             )}
           >
             Visão Interna (Custo/Margem)

@@ -17,8 +17,12 @@ export const DEFAULT_MARGIN_CONFIG: MarginConfig = { type: 'percent', value: '0'
  *
  * Cells with no cost rate (mdrBase = '') are left empty in the final table.
  */
+function safeDecimalFromConfig(value: string): Decimal {
+  try { return new Decimal(value || '0'); } catch { return new Decimal(0); }
+}
+
 export function applyMargin(costTable: MDRMatrix, config: MarginConfig): MDRMatrix {
-  const marginVal = new Decimal(config.value || '0');
+  const marginVal = safeDecimalFromConfig(config.value);
   let result = costTable;
 
   for (const brand of BRANDS as BrandName[]) {

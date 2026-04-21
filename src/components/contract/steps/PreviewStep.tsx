@@ -39,8 +39,8 @@ export function PreviewStep({
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Pré-visualização do Contrato</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-white mb-1">Pré-visualização do Contrato</h2>
+          <p className="text-sm text-white/50">
             Revise o contrato completo antes de salvar ou exportar
           </p>
         </div>
@@ -64,14 +64,14 @@ export function PreviewStep({
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-2">
+      <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+        <div className="bg-white/[0.03] border-b border-white/[0.08] px-4 py-2 flex items-center gap-2">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-400" />
             <div className="w-3 h-3 rounded-full bg-amber-400" />
             <div className="w-3 h-3 rounded-full bg-emerald-400" />
           </div>
-          <span className="text-xs text-gray-500 ml-2">Contrato #{contractNumber}</span>
+          <span className="text-xs text-white/40 ml-2">Contrato #{contractNumber}</span>
         </div>
         <div className="overflow-y-auto max-h-[700px]">
           <ContractDocument

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPrisma } from '@/lib/db';
 import { MDRMatrix } from '@/types/pricing';
+import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
 import { PrintButton } from '@/components/contract/PrintButton';
@@ -55,7 +56,9 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     valorMinimoMensal: contract.valorMinimoMensal,
   };
 
-  const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');
+  const mdrMatrix: MDRMatrix = (() => {
+    try { return JSON.parse(contract.mdrMatrix || '') as MDRMatrix; } catch { return createEmptyMatrix(); }
+  })();
 
   const zapSignStatus = (contract as Record<string, unknown>).zapSignStatus as string | null | undefined;
   const zapSignSigners = (contract as Record<string, unknown>).zapSignSigners as string | null | undefined;
