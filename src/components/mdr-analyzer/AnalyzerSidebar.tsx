@@ -1,15 +1,15 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import type { StrategyProfile } from '@/lib/mdr-analyzer/types';
+import type { StrategyProfile, EnrichedRow } from '@/lib/mdr-analyzer/types';
 import {
   STRATEGY_CONFIG,
   SAMPLE_CLIENT,
   SAMPLE_HISTORY,
-  computeRows,
-  computeMetrics,
-  SAMPLE_COST_DATA,
   fmtCurrency,
+  fmtPct,
 } from '@/lib/mdr-analyzer/calculations';
 
 const STRATEGY_ORDER: StrategyProfile[] = ['conservative', 'balanced', 'aggressive', 'max_margin'];
@@ -22,25 +22,36 @@ const RISK_COLORS: Record<string, string> = {
 
 interface AnalyzerSidebarProps {
   strategy: StrategyProfile;
+  enrichedRows: EnrichedRow[];
   onStrategyChange: (s: StrategyProfile) => void;
   onRecalculate: () => void;
+  onApplyOptimization: () => void;
 }
 
-export function AnalyzerSidebar({ strategy, onStrategyChange, onRecalculate }: AnalyzerSidebarProps) {
+export function AnalyzerSidebar({
+  strategy,
+  enrichedRows,
+  onStrategyChange,
+  onRecalculate,
+  onApplyOptimization,
+}: AnalyzerSidebarProps) {
+  const router = useRouter();
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const client = SAMPLE_CLIENT;
   const selectedIdx = STRATEGY_ORDER.indexOf(strategy);
 
-  // Quick insights derived from current strategy
-  const rows = computeRows(SAMPLE_COST_DATA['visa'], strategy);
-  const metrics = computeMetrics(rows, client.transactionMix, client.monthlyVolume);
-  const maxRow = rows.reduce((a, b) => (a.spread > b.spread ? a : b));
-  const oppRevenue = Math.round(metrics.estimatedRevenue * 0.22);
+  const row12  = enrichedRows[11];
+  const row1   = enrichedRows[0];
+  const totalRev = enrichedRows.reduce((s, r) => s + r.detail.revenueMonthly, 0);
+  const subpricedCount = enrichedRows.filter((r) => r.intelligentClass === 'subprecificado').length;
 
   const quickInsights = [
-    { text: `Maior margem em ${maxRow.label}: ${maxRow.spread.toFixed(2).replace('.', ',')}%` },
-    { text: `À vista competitivo: ${rows[0].finalRate.toFixed(2).replace('.', ',')}%` },
-    { text: `2–3x abaixo do mercado atual` },
-    { text: `Oportunidade de +${fmtCurrency(oppRevenue)}/mês` },
+    { text: `12x gera ${fmtCurrency(row12?.detail.revenueMonthly ?? 0)}/mês sozinho` },
+    { text: `À vista competitivo: taxa final ${fmtPct(row1?.finalRate ?? 0)}` },
+    subpricedCount > 0
+      ? { text: `${subpricedCount} faixa${subpricedCount > 1 ? 's' : ''} subprecificada${subpricedCount > 1 ? 's' : ''} — gain potencial` }
+      : { text: 'Todas as faixas dentro do padrão de mercado' },
+    { text: `Receita estimada: ${fmtCurrency(totalRev)}/mês` },
   ];
 
   return (
@@ -49,7 +60,7 @@ export function AnalyzerSidebar({ strategy, onStrategyChange, onRecalculate }: A
       <div className="px-5 pt-6 pb-5 border-b border-white/[0.06]">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] font-semibold tracking-widest uppercase text-white/35">Cliente</span>
-          <button className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">Editar</button>
+          <button onClick={() => router.push('/proposals/new')} className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">Editar</button>
         </div>
 
         <div className="flex items-center justify-between mb-3">
@@ -89,7 +100,7 @@ export function AnalyzerSidebar({ strategy, onStrategyChange, onRecalculate }: A
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Recalcular strategy
+          Recalcular
         </button>
       </div>
 
@@ -114,10 +125,12 @@ export function AnalyzerSidebar({ strategy, onStrategyChange, onRecalculate }: A
       <div className="px-5 py-5 flex-1">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[10px] font-semibold tracking-widest uppercase text-white/35">Histórico de execuções</p>
-          <button className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">Ver todas</button>
+          <button onClick={() => setShowAllHistory((v) => !v)} className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors">
+            {showAllHistory ? 'Ocultar' : 'Ver todas'}
+          </button>
         </div>
         <div className="flex flex-col gap-3">
-          {SAMPLE_HISTORY.map((run) => (
+          {(showAllHistory ? SAMPLE_HISTORY : SAMPLE_HISTORY.slice(0, 3)).map((run) => (
             <div key={run.id} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: run.dotColor }} />
@@ -133,10 +146,14 @@ export function AnalyzerSidebar({ strategy, onStrategyChange, onRecalculate }: A
       {/* ── CTA ── */}
       <div className="px-5 pb-6 pt-3">
         <button
+          onClick={onApplyOptimization}
           className="w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
           style={{ background: 'linear-gradient(135deg,#f72662,#771339)', boxShadow: '0 0 20px rgba(247,38,98,0.3)' }}
         >
-          Ir para prévia da proposta →
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Aplicar estratégia otimizada
         </button>
       </div>
     </aside>

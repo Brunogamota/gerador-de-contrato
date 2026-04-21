@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPrisma } from '@/lib/db';
 import { MDRMatrix } from '@/types/pricing';
-import { createEmptyMatrix } from '@/lib/calculations/mdr';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
 import { PrintButton } from '@/components/contract/PrintButton';
@@ -14,6 +13,7 @@ async function getContract(id: string) {
   const prisma = getPrisma();
   if (!prisma) return null;
   try {
+    // try primary key first, then contractNumber as fallback
     const byId = await prisma.contract.findUnique({ where: { id } });
     if (byId) return byId;
     return await prisma.contract.findUnique({ where: { contractNumber: id } });
@@ -56,9 +56,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     valorMinimoMensal: contract.valorMinimoMensal,
   };
 
-  const mdrMatrix: MDRMatrix = (() => {
-    try { return JSON.parse(contract.mdrMatrix || '') as MDRMatrix; } catch { return createEmptyMatrix(); }
-  })();
+  const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');
 
   const zapSignStatus = (contract as Record<string, unknown>).zapSignStatus as string | null | undefined;
   const zapSignSigners = (contract as Record<string, unknown>).zapSignSigners as string | null | undefined;
