@@ -63,9 +63,9 @@ export async function POST(req: NextRequest) {
   try {
     const { costPricing } = await req.json() as { costPricing: IntlPricing };
 
-    const hasData = Object.values(costPricing).some((v) => v && v !== '' && v !== '0.00');
+    const hasData = !!(costPricing.processingRate && costPricing.processingRate !== '' && costPricing.processingRate !== '0.00');
     if (!hasData) {
-      return NextResponse.json({ error: 'Preencha os custos do fornecedor internacional na aba Custo.' }, { status: 400 });
+      return NextResponse.json({ error: 'Preencha o campo "Processing Rate" nos custos do fornecedor antes de gerar sugestões.' }, { status: 400 });
     }
 
     const openai = new OpenAI({ apiKey });

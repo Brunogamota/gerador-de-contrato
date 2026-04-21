@@ -97,9 +97,9 @@ export function PricingStep({
   }
 
   async function handleIntlAiSuggest() {
-    const hasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+    const hasData = !!(intlCostPricing.processingRate && intlCostPricing.processingRate !== '' && intlCostPricing.processingRate !== '0.00');
     if (!hasData) {
-      alert('Preencha primeiro os custos do fornecedor internacional na aba Custo (passo anterior).');
+      alert('Preencha o campo "Processing Rate" nos custos do fornecedor internacional (passo Custo) antes de gerar sugestões.');
       return;
     }
     setIntlAiLoading(true);
@@ -159,7 +159,7 @@ export function PricingStep({
     setMode(m);
   }
 
-  const intlCostHasData = Object.values(intlCostPricing).some((v) => v && v !== '' && v !== '0.00');
+  const intlCostHasData = !!(intlCostPricing.processingRate && intlCostPricing.processingRate !== '' && intlCostPricing.processingRate !== '0.00');
 
   return (
     <div className="flex flex-col gap-6">
