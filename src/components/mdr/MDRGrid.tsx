@@ -10,6 +10,7 @@ import {
   MDRMatrix,
   ValidationIssue,
 } from '@/types/pricing';
+import { INSTALLMENT_LABELS } from '@/components/contract/document/formatters';
 import {
   updateMatrixEntry,
   applyBulkRate,
@@ -211,17 +212,17 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-16">
-                Parc.
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Modo
               </th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                MDR Base
+                Transação (%)
               </th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Antecipação
+                Antecipação (%)
               </th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide bg-gray-100">
-                MDR Final
+                Taxa de Interm. (%)
               </th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">
                 Ações
@@ -248,7 +249,7 @@ export function MDRGrid({ matrix, onChange, issues = [], readOnly = false }: MDR
                 >
                   {/* Installment label */}
                   <td className="px-4 py-2.5">
-                    <span className="font-semibold text-gray-700">{inst}x</span>
+                    <span className="text-gray-700 text-xs">{INSTALLMENT_LABELS[inst as number]}</span>
                   </td>
 
                   {/* MDR Base */}

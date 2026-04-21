@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, Fragment } from 'react';
-import { MDRMatrix, BRANDS, BRAND_LABELS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing } from '@/types/pricing';
+import { useState } from 'react';
+import { MDRMatrix, BRANDS, BRAND_LABELS, BRAND_COLORS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing } from '@/types/pricing';
+import { INSTALLMENT_LABELS } from '@/components/contract/document/formatters';
 import { MarginConfig } from '@/lib/pricing/margin';
 import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { updateMatrixEntry } from '@/lib/calculations/mdr';
@@ -60,6 +61,7 @@ export function PricingStep({
 }: PricingStepProps) {
   const [market, setMarket] = useState<Market>('brasil');
   const [mode, setMode] = useState<PricingMode>('margin');
+  const [editBrand, setEditBrand] = useState<BrandName>('visa');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRationale, setAiRationale] = useState('');
   const [aiLevels, setAiLevels] = useState<Record<string, SpreadLevel> | null>(null);
@@ -255,57 +257,49 @@ export function PricingStep({
 
           {/* ── MANUAL ── */}
           {mode === 'manual' && (
-            <div className="overflow-x-auto rounded-xl border border-ink-200">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-ink-50 border-b border-ink-200">
-                    <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
-                    {BRANDS.map((b) => (
-                      <th key={b} colSpan={2} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">{BRAND_LABELS[b]}</th>
-                    ))}
-                  </tr>
-                  <tr className="bg-ink-50/50 border-b border-ink-100">
-                    <th className="px-3 py-1" />
-                    {BRANDS.map((b) => (
-                      <Fragment key={b}>
-                        <th className="px-2 py-1 text-center font-normal text-ink-500 border-l border-ink-100">Base</th>
-                        <th className="px-2 py-1 text-center font-normal text-ink-400">Ant.</th>
-                      </Fragment>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {INSTALLMENTS.map((inst) => (
-                    <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
-                      <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
-                      {BRANDS.map((b) => {
-                        const entry = finalMatrix[b as BrandName][inst as InstallmentNumber];
-                        return (
-                          <Fragment key={b}>
-                            <td className="px-1 py-1 border-l border-ink-100">
-                              <input type="text" value={entry?.mdrBase ?? ''}
-                                onChange={(e) => updateCell(b as BrandName, inst as InstallmentNumber, 'mdrBase', e.target.value)}
-                                className={cn(
-                                  'w-16 text-center rounded-lg border px-1.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand',
-                                  entry?.mdrBase ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-ink-200 bg-white text-ink-500',
-                                )}
-                                placeholder="—"
-                              />
-                            </td>
-                            <td className="px-1 py-1">
-                              <input type="text" value={entry?.anticipationRate ?? ''}
-                                onChange={(e) => updateCell(b as BrandName, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
-                                className="w-14 text-center rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand text-ink-600"
-                                placeholder="0"
-                              />
-                            </td>
-                          </Fragment>
-                        );
-                      })}
+            <div className="flex flex-col gap-3">
+              <BrandTabs selected={editBrand} onChange={setEditBrand} matrix={finalMatrix} />
+              <div className="overflow-x-auto rounded-xl border border-ink-200">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-ink-50 border-b border-ink-200">
+                      <th className="px-3 py-2.5 text-left font-semibold text-ink-700 min-w-48">Modo</th>
+                      <th className="px-3 py-2.5 text-center font-semibold text-ink-600 w-32">Transação (%)</th>
+                      <th className="px-3 py-2.5 text-center font-semibold text-ink-600 w-32">Antecipação (%)</th>
+                      <th className="px-3 py-2.5 text-center font-semibold text-ink-900 w-36 bg-ink-100">Taxa de Interm. (%)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {INSTALLMENTS.map((inst, i) => {
+                      const entry = finalMatrix[editBrand][inst as InstallmentNumber];
+                      const finalV = entry?.finalMdr ? parseFloat(entry.finalMdr).toFixed(2).replace('.', ',') + ' %' : '—';
+                      return (
+                        <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/30')}>
+                          <td className="px-3 py-2 text-ink-700">{INSTALLMENT_LABELS[inst as number]}</td>
+                          <td className="px-2 py-1.5 text-center">
+                            <input type="text" value={entry?.mdrBase ?? ''}
+                              onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'mdrBase', e.target.value)}
+                              className={cn(
+                                'w-24 text-center rounded-lg border px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand',
+                                entry?.mdrBase ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-ink-200 bg-white text-ink-400',
+                              )}
+                              placeholder="—"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <input type="text" value={entry?.anticipationRate ?? ''}
+                              onChange={(e) => updateCell(editBrand, inst as InstallmentNumber, 'anticipationRate', e.target.value)}
+                              className="w-24 text-center rounded-lg border border-ink-200 bg-white px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand text-ink-600"
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-center font-mono font-semibold text-ink-900 bg-ink-50/50">{finalV}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -373,17 +367,18 @@ export function PricingStep({
                             )}
                           </div>
 
-                          <div className="flex gap-3 text-xs font-mono">
-                            {['visa', 'mastercard'].map((b) => {
-                              const e1  = level.matrix[b as BrandName]?.[1 as InstallmentNumber];
-                              const e6  = level.matrix[b as BrandName]?.[6 as InstallmentNumber];
-                              const e12 = level.matrix[b as BrandName]?.[12 as InstallmentNumber];
+                          <div className="flex gap-4 text-xs font-mono">
+                            {(['visa', 'mastercard'] as BrandName[]).map((b) => {
+                              const e1  = level.matrix[b]?.[1 as InstallmentNumber];
+                              const e6  = level.matrix[b]?.[6 as InstallmentNumber];
+                              const e12 = level.matrix[b]?.[12 as InstallmentNumber];
+                              const val = (e: typeof e1) => e?.finalMdr ? `${parseFloat(e.finalMdr).toFixed(2)} %` : '—';
                               return (
-                                <div key={b} className="flex flex-col gap-1">
-                                  <span className="text-ink-400 capitalize">{b === 'mastercard' ? 'Master' : b}</span>
-                                  <span>1x: <strong>{e1?.finalMdr ? `${parseFloat(e1.finalMdr).toFixed(2)}%` : '—'}</strong></span>
-                                  <span>6x: <strong>{e6?.finalMdr ? `${parseFloat(e6.finalMdr).toFixed(2)}%` : '—'}</strong></span>
-                                  <span>12x: <strong>{e12?.finalMdr ? `${parseFloat(e12.finalMdr).toFixed(2)}%` : '—'}</strong></span>
+                                <div key={b} className="flex flex-col gap-0.5">
+                                  <span className="text-ink-500 font-semibold text-[10px] uppercase tracking-wide" style={{ color: BRAND_COLORS[b] }}>{BRAND_LABELS[b]}</span>
+                                  <span className="text-ink-600">À Vista: <strong className="text-ink-900">{val(e1)}</strong></span>
+                                  <span className="text-ink-600">6x: <strong className="text-ink-900">{val(e6)}</strong></span>
+                                  <span className="text-ink-600">12x: <strong className="text-ink-900">{val(e12)}</strong></span>
                                 </div>
                               );
                             })}
@@ -550,52 +545,70 @@ export function PricingStep({
   );
 }
 
-function MarginPreviewTable({ costTable, finalMatrix }: { costTable: MDRMatrix; finalMatrix: MDRMatrix }) {
+function BrandTabs({ selected, onChange, matrix }: { selected: BrandName; onChange: (b: BrandName) => void; matrix: MDRMatrix }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-ink-200">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="bg-ink-50 border-b border-ink-200">
-            <th className="px-3 py-2 text-left font-semibold text-ink-600 w-12">Parc.</th>
-            {BRANDS.map((b) => (
-              <th key={b} colSpan={3} className="px-2 py-2 text-center font-semibold text-ink-700 border-l border-ink-100">{BRAND_LABELS[b]}</th>
-            ))}
-          </tr>
-          <tr className="bg-ink-50/50 border-b border-ink-100">
-            <th className="px-3 py-1" />
-            {BRANDS.map((b) => (
-              <Fragment key={b}>
-                <th className="px-2 py-1 text-center font-normal text-red-500 border-l border-ink-100">Custo</th>
-                <th className="px-2 py-1 text-center font-normal text-amber-600">+Mg</th>
-                <th className="px-2 py-1 text-center font-semibold text-emerald-600">Final</th>
-              </Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {INSTALLMENTS.map((inst) => (
-            <tr key={inst} className="border-b border-ink-100 last:border-0 hover:bg-ink-50/50">
-              <td className="px-3 py-1.5 font-semibold text-ink-700">{inst}x</td>
-              {BRANDS.map((b) => {
-                const bd = computeMarginBreakdown(costTable, finalMatrix, b as BrandName, inst as InstallmentNumber);
-                return bd ? (
-                  <Fragment key={b}>
-                    <td className="px-2 py-1.5 text-center font-mono text-red-600 border-l border-ink-100">{bd.cost}%</td>
-                    <td className="px-2 py-1.5 text-center font-mono text-amber-600">+{bd.margin}%</td>
-                    <td className="px-2 py-1.5 text-center font-mono font-semibold text-emerald-700">{bd.final}%</td>
-                  </Fragment>
-                ) : (
-                  <Fragment key={b}>
-                    <td className="px-2 py-1.5 text-center text-ink-300 border-l border-ink-100">—</td>
-                    <td className="px-2 py-1.5 text-center text-ink-300">—</td>
-                    <td className="px-2 py-1.5 text-center text-ink-300">—</td>
-                  </Fragment>
-                );
-              })}
+    <div className="flex gap-1 p-1 rounded-xl bg-ink-100 w-fit flex-wrap">
+      {BRANDS.map((b) => {
+        const hasData = Object.values(matrix[b as BrandName]).some((e) => e.finalMdr);
+        return (
+          <button key={b}
+            onClick={() => onChange(b as BrandName)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all',
+              selected === b
+                ? 'bg-white shadow-sm text-ink-950'
+                : 'text-ink-500 hover:text-ink-800',
+            )}
+          >
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: hasData ? BRAND_COLORS[b as BrandName] : '#d1d5db' }} />
+            {BRAND_LABELS[b as BrandName]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MarginPreviewTable({ costTable, finalMatrix }: { costTable: MDRMatrix; finalMatrix: MDRMatrix }) {
+  const [brand, setBrand] = useState<BrandName>('visa');
+  return (
+    <div className="flex flex-col gap-3">
+      <BrandTabs selected={brand} onChange={setBrand} matrix={finalMatrix} />
+      <div className="overflow-x-auto rounded-xl border border-ink-200">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-ink-50 border-b border-ink-200">
+              <th className="px-3 py-2.5 text-left font-semibold text-ink-700 min-w-48">Modo</th>
+              <th className="px-3 py-2.5 text-center font-semibold text-red-500 w-28">Custo (%)</th>
+              <th className="px-3 py-2.5 text-center font-semibold text-amber-600 w-28">+ Margem</th>
+              <th className="px-3 py-2.5 text-center font-semibold text-emerald-700 w-36 bg-emerald-50/50">Taxa Final (%)</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {INSTALLMENTS.map((inst, i) => {
+              const bd = computeMarginBreakdown(costTable, finalMatrix, brand, inst as InstallmentNumber);
+              return (
+                <tr key={inst} className={cn('border-b border-ink-100 last:border-0', i % 2 === 0 ? 'bg-white' : 'bg-ink-50/30')}>
+                  <td className="px-3 py-2 text-ink-700">{INSTALLMENT_LABELS[inst as number]}</td>
+                  {bd ? (
+                    <>
+                      <td className="px-3 py-2 text-center font-mono text-red-600">{bd.cost}%</td>
+                      <td className="px-3 py-2 text-center font-mono text-amber-600">+{bd.margin}%</td>
+                      <td className="px-3 py-2 text-center font-mono font-semibold text-emerald-700 bg-emerald-50/30">{bd.final}%</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2 text-center text-ink-300">—</td>
+                      <td className="px-3 py-2 text-center text-ink-300">—</td>
+                      <td className="px-3 py-2 text-center text-ink-300 bg-emerald-50/10">—</td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
