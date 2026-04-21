@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProposalData, ProposalDataSchema, DEFAULT_PROPOSAL_DATA } from '@/types/proposal';
@@ -50,7 +50,8 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
   const [intlCostPricing, setIntlCostPricing] = useState<IntlPricing>(() => initialData?.intlCostPricing ?? DEFAULT_INTL_PRICING);
   const [intlProposalPricing, setIntlProposalPricing] = useState<IntlPricing>(() => initialData?.intlProposalPricing ?? DEFAULT_INTL_PRICING);
   const [setupIntl, setSetupIntl] = useState(() => initialData?.setupIntl ?? '0.00');
-  const [proposalNumber] = useState(() => initialData?.proposalNumber ?? generateProposalNumber());
+  const [proposalNumber, setProposalNumber] = useState(initialData?.proposalNumber ?? '');
+  useEffect(() => { if (!proposalNumber) setProposalNumber(generateProposalNumber()); }, []);
   const [profileBanner, setProfileBanner] = useState<string | null>(null);
 
   const form = useForm<ProposalData>({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ContractData, ContractDataSchema, DEFAULT_CONTRACT_DATA } from '@/types/contract';
@@ -20,7 +20,8 @@ import { useContractSave } from './wizard/useContractSave';
 export function ContractWizard() {
   const [currentStep, setCurrentStep] = useState<StepId>('client');
   const [mdrMatrix, setMdrMatrix] = useState<MDRMatrix>(createEmptyMatrix);
-  const [contractNumber] = useState(generateContractNumber);
+  const [contractNumber, setContractNumber] = useState('');
+  useEffect(() => { setContractNumber(generateContractNumber()); }, []);
 
   const form = useForm<ContractData>({
     resolver: zodResolver(ContractDataSchema),
