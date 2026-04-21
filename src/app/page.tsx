@@ -43,9 +43,9 @@ async function getRecent() {
 }
 
 const statusLabel: Record<string, { label: string; color: string }> = {
-  draft:  { label: 'Rascunho', color: 'bg-ink-800/50 text-ink-300' },
-  active: { label: 'Ativo',    color: 'bg-emerald-950/50 text-emerald-300' },
-  signed: { label: 'Assinado', color: 'bg-blue-950/50 text-blue-300' },
+  draft:  { label: 'Rascunho', color: 'bg-white/10 text-white/60' },
+  active: { label: 'Ativo',    color: 'bg-emerald-500/15 text-emerald-400' },
+  signed: { label: 'Assinado', color: 'bg-blue-500/15 text-blue-400' },
 };
 
 export default async function DashboardPage() {
@@ -75,20 +75,20 @@ export default async function DashboardPage() {
           { label: 'Ativos',     value: stats.active,    icon: '✅' },
           { label: 'Propostas',  value: stats.proposals, icon: '📋' },
         ].map(({ label, value, icon }) => (
-          <div key={label} className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card p-5 flex items-center gap-4">
+          <div key={label} className="bg-white/5 rounded-2xl border border-white/10 p-5 flex items-center gap-4">
             <span className="text-2xl">{icon}</span>
             <div>
-              <p className="text-2xl font-bold text-ink-50">{value}</p>
-              <p className="text-sm text-ink-400">{label}</p>
+              <p className="text-2xl font-bold text-white">{value}</p>
+              <p className="text-sm text-white/50">{label}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Recent contracts */}
-      <div className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-ink-800 flex items-center justify-between">
-          <h2 className="font-semibold text-ink-50">Contratos Recentes</h2>
+      <div className="bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/8 flex items-center justify-between">
+          <h2 className="font-semibold text-white">Contratos Recentes</h2>
           <Link href="/contracts" className="text-sm text-brand hover:text-brand-400 transition-colors">
             Ver todos →
           </Link>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-ink-800/50 text-xs text-ink-400 uppercase tracking-wide">
+            <thead className="bg-white/5 text-xs text-white/40 uppercase tracking-wide">
               <tr>
                 <th className="px-6 py-3 text-left">Contratante</th>
                 <th className="px-6 py-3 text-left">Nº Contrato</th>
@@ -115,17 +115,17 @@ export default async function DashboardPage() {
                 <th className="px-6 py-3 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink-800">
+            <tbody className="divide-y divide-white/5">
               {recent.map((c) => {
                 const s = statusLabel[c.status] ?? statusLabel.draft;
                 return (
-                  <tr key={c.id} className="hover:bg-ink-800/30 transition-colors">
+                  <tr key={c.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-medium text-ink-50">{c.contratanteNome}</p>
-                      <p className="text-xs text-ink-500">{c.contratanteCnpj}</p>
+                      <p className="font-medium text-white">{c.contratanteNome}</p>
+                      <p className="text-xs text-white/40">{c.contratanteCnpj}</p>
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs text-ink-400">{c.contractNumber}</td>
-                    <td className="px-6 py-4 text-ink-400">{c.dataInicio}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-white/50">{c.contractNumber}</td>
+                    <td className="px-6 py-4 text-white/50">{c.dataInicio}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
                         {s.label}
@@ -166,9 +166,9 @@ export default async function DashboardPage() {
             cta: 'Gerar contrato',
           },
         ].map((card) => (
-          <div key={card.title} className="bg-ink-900 rounded-2xl border border-ink-800 shadow-card p-6 flex flex-col gap-3">
-            <h3 className="font-semibold text-ink-50">{card.title}</h3>
-            <p className="text-sm text-ink-400 flex-1">{card.desc}</p>
+          <div key={card.title} className="bg-white/5 rounded-2xl border border-white/10 p-6 flex flex-col gap-3">
+            <h3 className="font-semibold text-white">{card.title}</h3>
+            <p className="text-sm text-white/50 flex-1">{card.desc}</p>
             <HardNavLink href={card.href} className="text-sm font-medium text-brand hover:text-brand-400 transition-colors">
               {card.cta} →
             </HardNavLink>

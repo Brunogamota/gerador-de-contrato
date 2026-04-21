@@ -60,9 +60,9 @@ export default async function ContractDetailPage({ params }: { params: { id: str
   const signedAt = (contract as Record<string, unknown>).signedAt as Date | null | undefined;
 
   const statusMap: Record<string, { label: string; color: string }> = {
-    draft:  { label: 'Rascunho', color: 'bg-gray-100 text-gray-600' },
-    active: { label: 'Ativo',    color: 'bg-emerald-50 text-emerald-700' },
-    signed: { label: 'Assinado', color: 'bg-blue-50 text-blue-700' },
+    draft:  { label: 'Rascunho', color: 'bg-white/10 text-white/60' },
+    active: { label: 'Ativo',    color: 'bg-emerald-500/15 text-emerald-400' },
+    signed: { label: 'Assinado', color: 'bg-blue-500/15 text-blue-400' },
   };
   const s = statusMap[contract.status] ?? statusMap.draft;
 
@@ -71,12 +71,12 @@ export default async function ContractDetailPage({ params }: { params: { id: str
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <Link href="/contracts" className="text-sm text-gray-500 hover:text-gray-700">← Contratos</Link>
-            <span className="text-gray-300">/</span>
+            <Link href="/contracts" className="text-sm text-white/40 hover:text-white/70 transition-colors">← Contratos</Link>
+            <span className="text-white/20">/</span>
             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{contract.contratanteNome}</h1>
-          <p className="text-sm text-gray-500 font-mono mt-1">{contract.contractNumber}</p>
+          <h1 className="text-2xl font-bold text-white">{contract.contratanteNome}</h1>
+          <p className="text-sm text-white/40 font-mono mt-1">{contract.contractNumber}</p>
         </div>
         <div className="flex gap-2">
           <PrintButton />
