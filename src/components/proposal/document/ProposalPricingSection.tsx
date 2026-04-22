@@ -10,12 +10,12 @@ interface Props {
   setupIntl?: string;
 }
 
-const BRANDS: { key: BrandName; label: string; color: string; bg: string }[] = [
-  { key: 'visa',       label: 'Visa',       color: '#1a56db', bg: '#EFF6FF' },
-  { key: 'mastercard', label: 'Mastercard', color: '#b45309', bg: '#FFFBEB' },
-  { key: 'elo',        label: 'Elo',        color: '#b91c1c', bg: '#FEF2F2' },
-  { key: 'amex',       label: 'Amex',       color: '#065f46', bg: '#ECFDF5' },
-  { key: 'hipercard',  label: 'Hipercard',  color: '#7c3aed', bg: '#F5F3FF' },
+const BRANDS: { key: BrandName; label: string }[] = [
+  { key: 'visa',       label: 'Visa'       },
+  { key: 'mastercard', label: 'Mastercard' },
+  { key: 'elo',        label: 'Elo'        },
+  { key: 'amex',       label: 'Amex'       },
+  { key: 'hipercard',  label: 'Hipercard'  },
 ];
 
 const INST_LABELS: Record<number, string> = {
@@ -39,27 +39,8 @@ function getFinal(matrix: MDRMatrix, brand: BrandName, inst: InstallmentNumber):
   return `${parseFloat(v).toFixed(2).replace('.', ',')}%`;
 }
 
-// ── Shared inline styles (px values ensure consistent PDF rendering) ──────────
-const font = 'Arial, Helvetica, sans-serif';
-
-const sectionTitle = {
-  fontFamily: font, fontSize: '9px', fontWeight: 700,
-  letterSpacing: '0.1em', textTransform: 'uppercase' as const,
-  color: '#f72662', marginBottom: '10px', marginTop: '0px',
-};
-
-const feeLabel: React.CSSProperties = {
-  borderBottom: '1px solid #e5e7eb', padding: '7px 12px',
-  fontSize: '12px', color: '#374151', fontFamily: font, fontWeight: 500,
-};
-const feeVal: React.CSSProperties = {
-  borderBottom: '1px solid #e5e7eb', padding: '7px 12px',
-  fontSize: '12px', color: '#111827', textAlign: 'center', fontFamily: 'monospace', fontWeight: 700,
-};
-const feeObs: React.CSSProperties = {
-  borderBottom: '1px solid #e5e7eb', padding: '7px 12px',
-  fontSize: '10px', color: '#9ca3af', fontFamily: font, fontStyle: 'italic',
-};
+const f = 'Arial, Helvetica, sans-serif';
+const border = '1px solid #e2e8f0';
 
 export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setupIntl }: Props) {
   const tipo      = d.tipoMercado ?? 'brasil';
@@ -102,53 +83,37 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
   ] : [];
 
   return (
-    <div style={{ marginBottom: '32px', fontFamily: font }}>
+    <div style={{ marginBottom: '32px', fontFamily: f }}>
 
       {/* ── Brasil MDR ── */}
       {showBrasil && (
         <>
-          <p style={sectionTitle}>Tabela MDR — Brasil (Merchant Discount Rate)</p>
-          <p style={{ fontSize: '10px', color: '#6b7280', marginBottom: '12px', fontStyle: 'italic' }}>
-            Taxas em % sobre o valor da transação. A Taxa Final inclui MDR Base + Antecipação.
+          <p style={{ fontFamily: f, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+            1. Taxas MDR — Merchant Discount Rate
+          </p>
+          <p style={{ fontFamily: f, fontSize: '9pt', color: '#64748b', marginBottom: '12px' }}>
+            Percentual aplicado sobre o valor bruto de cada transação, por bandeira e número de parcelas. Taxa Final = MDR Base + Antecipação.
           </p>
 
-          {/* Unified table: Modalidade × 5 bandeiras */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
             <thead>
-              {/* Brand header row */}
-              <tr>
-                <th style={{
-                  border: '1px solid #d1d5db', padding: '10px 12px', textAlign: 'left',
-                  fontSize: '12px', fontWeight: 700, background: '#1f2937', color: '#ffffff',
-                  width: '22%',
-                }}>
+              <tr style={{ background: '#0f172a' }}>
+                <th style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#94a3b8', textAlign: 'left', padding: '11px 14px', border, width: '22%', letterSpacing: '0.01em' }}>
                   Modalidade
                 </th>
                 {BRANDS.map((b) => (
-                  <th key={b.key} style={{
-                    border: '1px solid #d1d5db', padding: '10px 8px', textAlign: 'center',
-                    fontSize: '12px', fontWeight: 700,
-                    background: b.bg, color: b.color,
-                    width: '15.6%',
-                  }}>
+                  <th key={b.key} style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#f1f5f9', textAlign: 'center', padding: '11px 8px', border }}>
                     {b.label}
                   </th>
                 ))}
               </tr>
-              {/* Sub-header */}
-              <tr style={{ background: '#f9fafb' }}>
-                <td style={{
-                  border: '1px solid #e5e7eb', padding: '4px 12px',
-                  fontSize: '9px', color: '#9ca3af', fontStyle: 'italic',
-                }}>
-                  Base · Ant. · <strong>Taxa Final</strong>
+              <tr style={{ background: '#1e293b' }}>
+                <td style={{ fontFamily: f, fontSize: '8pt', color: '#64748b', fontStyle: 'italic', padding: '5px 14px', border }}>
+                  Base · Ant. · <strong style={{ color: '#94a3b8' }}>Taxa Final</strong>
                 </td>
                 {BRANDS.map((b) => (
-                  <td key={b.key} style={{
-                    border: '1px solid #e5e7eb', padding: '4px 6px', textAlign: 'center',
-                    fontSize: '9px', color: '#9ca3af', fontStyle: 'italic',
-                  }}>
-                    Base · Ant. · <strong>Final</strong>
+                  <td key={b.key} style={{ fontFamily: f, fontSize: '8pt', color: '#64748b', fontStyle: 'italic', textAlign: 'center', padding: '5px 8px', border }}>
+                    Base · Ant. · <strong style={{ color: '#94a3b8' }}>Final</strong>
                   </td>
                 ))}
               </tr>
@@ -156,11 +121,7 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
             <tbody>
               {INSTALLMENTS.map((inst, i) => (
                 <tr key={inst} style={{ background: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                  <td style={{
-                    border: '1px solid #e5e7eb', padding: '9px 12px',
-                    fontSize: '12px', color: '#374151', fontFamily: font,
-                    fontWeight: i === 0 ? 600 : 400,
-                  }}>
+                  <td style={{ fontFamily: f, fontSize: '10.5pt', color: '#334155', padding: '10px 14px', border, fontWeight: i === 0 ? 600 : 400 }}>
                     {INST_LABELS[inst as number]}
                   </td>
                   {BRANDS.map((b) => {
@@ -168,15 +129,12 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
                     const ant   = getAnt(mdrMatrix, b.key, inst as InstallmentNumber);
                     const final = getFinal(mdrMatrix, b.key, inst as InstallmentNumber);
                     return (
-                      <td key={b.key} style={{
-                        border: '1px solid #e5e7eb', padding: '7px 8px',
-                        textAlign: 'center', verticalAlign: 'middle',
-                      }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
-                          <span style={{ fontSize: '9px', color: '#9ca3af', fontFamily: 'monospace' }}>
+                      <td key={b.key} style={{ padding: '8px', border, textAlign: 'center', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '8pt', color: '#94a3b8' }}>
                             {base} · {ant}
                           </span>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#111827', fontFamily: 'monospace', letterSpacing: '-0.01em' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '12pt', fontWeight: 700, color: '#0f172a' }}>
                             {final}
                           </span>
                         </div>
@@ -188,41 +146,42 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
             </tbody>
           </table>
 
-          <p style={{ fontSize: '9px', color: '#9ca3af', fontStyle: 'italic', marginBottom: '24px' }}>
+          <p style={{ fontFamily: f, fontSize: '8pt', color: '#94a3b8', fontStyle: 'italic', marginBottom: '24px' }}>
             * Valores aplicados sobre o volume bruto da transação por bandeira e número de parcelas.
           </p>
 
           {/* ── Operational fees ── */}
-          <p style={sectionTitle}>Taxas Operacionais — Brasil</p>
+          <p style={{ fontFamily: f, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+            2. Tabela de Preços Operacionais
+          </p>
+          <p style={{ fontFamily: f, fontSize: '9pt', color: '#64748b', marginBottom: '12px' }}>
+            Tarifas fixas e variáveis pelos serviços de gateway, antifraude e liquidação.
+          </p>
+
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
             <thead>
-              <tr style={{ background: '#1f2937' }}>
-                <th style={{ ...feeLabel, borderBottom: '1px solid #374151', fontWeight: 700, color: '#fff', width: '38%' }}>Serviço</th>
-                <th style={{ ...feeVal, borderBottom: '1px solid #374151', color: '#fff', width: '20%' }}>Valor</th>
-                <th style={{ ...feeObs, borderBottom: '1px solid #374151', fontStyle: 'normal', fontWeight: 700, color: '#9ca3af' }}>Observação</th>
+              <tr style={{ background: '#0f172a' }}>
+                <th style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#94a3b8', textAlign: 'left', padding: '11px 14px', border, width: '38%' }}>Serviço</th>
+                <th style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#f1f5f9', textAlign: 'center', padding: '11px 14px', border, width: '20%' }}>Valor</th>
+                <th style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#94a3b8', textAlign: 'left', padding: '11px 14px', border }}>Observação</th>
               </tr>
             </thead>
             <tbody>
               {fees.map(([tipo, valor, obs], i) => (
                 <tr key={tipo} style={{ background: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                  <td style={feeLabel}>{tipo}</td>
-                  <td style={feeVal}>{valor}</td>
-                  <td style={feeObs}>{obs}</td>
+                  <td style={{ fontFamily: f, fontSize: '10.5pt', color: '#334155', padding: '10px 14px', border, fontWeight: 500 }}>{tipo}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '11pt', fontWeight: 700, color: '#0f172a', textAlign: 'center', padding: '10px 14px', border }}>{valor}</td>
+                  <td style={{ fontFamily: f, fontSize: '9pt', color: '#94a3b8', padding: '10px 14px', border, fontStyle: 'italic' }}>{obs}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           {parseFloat(d.valorMinimoMensal) > 0 && (
-            <div style={{
-              background: '#f9fafb', border: '1px solid #e5e7eb',
-              borderRadius: '6px', padding: '12px 16px', marginBottom: '24px',
-            }}>
-              <p style={{ fontSize: '12px', color: '#374151', margin: 0, fontFamily: font }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #0f172a', borderRadius: '4px', padding: '12px 16px', marginBottom: '24px' }}>
+              <p style={{ fontFamily: f, fontSize: '10.5pt', color: '#334155', margin: 0, lineHeight: '1.7' }}>
                 <strong>Valor mínimo mensal:</strong>{' '}
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>
-                  {cur(d.valorMinimoMensal)}
-                </span>
+                <strong style={{ fontSize: '12pt', color: '#0f172a' }}>{cur(d.valorMinimoMensal)}</strong>
                 {' '}— cobrado caso as taxas devidas não atinjam este montante no período.
               </p>
             </div>
@@ -233,25 +192,32 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
       {/* ── Internacional ── */}
       {hasIntl && intlRows.length > 0 && (
         <>
-          <p style={{ ...sectionTitle, color: '#1d4ed8' }}>Precificação Internacional — Processamento Global</p>
+          <p style={{ fontFamily: f, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+            {showBrasil ? '3.' : '1.'} Precificação Internacional — Processamento Global
+          </p>
+          <p style={{ fontFamily: f, fontSize: '9pt', color: '#64748b', marginBottom: '12px' }}>
+            Tarifas de processamento internacional via Stripe Connect.
+          </p>
+
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
             <thead>
-              <tr style={{ background: '#1e3a8a' }}>
-                <th style={{ ...feeLabel, borderBottom: '1px solid #3b4e9a', fontWeight: 700, color: '#fff', width: '45%' }}>Serviço</th>
-                <th style={{ ...feeLabel, borderBottom: '1px solid #3b4e9a', fontWeight: 700, color: '#fff' }}>Valor / Condição</th>
+              <tr style={{ background: '#0f172a' }}>
+                <th style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#94a3b8', textAlign: 'left', padding: '11px 14px', border, width: '45%' }}>Serviço</th>
+                <th style={{ fontFamily: f, fontSize: '10pt', fontWeight: 600, color: '#f1f5f9', textAlign: 'left', padding: '11px 14px', border }}>Valor / Condição</th>
               </tr>
             </thead>
             <tbody>
               {intlRows.map(([label, value], i) => (
-                <tr key={label} style={{ background: i % 2 === 0 ? '#eff6ff' : '#ffffff' }}>
-                  <td style={{ ...feeLabel, color: '#1e3a8a' }}>{label}</td>
-                  <td style={{ ...feeLabel, fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 600 }}>{value}</td>
+                <tr key={label} style={{ background: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                  <td style={{ fontFamily: f, fontSize: '10.5pt', color: '#334155', padding: '10px 14px', border, fontWeight: 500 }}>{label}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '10.5pt', color: '#0f172a', fontWeight: 600, padding: '10px 14px', border }}>{value}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '10px 14px', marginBottom: '8px' }}>
-            <p style={{ fontSize: '10px', color: '#1e40af', margin: 0, fontFamily: font }}>
+
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #0f172a', borderRadius: '4px', padding: '10px 14px', marginBottom: '8px' }}>
+            <p style={{ fontFamily: f, fontSize: '9pt', color: '#475569', margin: 0 }}>
               <strong>Serviços incluídos:</strong> Processamento (Cartões, Wallets — Apple Pay/Google Pay) · Autenticação 3DS · Aceitação Adaptativa · Atualização de Cartão · Token de Rede · Connect · Antifraude
             </p>
           </div>
