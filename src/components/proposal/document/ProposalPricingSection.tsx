@@ -13,22 +13,96 @@ interface Props {
 const f = 'Arial, Helvetica, sans-serif';
 const border = '1px solid #e2e8f0';
 
-type BrandConfig = {
-  key: BrandName;
-  label: string;
-  headerBg: string;
-  labelColor: string;
-  labelSize: string;
-  labelWeight: number;
-};
-
-const BRANDS: BrandConfig[] = [
-  { key: 'visa',       label: 'VISA',       headerBg: '#ffffff', labelColor: '#1A1F71', labelSize: '15pt', labelWeight: 900 },
-  { key: 'mastercard', label: 'mastercard', headerBg: '#ffffff', labelColor: '#252525', labelSize: '12pt', labelWeight: 700 },
-  { key: 'elo',        label: 'elo',        headerBg: '#ffffff', labelColor: '#00A4E0', labelSize: '14pt', labelWeight: 900 },
-  { key: 'amex',       label: 'AMEX',       headerBg: '#006FCF', labelColor: '#ffffff', labelSize: '13pt', labelWeight: 700 },
-  { key: 'hipercard',  label: 'Hipercard',  headerBg: '#C8102E', labelColor: '#ffffff', labelSize: '12pt', labelWeight: 700 },
+const BRANDS: { key: BrandName; headerBg: string }[] = [
+  { key: 'visa',       headerBg: '#ffffff' },
+  { key: 'mastercard', headerBg: '#ffffff' },
+  { key: 'elo',        headerBg: '#ffffff' },
+  { key: 'amex',       headerBg: '#006FCF' },
+  { key: 'hipercard',  headerBg: '#C8102E' },
 ];
+
+function BrandLogo({ brand }: { brand: BrandName }) {
+  const col = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '4px' };
+
+  switch (brand) {
+    case 'visa':
+      return (
+        <svg width="58" height="19" viewBox="0 0 58 19" style={{ display: 'block', margin: '0 auto' }}>
+          <text x="1" y="17"
+            fontFamily="Arial Black, Arial, Helvetica, sans-serif"
+            fontSize="20" fontWeight="900" fontStyle="italic" fill="#1A1F71">
+            VISA
+          </text>
+        </svg>
+      );
+
+    case 'mastercard':
+      return (
+        <div style={col}>
+          <svg width="48" height="29" viewBox="0 0 48 29" style={{ display: 'block' }}>
+            <circle cx="15" cy="14" r="14" fill="#EB001B"/>
+            <circle cx="33" cy="14" r="14" fill="#FF5F00" fillOpacity="0.9"/>
+          </svg>
+          <span style={{ fontFamily: f, fontSize: '8.5pt', fontWeight: 700, color: '#252525', letterSpacing: '-0.01em' }}>
+            mastercard
+          </span>
+        </div>
+      );
+
+    case 'elo': {
+      /* Elo: yellow base circle, blue top-right wedge, red bottom-right wedge, white inner ring */
+      const cx = 16, cy = 16, r = 15, ri = 8;
+      /* Blue wedge: center → (cx,cy-r) → arc → (cx+r,cy) → back */
+      const bluePath = `M${cx},${cy} L${cx},${cy - r} A${r},${r},0,0,1,${cx + r},${cy} Z`;
+      /* Red wedge: center → (cx+r,cy) → arc 120° → back */
+      const redX = cx + r * Math.cos((120 * Math.PI) / 180);
+      const redY = cy + r * Math.sin((120 * Math.PI) / 180);
+      const redPath = `M${cx},${cy} L${cx + r},${cy} A${r},${r},0,0,1,${redX.toFixed(2)},${redY.toFixed(2)} Z`;
+      return (
+        <div style={col}>
+          <svg width="32" height="32" viewBox="0 0 32 32" style={{ display: 'block' }}>
+            <circle cx={cx} cy={cy} r={r} fill="#FFE01B"/>
+            <path d={bluePath} fill="#00A4E0"/>
+            <path d={redPath} fill="#CC0000"/>
+            <circle cx={cx} cy={cy} r={ri} fill="white"/>
+          </svg>
+          <span style={{ fontFamily: 'Arial Black, Arial, Helvetica, sans-serif', fontSize: '9.5pt', fontWeight: 900, color: '#111827' }}>
+            elo
+          </span>
+        </div>
+      );
+    }
+
+    case 'amex':
+      return (
+        <div style={col}>
+          <svg width="44" height="28" viewBox="0 0 44 28" style={{ display: 'block' }}>
+            {/* Centurion silhouette (simplified) */}
+            <ellipse cx="22" cy="11" rx="7" ry="8" fill="rgba(255,255,255,0.25)"/>
+            <rect x="10" y="18" width="24" height="2" rx="1" fill="rgba(255,255,255,0.25)"/>
+          </svg>
+          <span style={{ fontFamily: f, fontSize: '14pt', fontWeight: 700, color: '#ffffff', letterSpacing: '0.06em', lineHeight: 1 }}>
+            AMEX
+          </span>
+        </div>
+      );
+
+    case 'hipercard':
+      return (
+        <div style={col}>
+          <svg width="36" height="22" viewBox="0 0 36 22" style={{ display: 'block' }}>
+            {/* Stylised H */}
+            <line x1="10" y1="3" x2="10" y2="19" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+            <line x1="26" y1="3" x2="26" y2="19" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+            <line x1="10" y1="11" x2="26" y2="11" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+          </svg>
+          <span style={{ fontFamily: f, fontSize: '9.5pt', fontWeight: 700, color: '#ffffff', letterSpacing: '0.01em' }}>
+            Hipercard
+          </span>
+        </div>
+      );
+  }
+}
 
 const INST_LABELS: Record<number, string> = {
   1: 'À vista (1×)',    2: 'Parcelado 2×',   3: 'Parcelado 3×',
@@ -111,7 +185,7 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
 
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
             <thead>
-              {/* Brand header row */}
+              {/* Brand logo header row */}
               <tr>
                 <th style={{
                   fontFamily: f, fontSize: '10pt', fontWeight: 700, letterSpacing: '0.08em',
@@ -128,15 +202,7 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
                     textAlign: 'center',
                     verticalAlign: 'middle',
                   }}>
-                    <span style={{
-                      fontFamily: f,
-                      fontSize: b.labelSize,
-                      fontWeight: b.labelWeight,
-                      color: b.labelColor,
-                      letterSpacing: b.key === 'visa' || b.key === 'amex' ? '0.06em' : '0',
-                    }}>
-                      {b.label}
-                    </span>
+                    <BrandLogo brand={b.key} />
                   </th>
                 ))}
               </tr>
@@ -164,23 +230,14 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
                   <td style={{ padding: '10px 12px', border }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{
-                        background: '#1e3a8a',
-                        color: '#ffffff',
-                        borderRadius: '5px',
-                        padding: '3px 7px',
-                        fontSize: '8.5pt',
-                        fontWeight: 700,
-                        fontFamily: f,
-                        minWidth: '28px',
-                        textAlign: 'center',
-                        flexShrink: 0,
+                        background: '#1e3a8a', color: '#ffffff', borderRadius: '5px',
+                        padding: '3px 7px', fontSize: '8.5pt', fontWeight: 700, fontFamily: f,
+                        minWidth: '28px', textAlign: 'center', flexShrink: 0,
                       }}>
                         {INST_BADGE[inst as number]}
                       </div>
                       <span style={{
-                        fontFamily: f,
-                        fontSize: '10.5pt',
-                        color: '#374151',
+                        fontFamily: f, fontSize: '10.5pt', color: '#374151',
                         fontWeight: i === 0 ? 600 : 400,
                       }}>
                         {INST_LABELS[inst as number]}
