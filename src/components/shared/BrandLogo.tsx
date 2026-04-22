@@ -1,17 +1,18 @@
 import React from 'react';
 import { BrandName } from '@/types/pricing';
 
-const f = 'Arial, Helvetica, sans-serif';
-const fb = 'Arial Black, Arial, Helvetica, sans-serif';
-
+/* No card shapes — just the authentic brand marks */
 export function BrandLogo({ brand }: { brand: BrandName }) {
   switch (brand) {
+
     case 'visa':
       return (
-        <svg width="66" height="42" viewBox="0 0 66 42" style={{ display: 'block', margin: '0 auto' }}>
-          <rect width="66" height="42" rx="6" fill="#1A1F71" />
-          <text x="33" y="29" textAnchor="middle" fill="#FFFFFF"
-            fontFamily={fb} fontSize="22" fontWeight="900" fontStyle="italic">
+        <svg width="66" height="24" viewBox="0 0 66 24" style={{ display: 'block', margin: '0 auto' }}>
+          <text
+            x="2" y="22"
+            fontFamily="Arial Black, Arial, Helvetica, sans-serif"
+            fontSize="24" fontWeight="900" fontStyle="italic" fill="#1A1F71"
+          >
             VISA
           </text>
         </svg>
@@ -19,74 +20,59 @@ export function BrandLogo({ brand }: { brand: BrandName }) {
 
     case 'mastercard':
       return (
-        <svg width="66" height="42" viewBox="0 0 66 42" style={{ display: 'block', margin: '0 auto' }}>
-          <rect width="66" height="42" rx="6" fill="#1c1c1c" />
-          <circle cx="25" cy="18" r="12" fill="#EB001B" />
-          <circle cx="41" cy="18" r="12" fill="#FF5F00" fillOpacity="0.92" />
-          <text x="33" y="37" textAnchor="middle" fill="#FFFFFF"
-            fontFamily={f} fontSize="7" fontWeight="600" letterSpacing="0.5">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+          <svg width="50" height="32" viewBox="0 0 50 32" style={{ display: 'block' }}>
+            <circle cx="16" cy="16" r="14" fill="#EB001B" />
+            <circle cx="34" cy="16" r="14" fill="#FF5F00" fillOpacity="0.92" />
+          </svg>
+          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', fontWeight: 600, color: '#1a1a1a', letterSpacing: '-0.02em' }}>
             mastercard
-          </text>
-        </svg>
+          </span>
+        </div>
       );
 
     case 'elo': {
-      const cx = 21, cy = 17, r = 11, ri = 6;
-      const bluePath = `M${cx},${cy} L${cx},${cy - r} A${r},${r},0,0,1,${cx + r},${cy} Z`;
+      const cx = 17, cy = 17, r = 15, ri = 8;
+      const bp = `M${cx},${cy} L${cx},${cy - r} A${r},${r},0,0,1,${cx + r},${cy} Z`;
       const rx2 = +(cx + r * Math.cos((120 * Math.PI) / 180)).toFixed(2);
       const ry2 = +(cy + r * Math.sin((120 * Math.PI) / 180)).toFixed(2);
-      const redPath = `M${cx},${cy} L${cx + r},${cy} A${r},${r},0,0,1,${rx2},${ry2} Z`;
+      const rp = `M${cx},${cy} L${cx + r},${cy} A${r},${r},0,0,1,${rx2},${ry2} Z`;
       return (
-        <svg width="66" height="42" viewBox="0 0 66 42" style={{ display: 'block', margin: '0 auto' }}>
-          <rect width="66" height="42" rx="6" fill="#1c1c1c" />
-          <circle cx={cx} cy={cy} r={r} fill="#FFE01B" />
-          <path d={bluePath} fill="#00A4E0" />
-          <path d={redPath} fill="#CC0000" />
-          <circle cx={cx} cy={cy} r={ri} fill="white" />
-          <text x="48" y="21" textAnchor="middle" fill="white"
-            fontFamily={fb} fontSize="13" fontWeight="900">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <svg width="34" height="34" viewBox="0 0 34 34" style={{ display: 'block', flexShrink: 0 }}>
+            <circle cx={cx} cy={cy} r={r} fill="#FFE01B" />
+            <path d={bp} fill="#00A4E0" />
+            <path d={rp} fill="#CC0000" />
+            <circle cx={cx} cy={cy} r={ri} fill="white" />
+          </svg>
+          <span style={{ fontFamily: 'Arial Black, Arial, Helvetica, sans-serif', fontSize: '14pt', fontWeight: 900, color: '#111' }}>
             elo
-          </text>
-        </svg>
+          </span>
+        </div>
       );
     }
 
     case 'amex':
       return (
-        <svg width="66" height="42" viewBox="0 0 66 42" style={{ display: 'block', margin: '0 auto' }}>
-          <rect width="66" height="42" rx="6" fill="#006FCF" />
-          <text x="33" y="17" textAnchor="middle" fill="white"
-            fontFamily={f} fontSize="8" fontWeight="700" letterSpacing="1.5">
-            AMERICAN
-          </text>
-          <text x="33" y="29" textAnchor="middle" fill="white"
-            fontFamily={f} fontSize="8" fontWeight="700" letterSpacing="1.5">
-            EXPRESS
-          </text>
-          <text x="33" y="39" textAnchor="middle" fill="rgba(255,255,255,0.45)"
-            fontFamily={f} fontSize="5.5" fontWeight="500" letterSpacing="1">
-            &#9733; CENTURION CARD &#9733;
-          </text>
-        </svg>
+        <div style={{
+          display: 'inline-flex', flexDirection: 'column', alignItems: 'center',
+          background: '#006FCF', borderRadius: '6px', padding: '8px 16px', gap: '1px',
+        }}>
+          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', fontWeight: 700, color: 'white', letterSpacing: '1.8px', lineHeight: '1.3' }}>AMERICAN</span>
+          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', fontWeight: 700, color: 'white', letterSpacing: '1.8px', lineHeight: '1.3' }}>EXPRESS</span>
+        </div>
       );
 
     case 'hipercard':
       return (
-        <svg width="66" height="42" viewBox="0 0 66 42" style={{ display: 'block', margin: '0 auto' }}>
-          <rect width="66" height="42" rx="6" fill="#C8102E" />
-          {/* H lettermark */}
-          <line x1="17" y1="9" x2="17" y2="27" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
-          <line x1="27" y1="9" x2="27" y2="27" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
-          <line x1="17" y1="18" x2="27" y2="18" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-          <text x="47" y="22" textAnchor="middle" fill="white"
-            fontFamily={f} fontSize="9.5" fontWeight="700">
-            Hiper
-          </text>
-          <text x="47" y="33" textAnchor="middle" fill="white"
-            fontFamily={f} fontSize="9.5" fontWeight="700">
-            card
-          </text>
-        </svg>
+        <div style={{
+          display: 'inline-block',
+          background: '#C8102E', borderRadius: '6px', padding: '9px 16px',
+        }}>
+          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '11pt', fontWeight: 700, color: 'white', letterSpacing: '0.2px' }}>
+            Hipercard
+          </span>
+        </div>
       );
   }
 }
