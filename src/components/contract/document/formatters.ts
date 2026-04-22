@@ -19,22 +19,22 @@ export const INSTALLMENT_LABELS: Record<number, string> = {
 };
 
 export function mdrVal(matrix: MDRMatrix, brand: BrandName, inst: number): string {
-  const v = matrix[brand][inst as InstallmentNumber]?.finalMdr;
+  const v = matrix[brand]?.[inst as InstallmentNumber]?.finalMdr;
   return v ? `${parseFloat(v).toFixed(2).replace('.', ',')}%` : '-';
 }
 
 export function mdrBaseStr(matrix: MDRMatrix, brand: BrandName, inst: number): string {
-  const v = matrix[brand][inst as InstallmentNumber]?.mdrBase;
+  const v = matrix[brand]?.[inst as InstallmentNumber]?.mdrBase;
   return v && parseFloat(v) > 0 ? `${parseFloat(v).toFixed(2).replace('.', ',')} %` : '-';
 }
 
 export function mdrAntStr(matrix: MDRMatrix, brand: BrandName, inst: number): string {
-  const v = matrix[brand][inst as InstallmentNumber]?.anticipationRate;
+  const v = matrix[brand]?.[inst as InstallmentNumber]?.anticipationRate;
   return v && parseFloat(v) > 0 ? `${parseFloat(v).toFixed(2).replace('.', ',')} %` : '-';
 }
 
 export function mdrFinalStr(matrix: MDRMatrix, brand: BrandName, inst: number): string {
-  const v = matrix[brand][inst as InstallmentNumber]?.finalMdr;
+  const v = matrix[brand]?.[inst as InstallmentNumber]?.finalMdr;
   return v && parseFloat(v) > 0 ? `${parseFloat(v).toFixed(2).replace('.', ',')} %` : '-';
 }
 

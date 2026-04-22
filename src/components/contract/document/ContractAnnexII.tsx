@@ -1,3 +1,4 @@
+import React from 'react';
 import { ContractData } from '@/types/contract';
 import { MDRMatrix, INSTALLMENTS, BRAND_LABELS, BrandName, InstallmentNumber } from '@/types/pricing';
 import { INSTALLMENT_LABELS, mdrBaseStr, mdrAntStr, mdrFinalStr, cur } from './formatters';
@@ -16,8 +17,8 @@ const S = {
 };
 
 // Split brands into two rows so each table fits A4 width legibly
-const BRANDS_ROW1 = ['visa', 'mastercard', 'elo'] as BrandName[];
-const BRANDS_ROW2 = ['amex', 'hiper'] as BrandName[];
+const BRANDS_ROW1 = ['visa', 'mastercard', 'elo']      as BrandName[];
+const BRANDS_ROW2 = ['amex', 'hipercard']              as BrandName[];
 
 export function ContractAnnexII({ d, mdrMatrix }: Props) {
   const fees: [string, string, string][] = [
@@ -61,11 +62,11 @@ export function ContractAnnexII({ d, mdrMatrix }: Props) {
             <tr>
               <th className={S.thSub} style={{ textAlign: 'left', borderTop: 'none', fontSize: '10px' }} />
               {row.map((b) => (
-                <>
-                  <th key={`${b}-t`} className={S.thSub} style={{ fontSize: '10px' }}>Transação (%)</th>
-                  <th key={`${b}-a`} className={S.thSub} style={{ fontSize: '10px' }}>Antecipação (%)</th>
-                  <th key={`${b}-f`} className={S.thSub} style={{ fontWeight: 700, color: '#111827', fontSize: '10px' }}>Taxa (%)</th>
-                </>
+                <React.Fragment key={b}>
+                  <th className={S.thSub} style={{ fontSize: '10px' }}>Transação (%)</th>
+                  <th className={S.thSub} style={{ fontSize: '10px' }}>Antecipação (%)</th>
+                  <th className={S.thSub} style={{ fontWeight: 700, color: '#111827', fontSize: '10px' }}>Taxa (%)</th>
+                </React.Fragment>
               ))}
             </tr>
           </thead>
@@ -74,11 +75,11 @@ export function ContractAnnexII({ d, mdrMatrix }: Props) {
               <tr key={inst} style={{ background: i % 2 === 0 ? '#ffffff' : '#f9fafb' }}>
                 <td className={S.td} style={{ fontSize: '11px' }}>{INSTALLMENT_LABELS[inst as number]}</td>
                 {row.map((b) => (
-                  <>
-                    <td key={`${b}-t`} className={S.tdNum} style={{ fontSize: '11px' }}>{mdrBaseStr(mdrMatrix, b, inst as InstallmentNumber)}</td>
-                    <td key={`${b}-a`} className={S.tdNum} style={{ fontSize: '11px' }}>{mdrAntStr(mdrMatrix, b, inst as InstallmentNumber)}</td>
-                    <td key={`${b}-f`} className={S.tdNum} style={{ fontWeight: 600, fontSize: '11px' }}>{mdrFinalStr(mdrMatrix, b, inst as InstallmentNumber)}</td>
-                  </>
+                  <React.Fragment key={b}>
+                    <td className={S.tdNum} style={{ fontSize: '11px' }}>{mdrBaseStr(mdrMatrix, b, inst as InstallmentNumber)}</td>
+                    <td className={S.tdNum} style={{ fontSize: '11px' }}>{mdrAntStr(mdrMatrix, b, inst as InstallmentNumber)}</td>
+                    <td className={S.tdNum} style={{ fontWeight: 600, fontSize: '11px' }}>{mdrFinalStr(mdrMatrix, b, inst as InstallmentNumber)}</td>
+                  </React.Fragment>
                 ))}
               </tr>
             ))}
