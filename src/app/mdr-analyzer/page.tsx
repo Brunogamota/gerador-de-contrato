@@ -50,12 +50,15 @@ function DonutChart({ pct }: { pct: number }) {
 }
 
 // ─── MetricCard ────────────────────────────────────────────────────────────────
-interface MetricCardProps { label: string; value: string; sub: string; subPositive?: boolean; chart?: React.ReactNode; }
-function MetricCard({ label, value, sub, subPositive, chart }: MetricCardProps) {
+interface MetricCardProps { label: string; value: string; prefix?: string; sub: string; subPositive?: boolean; chart?: React.ReactNode; }
+function MetricCard({ label, value, prefix, sub, subPositive, chart }: MetricCardProps) {
   return (
     <div className="bg-[#111113] rounded-xl border border-white/[0.06] p-4 flex flex-col gap-2 min-w-0">
       <p className="text-xs text-white/40 truncate">{label}</p>
-      <p className="text-2xl font-bold text-white tracking-tight leading-none">{value}</p>
+      <div className="flex items-baseline gap-1 leading-none">
+        {prefix && <span className="text-sm font-semibold text-white/60">{prefix}</span>}
+        <span className="text-2xl font-bold text-white tracking-tight whitespace-nowrap">{value}</span>
+      </div>
       <div className="flex items-end justify-between gap-2">
         <p className={cn('text-xs leading-snug', subPositive ? 'text-emerald-400' : 'text-white/40')}>{sub}</p>
         {chart && <div className="shrink-0">{chart}</div>}
@@ -408,7 +411,8 @@ export default function MDRAnalyzerPage() {
                 />
                 <MetricCard
                   label="Receita estimada"
-                  value={`R$ ${new Intl.NumberFormat('pt-BR').format(metrics.estimatedRevenue)}`}
+                  prefix="R$"
+                  value={new Intl.NumberFormat('pt-BR').format(metrics.estimatedRevenue)}
                   sub={`${parseFloat(revenueDeltaPct) >= 0 ? '+' : ''}${revenueDeltaPct}% vs atual`}
                   subPositive={parseFloat(revenueDeltaPct) > 0}
                   chart={<Sparkline trend="up" />}

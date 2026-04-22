@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
 import type { StrategyProfile, EnrichedRow, BrandKey } from '@/lib/mdr-analyzer/types';
 import {
@@ -160,9 +161,8 @@ export function MDRAnalyzerTable({
               const isEditingThis = editingRow === row.installment;
 
               return (
-                <>
+                <React.Fragment key={row.installment}>
                   <tr
-                    key={row.installment}
                     onClick={() => toggleExpand(row.installment)}
                     className={cn(
                       'group border-b border-white/[0.04] cursor-pointer transition-colors',
@@ -279,7 +279,7 @@ export function MDRAnalyzerTable({
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               );
             })}
           </tbody>

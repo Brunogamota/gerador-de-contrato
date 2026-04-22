@@ -37,6 +37,7 @@ export function AnalyzerSidebar({
 }: AnalyzerSidebarProps) {
   const router = useRouter();
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [recalcDone, setRecalcDone] = useState(false);
   const client = SAMPLE_CLIENT;
   const selectedIdx = STRATEGY_ORDER.indexOf(strategy);
 
@@ -94,13 +95,28 @@ export function AnalyzerSidebar({
         />
 
         <button
-          onClick={onRecalculate}
-          className="mt-5 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.09] text-sm font-medium text-white/60 hover:text-white hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+          onClick={() => {
+            onRecalculate();
+            setRecalcDone(true);
+            setTimeout(() => setRecalcDone(false), 1500);
+          }}
+          className={cn(
+            'mt-5 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all',
+            recalcDone
+              ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/[0.06]'
+              : 'border-white/[0.09] text-white/60 hover:text-white hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06]',
+          )}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Recalcular
+          {recalcDone ? (
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          )}
+          {recalcDone ? 'Recalculado!' : 'Recalcular'}
         </button>
       </div>
 
