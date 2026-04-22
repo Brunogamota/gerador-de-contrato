@@ -2,6 +2,7 @@ import React from 'react';
 import { ProposalData } from '@/types/proposal';
 import { MDRMatrix, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing } from '@/types/pricing';
 import { cur } from '@/components/contract/document/formatters';
+import { BrandLogo } from '@/components/shared/BrandLogo';
 
 interface Props {
   d: ProposalData;
@@ -13,96 +14,7 @@ interface Props {
 const f = 'Arial, Helvetica, sans-serif';
 const border = '1px solid #e2e8f0';
 
-const BRANDS: { key: BrandName; headerBg: string }[] = [
-  { key: 'visa',       headerBg: '#ffffff' },
-  { key: 'mastercard', headerBg: '#ffffff' },
-  { key: 'elo',        headerBg: '#ffffff' },
-  { key: 'amex',       headerBg: '#006FCF' },
-  { key: 'hipercard',  headerBg: '#C8102E' },
-];
-
-function BrandLogo({ brand }: { brand: BrandName }) {
-  const col = { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: '4px' };
-
-  switch (brand) {
-    case 'visa':
-      return (
-        <svg width="58" height="19" viewBox="0 0 58 19" style={{ display: 'block', margin: '0 auto' }}>
-          <text x="1" y="17"
-            fontFamily="Arial Black, Arial, Helvetica, sans-serif"
-            fontSize="20" fontWeight="900" fontStyle="italic" fill="#1A1F71">
-            VISA
-          </text>
-        </svg>
-      );
-
-    case 'mastercard':
-      return (
-        <div style={col}>
-          <svg width="48" height="29" viewBox="0 0 48 29" style={{ display: 'block' }}>
-            <circle cx="15" cy="14" r="14" fill="#EB001B"/>
-            <circle cx="33" cy="14" r="14" fill="#FF5F00" fillOpacity="0.9"/>
-          </svg>
-          <span style={{ fontFamily: f, fontSize: '8.5pt', fontWeight: 700, color: '#252525', letterSpacing: '-0.01em' }}>
-            mastercard
-          </span>
-        </div>
-      );
-
-    case 'elo': {
-      /* Elo: yellow base circle, blue top-right wedge, red bottom-right wedge, white inner ring */
-      const cx = 16, cy = 16, r = 15, ri = 8;
-      /* Blue wedge: center → (cx,cy-r) → arc → (cx+r,cy) → back */
-      const bluePath = `M${cx},${cy} L${cx},${cy - r} A${r},${r},0,0,1,${cx + r},${cy} Z`;
-      /* Red wedge: center → (cx+r,cy) → arc 120° → back */
-      const redX = cx + r * Math.cos((120 * Math.PI) / 180);
-      const redY = cy + r * Math.sin((120 * Math.PI) / 180);
-      const redPath = `M${cx},${cy} L${cx + r},${cy} A${r},${r},0,0,1,${redX.toFixed(2)},${redY.toFixed(2)} Z`;
-      return (
-        <div style={col}>
-          <svg width="32" height="32" viewBox="0 0 32 32" style={{ display: 'block' }}>
-            <circle cx={cx} cy={cy} r={r} fill="#FFE01B"/>
-            <path d={bluePath} fill="#00A4E0"/>
-            <path d={redPath} fill="#CC0000"/>
-            <circle cx={cx} cy={cy} r={ri} fill="white"/>
-          </svg>
-          <span style={{ fontFamily: 'Arial Black, Arial, Helvetica, sans-serif', fontSize: '9.5pt', fontWeight: 900, color: '#111827' }}>
-            elo
-          </span>
-        </div>
-      );
-    }
-
-    case 'amex':
-      return (
-        <div style={col}>
-          <svg width="44" height="28" viewBox="0 0 44 28" style={{ display: 'block' }}>
-            {/* Centurion silhouette (simplified) */}
-            <ellipse cx="22" cy="11" rx="7" ry="8" fill="rgba(255,255,255,0.25)"/>
-            <rect x="10" y="18" width="24" height="2" rx="1" fill="rgba(255,255,255,0.25)"/>
-          </svg>
-          <span style={{ fontFamily: f, fontSize: '14pt', fontWeight: 700, color: '#ffffff', letterSpacing: '0.06em', lineHeight: 1 }}>
-            AMEX
-          </span>
-        </div>
-      );
-
-    case 'hipercard':
-      return (
-        <div style={col}>
-          <svg width="36" height="22" viewBox="0 0 36 22" style={{ display: 'block' }}>
-            {/* Stylised H */}
-            <line x1="10" y1="3" x2="10" y2="19" stroke="white" strokeWidth="4" strokeLinecap="round"/>
-            <line x1="26" y1="3" x2="26" y2="19" stroke="white" strokeWidth="4" strokeLinecap="round"/>
-            <line x1="10" y1="11" x2="26" y2="11" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-          </svg>
-          <span style={{ fontFamily: f, fontSize: '9.5pt', fontWeight: 700, color: '#ffffff', letterSpacing: '0.01em' }}>
-            Hipercard
-          </span>
-        </div>
-      );
-  }
-}
+const BRANDS: BrandName[] = ['visa', 'mastercard', 'elo', 'amex', 'hipercard'];
 
 const INST_LABELS: Record<number, string> = {
   1: 'À vista (1×)',    2: 'Parcelado 2×',   3: 'Parcelado 3×',
@@ -185,7 +97,6 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
 
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
             <thead>
-              {/* Brand logo header row */}
               <tr>
                 <th style={{
                   fontFamily: f, fontSize: '10pt', fontWeight: 700, letterSpacing: '0.08em',
@@ -194,31 +105,18 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
                 }}>
                   Modalidade
                 </th>
-                {BRANDS.map((b) => (
-                  <th key={b.key} style={{
-                    background: b.headerBg,
-                    border,
-                    padding: '12px 8px',
-                    textAlign: 'center',
-                    verticalAlign: 'middle',
-                  }}>
-                    <BrandLogo brand={b.key} />
+                {BRANDS.map((brand) => (
+                  <th key={brand} style={{ background: '#ffffff', border, padding: '10px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <BrandLogo brand={brand} />
                   </th>
                 ))}
               </tr>
-              {/* Sub-header row */}
               <tr style={{ background: '#f1f5f9' }}>
-                <td style={{
-                  fontFamily: f, fontSize: '8pt', color: '#64748b', fontStyle: 'italic',
-                  padding: '5px 12px', border,
-                }}>
+                <td style={{ fontFamily: f, fontSize: '8pt', color: '#64748b', fontStyle: 'italic', padding: '5px 12px', border }}>
                   Base · Ant. · <strong style={{ color: '#475569' }}>Taxa Final</strong>
                 </td>
-                {BRANDS.map((b) => (
-                  <td key={b.key} style={{
-                    fontFamily: f, fontSize: '8pt', color: '#64748b', fontStyle: 'italic',
-                    textAlign: 'center', padding: '5px 8px', border,
-                  }}>
+                {BRANDS.map((brand) => (
+                  <td key={brand} style={{ fontFamily: f, fontSize: '8pt', color: '#64748b', fontStyle: 'italic', textAlign: 'center', padding: '5px 8px', border }}>
                     Base · Ant. · <strong style={{ color: '#475569' }}>Final</strong>
                   </td>
                 ))}
@@ -236,20 +134,17 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
                       }}>
                         {INST_BADGE[inst as number]}
                       </div>
-                      <span style={{
-                        fontFamily: f, fontSize: '10.5pt', color: '#374151',
-                        fontWeight: i === 0 ? 600 : 400,
-                      }}>
+                      <span style={{ fontFamily: f, fontSize: '10.5pt', color: '#374151', fontWeight: i === 0 ? 600 : 400 }}>
                         {INST_LABELS[inst as number]}
                       </span>
                     </div>
                   </td>
-                  {BRANDS.map((b) => {
-                    const base  = getBase(mdrMatrix, b.key, inst as InstallmentNumber);
-                    const ant   = getAnt(mdrMatrix, b.key, inst as InstallmentNumber);
-                    const final = getFinal(mdrMatrix, b.key, inst as InstallmentNumber);
+                  {BRANDS.map((brand) => {
+                    const base  = getBase(mdrMatrix, brand, inst as InstallmentNumber);
+                    const ant   = getAnt(mdrMatrix, brand, inst as InstallmentNumber);
+                    const final = getFinal(mdrMatrix, brand, inst as InstallmentNumber);
                     return (
-                      <td key={b.key} style={{ padding: '8px', border, textAlign: 'center', verticalAlign: 'middle' }}>
+                      <td key={brand} style={{ padding: '8px', border, textAlign: 'center', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                           <span style={{ fontFamily: 'monospace', fontSize: '8pt', color: '#9ca3af' }}>
                             {base} · {ant}
@@ -270,7 +165,6 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
             &#9432; * Valores aplicados sobre o volume bruto da transação por bandeira e número de parcelas.
           </p>
 
-          {/* Operational fees */}
           <p style={{ fontFamily: f, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
             2. Tabela de Preços Operacionais
           </p>
@@ -309,7 +203,6 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
         </>
       )}
 
-      {/* Internacional */}
       {hasIntl && intlRows.length > 0 && (
         <>
           <p style={{ fontFamily: f, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
@@ -318,7 +211,6 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
           <p style={{ fontFamily: f, fontSize: '9pt', color: '#64748b', marginBottom: '12px' }}>
             Tarifas de processamento internacional via Stripe Connect.
           </p>
-
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
             <thead>
               <tr style={{ background: '#1e3a5f' }}>
@@ -335,7 +227,6 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
               ))}
             </tbody>
           </table>
-
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #1e3a5f', borderRadius: '4px', padding: '10px 14px', marginBottom: '8px' }}>
             <p style={{ fontFamily: f, fontSize: '9pt', color: '#475569', margin: 0 }}>
               <strong>Serviços incluídos:</strong> Processamento (Cartões, Wallets — Apple Pay/Google Pay) · Autenticação 3DS · Aceitação Adaptativa · Atualização de Cartão · Token de Rede · Connect · Antifraude
