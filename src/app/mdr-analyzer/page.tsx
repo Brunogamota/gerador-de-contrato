@@ -362,18 +362,23 @@ export default function MDRAnalyzerPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleExport}
-                className="px-3 py-2 rounded-xl text-xs font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-white/5 transition-all"
+                className="px-3 py-2 rounded-xl text-xs font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 active:scale-95 bg-white/5 transition-all"
               >
                 Exportar
               </button>
               <button
                 onClick={handleSave}
-                className="px-3 py-2 rounded-xl text-xs font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-white/5 transition-all"
+                className={cn(
+                  'px-3 py-2 rounded-xl text-xs font-medium border active:scale-95 transition-all',
+                  savedVisible
+                    ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/[0.06]'
+                    : 'border-white/10 text-white/60 hover:text-white hover:border-white/20 bg-white/5',
+                )}
               >
-                Salvar análise
+                {savedVisible ? '✓ Salvo!' : 'Salvar análise'}
               </button>
               <button
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
                 style={{ background: 'linear-gradient(135deg,#f72662,#771339)', boxShadow: '0 0 16px rgba(247,38,98,0.3)' }}
                 onClick={handleOptimize}
               >

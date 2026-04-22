@@ -85,9 +85,9 @@ export function MDRAnalyzerTable({
           <button
             onClick={() => setCustomizeMode((v) => !v)}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-95',
               customizeMode
-                ? 'bg-white/[0.08] text-white border-white/20'
+                ? 'bg-brand/10 text-brand border-brand/30'
                 : 'border-white/[0.09] text-white/60 hover:text-white hover:border-white/20',
             )}
           >
