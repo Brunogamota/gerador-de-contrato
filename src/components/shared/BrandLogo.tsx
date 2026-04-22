@@ -1,18 +1,15 @@
 import React from 'react';
 import { BrandName } from '@/types/pricing';
 
-/* No card shapes — just the authentic brand marks */
+const archivo = "'Archivo', 'Arial', Helvetica, sans-serif";
+
 export function BrandLogo({ brand }: { brand: BrandName }) {
   switch (brand) {
 
     case 'visa':
       return (
         <svg width="66" height="24" viewBox="0 0 66 24" style={{ display: 'block', margin: '0 auto' }}>
-          <text
-            x="2" y="22"
-            fontFamily="Arial Black, Arial, Helvetica, sans-serif"
-            fontSize="24" fontWeight="900" fontStyle="italic" fill="#1A1F71"
-          >
+          <text x="2" y="22" fontFamily={archivo} fontSize="24" fontWeight="900" fontStyle="italic" fill="#1A1F71">
             VISA
           </text>
         </svg>
@@ -25,7 +22,7 @@ export function BrandLogo({ brand }: { brand: BrandName }) {
             <circle cx="16" cy="16" r="14" fill="#EB001B" />
             <circle cx="34" cy="16" r="14" fill="#FF5F00" fillOpacity="0.92" />
           </svg>
-          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', fontWeight: 600, color: '#1a1a1a', letterSpacing: '-0.02em' }}>
+          <span style={{ fontFamily: archivo, fontSize: '8pt', fontWeight: 600, color: '#1a1a1a', letterSpacing: '-0.02em' }}>
             mastercard
           </span>
         </div>
@@ -45,7 +42,7 @@ export function BrandLogo({ brand }: { brand: BrandName }) {
             <path d={rp} fill="#CC0000" />
             <circle cx={cx} cy={cy} r={ri} fill="white" />
           </svg>
-          <span style={{ fontFamily: 'Arial Black, Arial, Helvetica, sans-serif', fontSize: '14pt', fontWeight: 900, color: '#111' }}>
+          <span style={{ fontFamily: archivo, fontSize: '14pt', fontWeight: 900, color: '#111' }}>
             elo
           </span>
         </div>
@@ -58,8 +55,8 @@ export function BrandLogo({ brand }: { brand: BrandName }) {
           display: 'inline-flex', flexDirection: 'column', alignItems: 'center',
           background: '#006FCF', borderRadius: '6px', padding: '8px 16px', gap: '1px',
         }}>
-          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', fontWeight: 700, color: 'white', letterSpacing: '1.8px', lineHeight: '1.3' }}>AMERICAN</span>
-          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '8pt', fontWeight: 700, color: 'white', letterSpacing: '1.8px', lineHeight: '1.3' }}>EXPRESS</span>
+          <span style={{ fontFamily: archivo, fontSize: '8pt', fontWeight: 700, color: 'white', letterSpacing: '1.8px', lineHeight: '1.3' }}>AMERICAN</span>
+          <span style={{ fontFamily: archivo, fontSize: '8pt', fontWeight: 700, color: 'white', letterSpacing: '1.8px', lineHeight: '1.3' }}>EXPRESS</span>
         </div>
       );
 
@@ -69,7 +66,7 @@ export function BrandLogo({ brand }: { brand: BrandName }) {
           display: 'inline-block',
           background: '#C8102E', borderRadius: '6px', padding: '9px 16px',
         }}>
-          <span style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '11pt', fontWeight: 700, color: 'white', letterSpacing: '0.2px' }}>
+          <span style={{ fontFamily: archivo, fontSize: '11pt', fontWeight: 700, color: 'white', letterSpacing: '0.2px' }}>
             Hipercard
           </span>
         </div>

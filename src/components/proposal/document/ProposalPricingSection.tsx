@@ -11,12 +11,18 @@ interface Props {
   setupIntl?: string;
 }
 
-/* ─── Typography ─────────────────────────────────────────────────────────── */
-const sans  = 'Arial, Helvetica, sans-serif';
-/* Georgia gives financal numbers a premium, authoritative feel (Bloomberg / FT style) */
-const serif = "Georgia, 'Times New Roman', serif";
+/* ─── Reborn brand identity ───────────────────────────────────────────────── */
+const font    = "'Archivo', 'Arial', Helvetica, sans-serif";
 
-const border = '1px solid #e8ecf0';
+/* Palette */
+const ink     = '#161419';   /* darkest — headers, titles     */
+const ink2    = '#2d2933';   /* secondary dark                */
+const silver  = '#ededf7';   /* light lavender-gray           */
+const brand   = '#f72662';   /* Reborn primary pink           */
+const muted   = '#9a8fa8';   /* muted text                    */
+
+const border  = `1px solid ${silver}`;
+
 const BRANDS: BrandName[] = ['visa', 'mastercard', 'elo', 'amex', 'hipercard'];
 
 const INST_LABELS: Record<number, string> = {
@@ -30,8 +36,8 @@ const INST_NUM: Record<number, string> = {
   1:'1',2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'10',11:'11',12:'12',
 };
 
-function rate(matrix: MDRMatrix, brand: BrandName, inst: InstallmentNumber, field: 'mdrBase'|'anticipationRate'|'finalMdr'): string {
-  const v = matrix[brand]?.[inst]?.[field];
+function rate(matrix: MDRMatrix, b: BrandName, inst: InstallmentNumber, field: 'mdrBase'|'anticipationRate'|'finalMdr'): string {
+  const v = matrix[b]?.[inst]?.[field];
   return v && parseFloat(v) > 0 ? `${parseFloat(v).toFixed(2).replace('.', ',')}%` : '—';
 }
 
@@ -76,57 +82,47 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
   ] : [];
 
   return (
-    <div style={{ marginBottom: '32px', fontFamily: sans }}>
+    <div style={{ marginBottom: '32px', fontFamily: font }}>
 
       {showBrasil && (<>
 
-        {/* ── Section title ── */}
-        <p style={{ fontFamily: sans, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+        {/* Section title */}
+        <p style={{ fontFamily: font, fontSize: '11pt', fontWeight: 700, color: ink, marginBottom: '4px' }}>
           1. Taxas MDR — Merchant Discount Rate
         </p>
-        <p style={{ fontFamily: sans, fontSize: '9pt', color: '#64748b', marginBottom: '16px' }}>
+        <p style={{ fontFamily: font, fontSize: '9pt', color: muted, marginBottom: '16px', lineHeight: '1.5' }}>
           Percentual aplicado sobre o valor bruto de cada transação, por bandeira e parcelas.
-          A <strong>Taxa Final</strong> inclui MDR Base + Taxa de Antecipação.
+          A <strong style={{ color: ink2 }}>Taxa Final</strong> inclui MDR Base + Taxa de Antecipação.
         </p>
 
-        {/* ── MDR table ── */}
+        {/* MDR table */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
           <thead>
-            {/* Brand logo row */}
-            <tr style={{ borderBottom: '2px solid #0f172a' }}>
+            {/* Brand header */}
+            <tr>
               <th style={{
-                fontFamily: sans, fontSize: '8.5pt', fontWeight: 700,
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: '#ffffff', background: '#0f172a',
-                textAlign: 'center', padding: '16px 10px',
-                border, width: '24%',
+                fontFamily: font, fontSize: '8.5pt', fontWeight: 800,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: '#ffffff', background: ink,
+                textAlign: 'center', padding: '16px 10px', border, width: '24%',
               }}>
                 Modalidade
               </th>
               {BRANDS.map((brand) => (
-                <th key={brand} style={{
-                  background: '#ffffff', border,
-                  padding: '14px 6px', textAlign: 'center', verticalAlign: 'middle',
-                }}>
+                <th key={brand} style={{ background: '#ffffff', border, padding: '14px 6px', textAlign: 'center', verticalAlign: 'middle' }}>
                   <BrandLogo brand={brand} />
                 </th>
               ))}
             </tr>
 
             {/* Sub-header */}
-            <tr style={{ background: '#f8fafc' }}>
-              <td style={{
-                fontFamily: sans, fontSize: '7.5pt', color: '#94a3b8',
-                fontStyle: 'italic', padding: '5px 14px', border, letterSpacing: '0.01em',
-              }}>
-                Base · Ant. · <strong style={{ color: '#64748b', fontStyle: 'normal' }}>Taxa Final</strong>
+            <tr style={{ background: silver }}>
+              <td style={{ fontFamily: font, fontSize: '7.5pt', color: muted, fontStyle: 'italic', padding: '5px 14px', border }}>
+                Base · Ant. · <strong style={{ color: ink2, fontStyle: 'normal' }}>Taxa Final</strong>
               </td>
               {BRANDS.map((brand) => (
-                <td key={brand} style={{
-                  fontFamily: sans, fontSize: '7.5pt', color: '#94a3b8',
-                  fontStyle: 'italic', textAlign: 'center', padding: '5px 6px', border,
-                }}>
-                  Base · Ant. · <strong style={{ color: '#64748b', fontStyle: 'normal' }}>Final</strong>
+                <td key={brand} style={{ fontFamily: font, fontSize: '7.5pt', color: muted, fontStyle: 'italic', textAlign: 'center', padding: '5px 6px', border }}>
+                  Base · Ant. · <strong style={{ color: ink2, fontStyle: 'normal' }}>Final</strong>
                 </td>
               ))}
             </tr>
@@ -134,49 +130,38 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
 
           <tbody>
             {INSTALLMENTS.map((inst, i) => (
-              <tr key={inst} style={{ background: i % 2 === 0 ? '#ffffff' : '#fafbfc' }}>
+              <tr key={inst} style={{ background: i % 2 === 0 ? '#ffffff' : '#faf9fc' }}>
 
                 {/* Installment label */}
                 <td style={{ padding: '11px 14px', border }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Subtle pill badge */}
+                    {/* Brand-colored badge */}
                     <span style={{
-                      display: 'inline-block',
-                      background: '#f1f5f9',
-                      color: '#475569',
-                      borderRadius: '4px',
-                      padding: '2px 7px',
-                      fontSize: '8pt',
-                      fontFamily: sans,
-                      fontWeight: 600,
-                      minWidth: '24px',
-                      textAlign: 'center',
-                      flexShrink: 0,
+                      display: 'inline-block', background: brand, color: '#ffffff',
+                      borderRadius: '5px', padding: '2px 8px', fontSize: '8pt',
+                      fontFamily: font, fontWeight: 700,
+                      minWidth: '26px', textAlign: 'center', flexShrink: 0,
                     }}>
                       {INST_NUM[inst as number]}×
                     </span>
-                    <span style={{
-                      fontFamily: sans, fontSize: '10.5pt',
-                      color: '#1e293b', fontWeight: i === 0 ? 600 : 400,
-                    }}>
+                    <span style={{ fontFamily: font, fontSize: '10.5pt', color: ink, fontWeight: i === 0 ? 600 : 400 }}>
                       {INST_LABELS[inst as number]}
                     </span>
                   </div>
                 </td>
 
-                {/* Brand rate cells */}
-                {BRANDS.map((brand) => {
-                  const base  = rate(mdrMatrix, brand, inst as InstallmentNumber, 'mdrBase');
-                  const ant   = rate(mdrMatrix, brand, inst as InstallmentNumber, 'anticipationRate');
-                  const final = rate(mdrMatrix, brand, inst as InstallmentNumber, 'finalMdr');
+                {/* Rate cells */}
+                {BRANDS.map((b) => {
+                  const base  = rate(mdrMatrix, b, inst as InstallmentNumber, 'mdrBase');
+                  const ant   = rate(mdrMatrix, b, inst as InstallmentNumber, 'anticipationRate');
+                  const final = rate(mdrMatrix, b, inst as InstallmentNumber, 'finalMdr');
                   return (
-                    <td key={brand} style={{ padding: '9px 6px', border, textAlign: 'center', verticalAlign: 'middle' }}>
+                    <td key={b} style={{ padding: '9px 6px', border, textAlign: 'center', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                        <span style={{ fontFamily: sans, fontSize: '7.5pt', color: '#b0bac5', letterSpacing: '0.01em' }}>
+                        <span style={{ fontFamily: font, fontSize: '7.5pt', color: muted }}>
                           {base} · {ant}
                         </span>
-                        {/* Georgia for the rate number — premium financial feel */}
-                        <span style={{ fontFamily: serif, fontSize: '13.5pt', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                        <span style={{ fontFamily: font, fontSize: '13pt', fontWeight: 800, color: ink, letterSpacing: '-0.02em' }}>
                           {final}
                         </span>
                       </div>
@@ -188,74 +173,74 @@ export function ProposalPricingSection({ d, mdrMatrix, intlProposalPricing, setu
           </tbody>
         </table>
 
-        <p style={{ fontFamily: sans, fontSize: '8pt', color: '#b0bac5', fontStyle: 'italic', marginBottom: '28px' }}>
+        <p style={{ fontFamily: font, fontSize: '8pt', color: muted, fontStyle: 'italic', marginBottom: '28px' }}>
           * Valores aplicados sobre o volume bruto da transação por bandeira e número de parcelas.
         </p>
 
-        {/* ── Fees table ── */}
-        <p style={{ fontFamily: sans, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+        {/* Fees table */}
+        <p style={{ fontFamily: font, fontSize: '11pt', fontWeight: 700, color: ink, marginBottom: '4px' }}>
           2. Tabela de Preços Operacionais
         </p>
-        <p style={{ fontFamily: sans, fontSize: '9pt', color: '#64748b', marginBottom: '12px' }}>
+        <p style={{ fontFamily: font, fontSize: '9pt', color: muted, marginBottom: '12px', lineHeight: '1.5' }}>
           Tarifas fixas e variáveis pelos serviços de gateway, antifraude e liquidação.
         </p>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
           <thead>
-            <tr style={{ background: '#0f172a' }}>
-              <th style={{ fontFamily: sans, fontSize: '8.5pt', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94a3b8', textAlign: 'left',   padding: '11px 14px', border, width: '38%' }}>Serviço</th>
-              <th style={{ fontFamily: sans, fontSize: '8.5pt', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#f1f5f9', textAlign: 'center', padding: '11px 14px', border, width: '20%' }}>Valor</th>
-              <th style={{ fontFamily: sans, fontSize: '8.5pt', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94a3b8', textAlign: 'left',   padding: '11px 14px', border }}>Observação</th>
+            <tr style={{ background: ink }}>
+              <th style={{ fontFamily: font, fontSize: '8pt', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: muted,    textAlign: 'left',   padding: '11px 14px', border, width: '38%' }}>Serviço</th>
+              <th style={{ fontFamily: font, fontSize: '8pt', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', textAlign: 'center', padding: '11px 14px', border, width: '20%' }}>Valor</th>
+              <th style={{ fontFamily: font, fontSize: '8pt', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: muted,    textAlign: 'left',   padding: '11px 14px', border }}>Observação</th>
             </tr>
           </thead>
           <tbody>
             {fees.map(([tipo, valor, obs], i) => (
-              <tr key={tipo} style={{ background: i % 2 === 0 ? '#ffffff' : '#fafbfc' }}>
-                <td style={{ fontFamily: sans,  fontSize: '10.5pt', color: '#334155', padding: '10px 14px', border, fontWeight: 500 }}>{tipo}</td>
-                <td style={{ fontFamily: serif, fontSize: '11pt',   color: '#0f172a', textAlign: 'center', padding: '10px 14px', border, fontWeight: 700 }}>{valor}</td>
-                <td style={{ fontFamily: sans,  fontSize: '9pt',    color: '#94a3b8', padding: '10px 14px', border, fontStyle: 'italic' }}>{obs}</td>
+              <tr key={tipo} style={{ background: i % 2 === 0 ? '#ffffff' : '#faf9fc' }}>
+                <td style={{ fontFamily: font, fontSize: '10.5pt', color: ink2,    padding: '10px 14px', border, fontWeight: 500 }}>{tipo}</td>
+                <td style={{ fontFamily: font, fontSize: '11pt',   color: ink,     padding: '10px 14px', border, fontWeight: 800, textAlign: 'center' }}>{valor}</td>
+                <td style={{ fontFamily: font, fontSize: '9pt',    color: muted,   padding: '10px 14px', border, fontStyle: 'italic' }}>{obs}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         {parseFloat(d.valorMinimoMensal) > 0 && (
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #0f172a', borderRadius: '4px', padding: '12px 16px', marginBottom: '24px' }}>
-            <p style={{ fontFamily: sans, fontSize: '10.5pt', color: '#334155', margin: 0, lineHeight: '1.7' }}>
+          <div style={{ background: '#fff5f8', border: `1px solid ${brand}33`, borderLeft: `3px solid ${brand}`, borderRadius: '4px', padding: '12px 16px', marginBottom: '24px' }}>
+            <p style={{ fontFamily: font, fontSize: '10.5pt', color: ink2, margin: 0, lineHeight: '1.7' }}>
               <strong>Valor mínimo mensal:</strong>{' '}
-              <strong style={{ fontFamily: serif, fontSize: '12pt', color: '#0f172a' }}>{cur(d.valorMinimoMensal)}</strong>
+              <strong style={{ fontSize: '12pt', color: ink, fontWeight: 800 }}>{cur(d.valorMinimoMensal)}</strong>
               {' '}— cobrado caso as taxas devidas não atinjam este montante no período.
             </p>
           </div>
         )}
       </>)}
 
-      {/* ── Internacional ── */}
+      {/* Internacional */}
       {hasIntl && intlRows.length > 0 && (<>
-        <p style={{ fontFamily: sans, fontSize: '11pt', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+        <p style={{ fontFamily: font, fontSize: '11pt', fontWeight: 700, color: ink, marginBottom: '4px' }}>
           {showBrasil ? '3.' : '1.'} Precificação Internacional — Processamento Global
         </p>
-        <p style={{ fontFamily: sans, fontSize: '9pt', color: '#64748b', marginBottom: '12px' }}>
+        <p style={{ fontFamily: font, fontSize: '9pt', color: muted, marginBottom: '12px', lineHeight: '1.5' }}>
           Tarifas de processamento internacional via Stripe Connect.
         </p>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
           <thead>
-            <tr style={{ background: '#0f172a' }}>
-              <th style={{ fontFamily: sans, fontSize: '8.5pt', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#94a3b8', textAlign: 'left', padding: '11px 14px', border, width: '45%' }}>Serviço</th>
-              <th style={{ fontFamily: sans, fontSize: '8.5pt', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#f1f5f9', textAlign: 'left', padding: '11px 14px', border }}>Valor / Condição</th>
+            <tr style={{ background: ink }}>
+              <th style={{ fontFamily: font, fontSize: '8pt', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: muted,    textAlign: 'left', padding: '11px 14px', border, width: '45%' }}>Serviço</th>
+              <th style={{ fontFamily: font, fontSize: '8pt', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', textAlign: 'left', padding: '11px 14px', border }}>Valor / Condição</th>
             </tr>
           </thead>
           <tbody>
             {intlRows.map(([label, value], i) => (
-              <tr key={label} style={{ background: i % 2 === 0 ? '#ffffff' : '#fafbfc' }}>
-                <td style={{ fontFamily: sans,  fontSize: '10.5pt', color: '#334155', padding: '10px 14px', border, fontWeight: 500 }}>{label}</td>
-                <td style={{ fontFamily: serif, fontSize: '10.5pt', color: '#0f172a', fontWeight: 600,    padding: '10px 14px', border }}>{value}</td>
+              <tr key={label} style={{ background: i % 2 === 0 ? '#ffffff' : '#faf9fc' }}>
+                <td style={{ fontFamily: font, fontSize: '10.5pt', color: ink2, padding: '10px 14px', border, fontWeight: 500 }}>{label}</td>
+                <td style={{ fontFamily: font, fontSize: '10.5pt', color: ink,  padding: '10px 14px', border, fontWeight: 700 }}>{value}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3px solid #0f172a', borderRadius: '4px', padding: '10px 14px', marginBottom: '8px' }}>
-          <p style={{ fontFamily: sans, fontSize: '9pt', color: '#475569', margin: 0 }}>
+        <div style={{ background: '#fff5f8', border: `1px solid ${brand}33`, borderLeft: `3px solid ${brand}`, borderRadius: '4px', padding: '10px 14px', marginBottom: '8px' }}>
+          <p style={{ fontFamily: font, fontSize: '9pt', color: ink2, margin: 0 }}>
             <strong>Serviços incluídos:</strong> Processamento (Cartões, Wallets — Apple Pay/Google Pay) · Autenticação 3DS · Aceitação Adaptativa · Atualização de Cartão · Token de Rede · Connect · Antifraude
           </p>
         </div>
