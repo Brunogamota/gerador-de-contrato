@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MDRMatrix, BRANDS, BRAND_LABELS, BRAND_COLORS, INSTALLMENTS, BrandName, InstallmentNumber, IntlPricing } from '@/types/pricing';
 import { INSTALLMENT_LABELS } from '@/components/contract/document/formatters';
 import { MarginConfig } from '@/lib/pricing/margin';
 import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { updateMatrixEntry } from '@/lib/calculations/mdr';
 import { IntlPricingForm } from './IntlPricingForm';
+import { ForecastUpload } from './ForecastUpload';
+import { StrategyKey } from '@/lib/pricing/operationalScore';
 import { cn } from '@/lib/utils';
 
 type PricingMode = 'margin' | 'manual' | 'ai';
@@ -258,6 +260,7 @@ export function PricingStep({
   const [aiRationale, setAiRationale]     = useState('');
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [engineStep, setEngineStep]       = useState(0);
+  const [pendingStrategy, setPendingStrategy] = useState<StrategyKey | null>(null);
 
   const [intlAiLoading, setIntlAiLoading]         = useState(false);
   const [intlAiLevels, setIntlAiLevels]           = useState<Record<string, IntlSpreadLevel> | null>(null);
@@ -265,6 +268,15 @@ export function PricingStep({
   const [intlSelectedLevel, setIntlSelectedLevel] = useState<string | null>(null);
 
   const intlCostHasData = !!(intlCostPricing.processingRate && intlCostPricing.processingRate !== '' && intlCostPricing.processingRate !== '0.00');
+
+  // Auto-select the forecast-recommended strategy once engine levels are loaded
+  useEffect(() => {
+    if (pendingStrategy && aiLevels && aiLevels[pendingStrategy]) {
+      selectLevel(pendingStrategy);
+      setPendingStrategy(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiLevels, pendingStrategy]);
 
   async function handleAiSuggest() {
     setAiLoading(true); setAiLevels(null); setSelectedLevel(null); setAiRationale(''); setEngineStep(0);
@@ -418,6 +430,23 @@ export function PricingStep({
           {/* ── ENGINE ── */}
           {mode === 'ai' && (
             <div className="flex flex-col gap-5">
+              {/* Forecast upload */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-ink-600 uppercase tracking-wide">Análise de Forecast</p>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-brand/10 text-brand border border-brand/20">Opcional</span>
+                </div>
+                <p className="text-xs text-ink-500">Faça upload do Forecast Acquirer para obter uma recomendação automática de estratégia. Após gerar as 4 estratégias, a recomendada será pré-selecionada.</p>
+                <ForecastUpload
+                  disabled={aiLoading}
+                  onRecommendation={(strategy) => {
+                    setPendingStrategy(strategy);
+                    if (!aiLevels) handleAiSuggest();
+                    else if (aiLevels[strategy]) selectLevel(strategy);
+                  }}
+                />
+              </div>
+
               {/* Engine card */}
               <div className="p-5 rounded-2xl border border-ink-200 bg-ink-50 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
