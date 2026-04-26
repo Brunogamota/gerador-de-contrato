@@ -82,7 +82,7 @@ function buildLevel(
       const costEntry = costTable[brand]?.[inst];
       if (!costEntry?.mdrBase) continue;
 
-      const costFinal  = parseFloat(costEntry.finalMdr || costEntry.mdrBase) + parseFloat(costEntry.anticipationRate || '0');
+      const costFinal  = parseFloat(costEntry.finalMdr || costEntry.mdrBase);
       const spread     = getSpread(inst as number, clientType, fraction) + brandAdj;
       let   finalMdr   = costFinal + spread;
 
