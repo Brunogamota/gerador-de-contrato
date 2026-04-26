@@ -27,7 +27,9 @@ const OPERACIONAIS: FeeFieldDef[] = [
 ];
 
 const FINANCEIRAS: FeeFieldDef[] = [
-  { key: 'taxaAntecipacao', label: 'Taxa de Antecipação', hint: 'Quando solicitada pelo contratante', suffix: '%' },
+  { key: 'taxaAntecipacao',  label: 'Taxa de Antecipação',      hint: 'Quando solicitada pelo contratante',            suffix: '%' },
+  { key: 'limiteAntecipacao', label: 'Limite de Antecipação',   hint: 'Percentual máximo do volume antecipável',       suffix: '%' },
+  { key: 'taxa3ds',           label: 'Taxa de Autenticação 3DS', hint: 'Por tentativa de autenticação 3D Secure',      prefix: 'R$' },
 ];
 
 const RISCO: FeeFieldDef[] = [

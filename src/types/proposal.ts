@@ -75,6 +75,8 @@ export const DEFAULT_PROPOSAL_DATA: ProposalData = {
   taxaSplit: '0.00',
   taxaEstorno: '2.50',
   taxaAntecipacao: '1.45',
+  limiteAntecipacao: '100',
+  taxa3ds: '0.00',
   taxaPreChargeback: '0.00',
   taxaChargeback: '65.00',
   prazoRecebimento: 'D0',

@@ -152,6 +152,8 @@ export default function ProposalDetailPage() {
     taxaSplit:           proposal.taxaSplit,
     taxaEstorno:         proposal.taxaEstorno,
     taxaAntecipacao:     proposal.taxaAntecipacao,
+    limiteAntecipacao:   (proposal as unknown as Record<string, string>).limiteAntecipacao ?? '100',
+    taxa3ds:             (proposal as unknown as Record<string, string>).taxa3ds           ?? '0.00',
     taxaPreChargeback:   proposal.taxaPreChargeback,
     taxaChargeback:      proposal.taxaChargeback,
     prazoRecebimento:    proposal.prazoRecebimento,

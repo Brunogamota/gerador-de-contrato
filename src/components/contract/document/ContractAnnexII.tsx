@@ -46,8 +46,10 @@ export function ContractAnnexII({ d, mdrMatrix }: Props) {
     ['Taxa PIX Out',           cur(d.taxaPixOut),                                                'Por PIX enviado'],
     ['Taxa por Split',         cur(d.taxaSplit),                                                 'Por split criado'],
     ['Taxa por Estorno',       cur(d.taxaEstorno),                                               'Por estorno solicitado'],
-    ['Taxa de Antecipação',    `${parseFloat(d.taxaAntecipacao).toFixed(2).replace('.', ',')}%`, 'Quando solicitada'],
-    ['Taxa de Pré-Chargeback', cur(d.taxaPreChargeback),                                         'Por pré-chargeback'],
+    ['Taxa de Antecipação',      `${parseFloat(d.taxaAntecipacao).toFixed(2).replace('.', ',')}%`,  'Quando solicitada'],
+    ['Limite de Antecipação',    `${parseFloat(d.limiteAntecipacao ?? '100').toFixed(0)}%`,          'Do volume antecipável'],
+    ['Taxa de Autenticação 3DS', cur(d.taxa3ds ?? '0.00'),                                           'Por tentativa 3D Secure'],
+    ['Taxa de Pré-Chargeback',   cur(d.taxaPreChargeback),                                           'Por pré-chargeback'],
     ['Taxa de Chargeback',     cur(d.taxaChargeback),                                            'Por chargeback gerado'],
     ['Prazo de Recebimento',   d.prazoRecebimento,                                               'Dias úteis após a transação'],
   ];
