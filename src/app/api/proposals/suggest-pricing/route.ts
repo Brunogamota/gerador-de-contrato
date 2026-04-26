@@ -71,7 +71,6 @@ function buildLevel(
   levelKey: string,
   clientType: ClientType,
   costTable: MDRMatrix,
-  clientRates: MDRMatrix,
 ): MDRMatrix {
   const fraction = LEVEL_FRACTIONS[levelKey] ?? 0.5;
   let matrix = createEmptyMatrix();
@@ -85,15 +84,6 @@ function buildLevel(
       const costFinal  = parseFloat(costEntry.finalMdr || costEntry.mdrBase);
       const spread     = getSpread(inst as number, clientType, fraction) + brandAdj;
       let   finalMdr   = costFinal + spread;
-
-      // Must stay below client rate if provided
-      const clientEntry = clientRates?.[brand]?.[inst];
-      if (clientEntry?.finalMdr) {
-        const clientFinal = parseFloat(clientEntry.finalMdr);
-        if (finalMdr >= clientFinal) {
-          finalMdr = clientFinal * 0.97; // 3% below client rate
-        }
-      }
 
       // Never below cost
       if (finalMdr <= costFinal) finalMdr = costFinal + 0.20;
@@ -123,9 +113,8 @@ const RATIONALE: Record<ClientType, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { costTable, clientRates, mcc } = await req.json() as {
+    const { costTable, mcc } = await req.json() as {
       costTable: MDRMatrix;
-      clientRates?: MDRMatrix;
       mcc?: string;
     };
 
@@ -136,7 +125,7 @@ export async function POST(req: NextRequest) {
         key,
         {
           ...meta,
-          matrix: buildLevel(key, clientType, costTable, clientRates ?? createEmptyMatrix()),
+          matrix: buildLevel(key, clientType, costTable),
         },
       ]),
     );
