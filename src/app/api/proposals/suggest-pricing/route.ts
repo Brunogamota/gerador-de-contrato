@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MDRMatrix, BRANDS, INSTALLMENTS, BrandName, InstallmentNumber } from '@/types/pricing';
 import { createEmptyMatrix, updateMatrixEntry } from '@/lib/calculations/mdr';
+import { identifyHiddenMarginZones, BehavioralAnalysis } from '@/lib/pricing/behavioralModel';
+import type { OperationData } from '@/lib/pricing/operationalScore';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -27,14 +29,16 @@ function classifyClient(mcc: string): ClientType {
 
 // ── Strategy spread definitions ───────────────────────────────────────────────
 //
-// Spreads in percentage points above cost, defined explicitly per installment
-// band and per strategy.  These are BASE values for client type 'hibrido'.
-// Parcelador scales up (×1.15), À-vista scales down (×0.80).
+// These are BASE spreads above cost for the 'hibrido' client type.
+// The behavioral model (identifyHiddenMarginZones) replaces the uniform CLIENT_SCALE
+// with per-installment multipliers derived from the client's actual operation profile.
+//
+// When no operationData is provided, CLIENT_SCALE_FALLBACK provides backward compatibility.
 //
 // Strategy philosophy:
-//   low    (Conservador)  — mínima margem viável, maximiza conversão
-//   medium (Balanceado)   — equilíbrio conversão × margem
-//   high   (Agressivo)    — concentra margem no parcelado 7x–12x
+//   low    (Conservador)  — mínima margem viável; maximiza conversão; âncora competitiva
+//   medium (Balanceado)   — equilíbrio conversão × margem; spread progressivo
+//   high   (Agressivo)    — 1x mantido; concentra captura em 7x–12x
 //   max    (Máxima Marg.) — take rate máximo sustentável em todos os bands
 
 interface BandDef { from: number; to: number; spread: number }
@@ -55,10 +59,10 @@ const STRATEGY_BANDS: Record<string, BandDef[]> = {
     { from: 10, to: 12, spread: 3.00 },
   ],
   high: [
-    { from: 1,  to: 1,  spread: 0.65 },   // 1x mantido competitivo
+    { from: 1,  to: 1,  spread: 0.65 },
     { from: 2,  to: 3,  spread: 1.20 },
     { from: 4,  to: 6,  spread: 2.00 },
-    { from: 7,  to: 9,  spread: 3.50 },   // captura de margem concentrada aqui
+    { from: 7,  to: 9,  spread: 3.50 },
     { from: 10, to: 12, spread: 4.50 },
   ],
   max: [
@@ -70,27 +74,43 @@ const STRATEGY_BANDS: Record<string, BandDef[]> = {
   ],
 };
 
-// MCC-based multiplier applied on top of base spreads
-const CLIENT_SCALE: Record<ClientType, number> = {
+// Fallback: used when no operationData is provided (MCC-only mode)
+const CLIENT_SCALE_FALLBACK: Record<ClientType, number> = {
   parcelador: 1.15,
   hibrido:    1.00,
   'a-vista':  0.80,
 };
 
-// Brand premium over Visa/Mastercard (pp)
-const BRAND_ADJ: Record<BrandName, number> = {
+// Static brand premium fallback (used when no behavioral analysis)
+const BRAND_ADJ_FALLBACK: Record<BrandName, number> = {
   visa: 0, mastercard: 0, elo: 0.50, amex: 1.10, hipercard: 0.65,
 };
 
-function getSpread(strategy: string, inst: number, clientType: ClientType): number {
+function getBaseSpread(strategy: string, inst: number): number {
   const bands = STRATEGY_BANDS[strategy];
   if (!bands) return 0.50;
   const band = bands.find((b) => inst >= b.from && inst <= b.to);
-  const base = band?.spread ?? 0.50;
-  return +(base * CLIENT_SCALE[clientType]).toFixed(4);
+  return band?.spread ?? 0.50;
 }
 
-function buildLevel(strategy: string, clientType: ClientType, costTable: MDRMatrix): MDRMatrix {
+// ── Matrix builder ────────────────────────────────────────────────────────────
+//
+// When `analysis` is provided:
+//   spread(brand, inst) = baseSpread × installmentMultiplier[inst] + brandPremium[brand]
+//
+// When `analysis` is null (no operationData):
+//   spread(brand, inst) = baseSpread × CLIENT_SCALE_FALLBACK[clientType] + BRAND_ADJ_FALLBACK[brand]
+//
+// The behavioral multipliers are non-linear across installments — they compress the 1x
+// anchor (protect competitiveness) and expand 7–12x based on ticket opacity and
+// installment concentration signals.
+
+function buildLevel(
+  strategy:   string,
+  clientType: ClientType,
+  costTable:  MDRMatrix,
+  analysis:   BehavioralAnalysis | null,
+): MDRMatrix {
   let matrix = createEmptyMatrix();
 
   for (const brand of BRANDS as BrandName[]) {
@@ -98,9 +118,20 @@ function buildLevel(strategy: string, clientType: ClientType, costTable: MDRMatr
       const costEntry = costTable[brand]?.[inst];
       if (!costEntry?.mdrBase) continue;
 
-      const costFinal = parseFloat(costEntry.finalMdr || costEntry.mdrBase);
-      const spread    = getSpread(strategy, inst as number, clientType) + BRAND_ADJ[brand];
-      let   finalMdr  = costFinal + spread;
+      const costFinal  = parseFloat(costEntry.finalMdr || costEntry.mdrBase);
+      const baseSpread = getBaseSpread(strategy, inst as number);
+
+      // Behavioral: per-installment multiplier replaces uniform CLIENT_SCALE
+      const mult = analysis
+        ? (analysis.installmentMultipliers[inst as number] ?? 1.0)
+        : CLIENT_SCALE_FALLBACK[clientType];
+
+      // Behavioral: brand premium from analysis, or static fallback
+      const brandPrem = analysis
+        ? (analysis.brandPremium[brand] ?? 0)
+        : BRAND_ADJ_FALLBACK[brand];
+
+      let finalMdr = costFinal + baseSpread * mult + brandPrem;
 
       // Floor: never below cost + 0.10
       if (finalMdr <= costFinal) finalMdr = costFinal + 0.10;
@@ -133,36 +164,54 @@ function warnIfIdentical(levels: Record<string, { matrix: MDRMatrix }>) {
 const LEVEL_META = {
   low:    { label: 'Conservador',   description: 'Menor taxa viável — prioriza conversão e volume',       color: 'emerald' },
   medium: { label: 'Balanceado',    description: 'Equilíbrio entre conversão e margem',                   color: 'blue'    },
-  high:   { label: 'Agressivo',     description: 'Concentra margem no parcelado 7x–12x',                  color: 'amber'   },
+  high:   { label: 'Agressivo',     description: 'Concentra captura de margem em 7x–12x',                 color: 'amber'   },
   max:    { label: 'Máxima Margem', description: 'Take rate máximo sustentável — maior spread por faixa', color: 'rose'    },
 };
 
-const RATIONALE: Record<ClientType, string> = {
-  parcelador: 'Perfil parcelador (escala ×1.15): spread concentrado em 7–12x onde a sensibilidade é baixa.',
-  hibrido:    'Perfil híbrido (escala ×1.00): spread progressivo com captura crescente no parcelado.',
-  'a-vista':  'Perfil transacional (escala ×0.80): spread reduzido — cliente sensível a preço no 1x.',
+const RATIONALE_FALLBACK: Record<ClientType, string> = {
+  parcelador: 'Perfil parcelador (×1.15): spread concentrado em 7–12x onde a sensibilidade é baixa.',
+  hibrido:    'Perfil híbrido (×1.00): spread progressivo com captura crescente no parcelado.',
+  'a-vista':  'Perfil transacional (×0.80): spread reduzido — cliente sensível a preço no 1x.',
 };
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { costTable, mcc } = await req.json() as {
-      costTable: MDRMatrix;
-      mcc?: string;
+    const { costTable, mcc, operationData } = await req.json() as {
+      costTable:      MDRMatrix;
+      mcc?:           string;
+      operationData?: Partial<OperationData>;
     };
 
     const clientType = classifyClient(mcc ?? '');
 
+    // Run behavioral analysis when operationData is provided.
+    // Otherwise fall back to MCC-only CLIENT_SCALE (linear).
+    const analysis = operationData
+      ? identifyHiddenMarginZones(operationData as OperationData)
+      : null;
+
+    if (analysis) {
+      console.log('[suggest-pricing] behavioral mode — zones:', analysis.zones.map((z) => z.id).join(', '));
+    } else {
+      console.log('[suggest-pricing] linear mode (no operationData) — clientType:', clientType);
+    }
+
     const levels = Object.fromEntries(
       Object.entries(LEVEL_META).map(([key, meta]) => [
         key,
-        { ...meta, matrix: buildLevel(key, clientType, costTable) },
+        { ...meta, matrix: buildLevel(key, clientType, costTable, analysis) },
       ]),
     );
 
     warnIfIdentical(levels as Record<string, { matrix: MDRMatrix }>);
 
-    return NextResponse.json({ levels, rationale: RATIONALE[clientType] });
+    return NextResponse.json({
+      levels,
+      rationale:         analysis?.summary ?? RATIONALE_FALLBACK[clientType],
+      zones:             analysis?.zones ?? [],
+      behavioralActive:  !!analysis,
+    });
   } catch (err) {
     console.error('[suggest-pricing] error:', err);
     return NextResponse.json({ error: 'Falha ao calcular pricing' }, { status: 500 });

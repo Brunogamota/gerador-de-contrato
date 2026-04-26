@@ -8,7 +8,8 @@ import { computeMarginBreakdown, applyMargin } from '@/lib/pricing/margin';
 import { updateMatrixEntry } from '@/lib/calculations/mdr';
 import { IntlPricingForm } from './IntlPricingForm';
 import { ForecastUpload } from './ForecastUpload';
-import { StrategyKey } from '@/lib/pricing/operationalScore';
+import { StrategyKey, OperationData } from '@/lib/pricing/operationalScore';
+import type { MarginZone } from '@/lib/pricing/behavioralModel';
 import { cn } from '@/lib/utils';
 
 type PricingMode = 'margin' | 'manual' | 'ai';
@@ -100,6 +101,48 @@ function computeStats(cost: MDRMatrix, final: MDRMatrix): Stats | null {
   )[0]?.[0] ?? '—';
 
   return { avg, max, focusBand };
+}
+
+// ── Zone type metadata ────────────────────────────────────────────────────────
+const ZONE_META: Record<string, { label: string; color: string; badge: string }> = {
+  visible_anchor: { label: 'Âncora visível',   color: 'bg-red-50 border-red-200',     badge: 'bg-red-100 text-red-700'     },
+  transition:     { label: 'Transição',         color: 'bg-blue-50 border-blue-200',   badge: 'bg-blue-100 text-blue-700'   },
+  hidden_capture: { label: 'Captura oculta',   color: 'bg-emerald-50 border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
+  financial:      { label: 'Receita financeira', color: 'bg-violet-50 border-violet-200', badge: 'bg-violet-100 text-violet-700' },
+  brand_premium:  { label: 'Bandeira premium', color: 'bg-amber-50 border-amber-200', badge: 'bg-amber-100 text-amber-700' },
+};
+
+function ZoneCard({ zone }: { zone: MarginZone }) {
+  const meta = ZONE_META[zone.type] ?? ZONE_META.transition;
+  return (
+    <div className={cn('rounded-xl border p-3 flex flex-col gap-2', meta.color)}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-ink-800 flex-1 min-w-0">{zone.name}</span>
+        <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0', meta.badge)}>{meta.label}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-medium text-ink-500">Sensibilidade</span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 h-1.5 rounded-full bg-ink-200 overflow-hidden">
+              <div className="h-full rounded-full bg-red-400" style={{ width: `${zone.sensitivityScore}%` }} />
+            </div>
+            <span className="text-[10px] font-mono text-ink-500 w-6 text-right">{zone.sensitivityScore}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-medium text-ink-500">Oportunidade</span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 h-1.5 rounded-full bg-ink-200 overflow-hidden">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${zone.opportunityScore}%` }} />
+            </div>
+            <span className="text-[10px] font-mono text-ink-500 w-6 text-right">{zone.opportunityScore}</span>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-ink-600 leading-relaxed">{zone.rationale}</p>
+    </div>
+  );
 }
 
 // ── sub-components ────────────────────────────────────────────────────────────
@@ -261,6 +304,8 @@ export function PricingStep({
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [engineStep, setEngineStep]       = useState(0);
   const [pendingStrategy, setPendingStrategy] = useState<StrategyKey | null>(null);
+  const [forecastData, setForecastData]       = useState<OperationData | null>(null);
+  const [behavioralZones, setBehavioralZones] = useState<MarginZone[] | null>(null);
 
   const [intlAiLoading, setIntlAiLoading]         = useState(false);
   const [intlAiLevels, setIntlAiLevels]           = useState<Record<string, IntlSpreadLevel> | null>(null);
@@ -278,17 +323,24 @@ export function PricingStep({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiLevels, pendingStrategy]);
 
-  async function handleAiSuggest() {
-    setAiLoading(true); setAiLevels(null); setSelectedLevel(null); setAiRationale(''); setEngineStep(0);
+  async function handleAiSuggest(overrideOperationData?: OperationData | null) {
+    const opData = overrideOperationData !== undefined ? overrideOperationData : forecastData;
+    setAiLoading(true); setAiLevels(null); setSelectedLevel(null); setAiRationale(''); setBehavioralZones(null); setEngineStep(0);
     const iv = setInterval(() => setEngineStep((s) => (s + 1) % ENGINE_LOADING_STEPS.length), 300);
     try {
       const res = await fetch('/api/proposals/suggest-pricing', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ costTable, clientRates, mcc }),
+        body: JSON.stringify({ costTable, mcc, ...(opData ? { operationData: opData } : {}) }),
       });
       if (!res.ok) throw new Error();
-      const { levels, rationale } = await res.json() as { levels: Record<string, SpreadLevel>; rationale: string };
-      setAiLevels(levels); setAiRationale(rationale);
+      const { levels, rationale, zones } = await res.json() as {
+        levels:    Record<string, SpreadLevel>;
+        rationale: string;
+        zones?:    MarginZone[];
+      };
+      setAiLevels(levels);
+      setAiRationale(rationale);
+      if (zones?.length) setBehavioralZones(zones);
     } catch { alert('Erro ao gerar estratégias. Tente novamente.'); }
     finally { clearInterval(iv); setAiLoading(false); }
   }
@@ -439,9 +491,10 @@ export function PricingStep({
                 <p className="text-xs text-ink-500">Faça upload do Forecast Acquirer para obter uma recomendação automática de estratégia. Após gerar as 4 estratégias, a recomendada será pré-selecionada.</p>
                 <ForecastUpload
                   disabled={aiLoading}
-                  onRecommendation={(strategy) => {
+                  onRecommendation={(strategy, opData) => {
+                    setForecastData(opData);
                     setPendingStrategy(strategy);
-                    if (!aiLevels) handleAiSuggest();
+                    if (!aiLevels) handleAiSuggest(opData);
                     else if (aiLevels[strategy]) selectLevel(strategy);
                   }}
                 />
@@ -461,7 +514,7 @@ export function PricingStep({
                     {mcc && <p className="text-xs text-ink-400 mt-1">MCC: <span className="font-mono text-ink-600">{mcc}</span>{clientName && ` · ${clientName}`}</p>}
                   </div>
                 </div>
-                <button onClick={handleAiSuggest} disabled={aiLoading}
+                <button onClick={() => handleAiSuggest()} disabled={aiLoading}
                   className={cn('self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all',
                     aiLoading ? 'bg-ink-400 cursor-not-allowed' : 'bg-brand hover:bg-brand/90 shadow-sm')}
                 >
@@ -478,6 +531,19 @@ export function PricingStep({
                     <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
                       <span className="text-blue-400 flex-shrink-0">💡</span>
                       <p className="text-sm text-blue-800 leading-relaxed">{aiRationale}</p>
+                    </div>
+                  )}
+
+                  {/* Behavioral zones */}
+                  {behavioralZones && behavioralZones.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-semibold text-ink-600 uppercase tracking-wide">
+                        Zonas comportamentais
+                        <span className="ml-2 text-ink-400 font-normal normal-case">onde o pricing não é linear</span>
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {behavioralZones.map((z) => <ZoneCard key={z.id} zone={z} />)}
+                      </div>
                     </div>
                   )}
 

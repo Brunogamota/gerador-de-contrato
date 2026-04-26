@@ -20,8 +20,8 @@ interface Recommendation {
   missing: string[];
 }
 
-interface ForecastUploadProps {
-  onRecommendation: (strategy: StrategyKey) => void;
+export interface ForecastUploadProps {
+  onRecommendation: (strategy: StrategyKey, operationData: OperationData) => void;
   disabled?: boolean;
 }
 
@@ -56,17 +56,18 @@ export function ForecastUpload({ onRecommendation, disabled }: ForecastUploadPro
   const [loading, setLoading]                 = useState(false);
   const [error, setError]                     = useState<string | null>(null);
   const [rec, setRec]                         = useState<Recommendation | null>(null);
+  const [parsedOp, setParsedOp]               = useState<OperationData | null>(null);
   const [fileName, setFileName]               = useState<string | null>(null);
   const [showDetails, setShowDetails]         = useState(false);
 
   async function processFile(file: File) {
-    setLoading(true); setError(null); setRec(null); setFileName(file.name);
+    setLoading(true); setError(null); setRec(null); setParsedOp(null); setFileName(file.name);
 
     try {
       const buffer = await file.arrayBuffer();
       const { data, extracted, missing } = parseForecastFile(buffer);
 
-      // Build full OperationData with safe defaults for missing fields
+      // Build full OperationData with safe defaults for any missing fields
       const op: OperationData = {
         company: data.company ?? { legalName: '', tradeName: '', cnpj: '', businessModel: '', website: '' },
         volume: data.volume ?? { monthlyTpv: 0, projectedTpv12m: 0, monthlyTransactions: 0, averageTicket: 0 },
@@ -79,6 +80,7 @@ export function ForecastUpload({ onRecommendation, disabled }: ForecastUploadPro
         ...(data.observations ? { observations: data.observations } : {}),
       };
 
+      setParsedOp(op);
       const result = calculatePricingStrategyScore(op);
       setRec({ ...result, extracted, missing });
     } catch (e) {
@@ -226,8 +228,9 @@ export function ForecastUpload({ onRecommendation, disabled }: ForecastUploadPro
           {/* Apply button */}
           <button
             type="button"
-            onClick={() => onRecommendation(rec.strategy)}
-            className="self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand/90 shadow-sm transition-all"
+            onClick={() => parsedOp && onRecommendation(rec.strategy, parsedOp)}
+            disabled={!parsedOp}
+            className="self-start flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand hover:bg-brand/90 shadow-sm transition-all disabled:opacity-50"
           >
             Aplicar estratégia {rec.label}
           </button>
