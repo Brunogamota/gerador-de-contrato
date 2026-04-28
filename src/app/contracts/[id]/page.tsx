@@ -4,7 +4,7 @@ import { getPrisma } from '@/lib/db';
 import { MDRMatrix } from '@/types/pricing';
 import { ContractDocument } from '@/components/contract/ContractDocument';
 import { ContractData } from '@/types/contract';
-import { PrintButton } from '@/components/contract/PrintButton';
+import { ContractActions } from '@/components/contract/ContractActions';
 import { SignaturePanel } from '@/components/contract/SignaturePanel';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,6 @@ async function getContract(id: string) {
   const prisma = getPrisma();
   if (!prisma) return null;
   try {
-    // try primary key first, then contractNumber as fallback
     const byId = await prisma.contract.findUnique({ where: { id } });
     if (byId) return byId;
     return await prisma.contract.findUnique({ where: { contractNumber: id } });
@@ -27,11 +26,14 @@ export default async function ContractDetailPage({ params }: { params: { id: str
   const contract = await getContract(params.id);
   if (!contract) notFound();
 
+  const raw = contract as unknown as Record<string, string>;
+
   const contractData: ContractData = {
-    contratanteNome: contract.contratanteNome,
-    contratanteCnpj: contract.contratanteCnpj,
+    contratanteNome:     contract.contratanteNome,
+    contratanteCnpj:     contract.contratanteCnpj,
+    contratanteSite:     raw.contratanteSite     ?? '',
     contratanteEndereco: contract.contratanteEndereco,
-    contratanteEmail: contract.contratanteEmail,
+    contratanteEmail:    contract.contratanteEmail,
     contratanteTelefone: contract.contratanteTelefone,
     repLegalNome:     contract.repLegalNome     ?? '',
     repLegalCpf:      contract.repLegalCpf      ?? '',
@@ -39,31 +41,31 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     repLegalEmail:    contract.repLegalEmail     ?? '',
     repLegalTelefone: contract.repLegalTelefone ?? '',
     repLegalCargo:    contract.repLegalCargo    ?? '',
-    dataInicio: contract.dataInicio,
+    dataInicio:    contract.dataInicio,
     vigenciaMeses: contract.vigenciaMeses,
-    foro: contract.foro,
-    setup: contract.setup,
-    feeTransacao: contract.feeTransacao,
+    foro:          contract.foro,
+    setup:          contract.setup,
+    feeTransacao:   contract.feeTransacao,
     taxaAntifraude: contract.taxaAntifraude,
-    taxaPix: contract.taxaPix,
-    taxaPixOut: contract.taxaPixOut,
-    taxaSplit: contract.taxaSplit,
-    taxaEstorno: contract.taxaEstorno,
-    taxaAntecipacao:   contract.taxaAntecipacao,
-    limiteAntecipacao: (contract as unknown as Record<string, string>).limiteAntecipacao ?? '100',
-    taxa3ds:           (contract as unknown as Record<string, string>).taxa3ds           ?? '0.00',
+    taxaPix:        contract.taxaPix,
+    taxaPixOut:     contract.taxaPixOut,
+    taxaSplit:      contract.taxaSplit,
+    taxaEstorno:      contract.taxaEstorno,
+    taxaAntecipacao:  contract.taxaAntecipacao,
+    limiteAntecipacao: raw.limiteAntecipacao ?? '100',
+    taxa3ds:           raw.taxa3ds           ?? '0.00',
     taxaPreChargeback: contract.taxaPreChargeback,
-    taxaChargeback: contract.taxaChargeback,
-    prazoRecebimento: contract.prazoRecebimento,
+    taxaChargeback:    contract.taxaChargeback,
+    prazoRecebimento:  contract.prazoRecebimento,
     valorMinimoMensal: contract.valorMinimoMensal,
   };
 
   const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');
 
-  const zapSignStatus = (contract as Record<string, unknown>).zapSignStatus as string | null | undefined;
-  const zapSignSigners = (contract as Record<string, unknown>).zapSignSigners as string | null | undefined;
-  const sentForSignatureAt = (contract as Record<string, unknown>).sentForSignatureAt as Date | null | undefined;
-  const signedAt = (contract as Record<string, unknown>).signedAt as Date | null | undefined;
+  const zapSignStatus      = (contract as Record<string, unknown>).zapSignStatus      as string | null | undefined;
+  const zapSignSigners     = (contract as Record<string, unknown>).zapSignSigners     as string | null | undefined;
+  const sentForSignatureAt = (contract as Record<string, unknown>).sentForSignatureAt as Date   | null | undefined;
+  const signedAt           = (contract as Record<string, unknown>).signedAt           as Date   | null | undefined;
 
   const statusMap: Record<string, { label: string; color: string }> = {
     draft:  { label: 'Rascunho', color: 'bg-white/10 text-white/60' },
@@ -84,9 +86,7 @@ export default async function ContractDetailPage({ params }: { params: { id: str
           <h1 className="text-2xl font-bold text-white">{contract.contratanteNome}</h1>
           <p className="text-sm text-white/40 font-mono mt-1">{contract.contractNumber}</p>
         </div>
-        <div className="flex gap-2">
-          <PrintButton />
-        </div>
+        <ContractActions contractNumber={contract.contractNumber} />
       </div>
 
       {/* Signature panel */}

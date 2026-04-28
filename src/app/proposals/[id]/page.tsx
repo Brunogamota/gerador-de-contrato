@@ -132,6 +132,7 @@ export default function ProposalDetailPage() {
   const proposalData: ProposalData = {
     contratanteNome:     proposal.contratanteNome,
     contratanteCnpj:     proposal.contratanteCnpj,
+    contratanteSite:     (proposal as unknown as Record<string, string>).contratanteSite ?? '',
     contratanteEndereco: proposal.contratanteEndereco,
     contratanteEmail:    proposal.contratanteEmail,
     contratanteTelefone: proposal.contratanteTelefone,

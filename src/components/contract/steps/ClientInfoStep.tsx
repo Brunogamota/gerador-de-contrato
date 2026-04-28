@@ -11,6 +11,15 @@ interface ClientInfoStepProps {
   form: UseFormReturn<ContractData>;
 }
 
+interface CnpjResult {
+  nome:     string;
+  fantasia: string;
+  endereco: string;
+  email:    string;
+  telefone: string;
+  situacao: string;
+}
+
 export function ClientInfoStep({ form }: ClientInfoStepProps) {
   const {
     register,
@@ -22,6 +31,45 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
   const [showRepLegal, setShowRepLegal] = useState(
     !!(watch('repLegalNome') || watch('repLegalCpf'))
   );
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [cnpjFeedback, setCnpjFeedback] = useState<{ type: 'ok' | 'error'; msg: string } | null>(null);
+
+  async function handleCnpjLookup() {
+    const rawCnpj = watch('contratanteCnpj').replace(/\D/g, '');
+    if (rawCnpj.length !== 14) {
+      setCnpjFeedback({ type: 'error', msg: 'Preencha o CNPJ com 14 dígitos antes de buscar.' });
+      return;
+    }
+    setCnpjLoading(true);
+    setCnpjFeedback(null);
+
+    try {
+      const res = await fetch(`/api/cnpj/${rawCnpj}`);
+      const data: CnpjResult & { error?: string } = await res.json();
+
+      if (!res.ok || data.error) {
+        setCnpjFeedback({ type: 'error', msg: data.error ?? 'CNPJ não encontrado.' });
+        return;
+      }
+
+      if (data.nome)     setValue('contratanteNome',     data.nome);
+      if (data.endereco) setValue('contratanteEndereco', data.endereco);
+      if (data.email)    setValue('contratanteEmail',    data.email);
+      if (data.telefone) setValue('contratanteTelefone', data.telefone);
+
+      const situacaoNote = data.situacao && data.situacao !== 'ATIVA'
+        ? ` — situação: ${data.situacao}`
+        : '';
+      setCnpjFeedback({
+        type: 'ok',
+        msg: `Dados preenchidos: ${data.nome}${situacaoNote}`,
+      });
+    } catch {
+      setCnpjFeedback({ type: 'error', msg: 'Falha ao conectar com a Receita Federal.' });
+    } finally {
+      setCnpjLoading(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -42,13 +90,46 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
           />
         </div>
 
-        <Input
-          label="CNPJ / CPF"
-          placeholder="00.000.000/0001-00"
-          error={errors.contratanteCnpj?.message}
-          value={watch('contratanteCnpj')}
-          onChange={(e) => setValue('contratanteCnpj', formatCnpj(e.target.value))}
-        />
+        {/* CNPJ + buscar */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+            CNPJ / CPF
+          </label>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 transition-all"
+              placeholder="00.000.000/0001-00"
+              value={watch('contratanteCnpj')}
+              onChange={(e) => {
+                setValue('contratanteCnpj', formatCnpj(e.target.value));
+                setCnpjFeedback(null);
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleCnpjLookup}
+              disabled={cnpjLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-brand/40 text-brand bg-brand/10 hover:bg-brand/20 disabled:opacity-50 transition-all flex-shrink-0"
+            >
+              {cnpjLoading ? (
+                <div className="w-3.5 h-3.5 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              )}
+              Buscar
+            </button>
+          </div>
+          {cnpjFeedback && (
+            <p className={`text-xs mt-0.5 ${cnpjFeedback.type === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>
+              {cnpjFeedback.msg}
+            </p>
+          )}
+          {errors.contratanteCnpj && (
+            <p className="text-xs text-red-400 mt-0.5">{errors.contratanteCnpj.message}</p>
+          )}
+        </div>
 
         <Input
           label="Telefone"
@@ -73,6 +154,14 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
           placeholder="contato@empresa.com.br"
           error={errors.contratanteEmail?.message}
           {...register('contratanteEmail')}
+        />
+
+        <Input
+          label="Site"
+          type="url"
+          placeholder="https://empresa.com.br"
+          error={errors.contratanteSite?.message}
+          {...register('contratanteSite')}
         />
       </div>
 

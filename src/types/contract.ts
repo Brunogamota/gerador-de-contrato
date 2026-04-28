@@ -4,6 +4,7 @@ import { MDRMatrix } from './pricing';
 export const ContractDataSchema = z.object({
   contratanteNome: z.string().default(''),
   contratanteCnpj: z.string().default(''),
+  contratanteSite: z.string().default(''),
   contratanteEndereco: z.string().default(''),
   contratanteEmail: z.string().default(''),
   contratanteTelefone: z.string().default(''),
@@ -57,6 +58,7 @@ export interface ContractRecord {
 export const DEFAULT_CONTRACT_DATA: ContractData = {
   contratanteNome: '',
   contratanteCnpj: '',
+  contratanteSite: '',
   contratanteEndereco: '',
   contratanteEmail: '',
   contratanteTelefone: '',

@@ -55,6 +55,7 @@ export const PROPOSAL_STATUS_LABELS: Record<ProposalStatus, { label: string; col
 export const DEFAULT_PROPOSAL_DATA: ProposalData = {
   contratanteNome: '',
   contratanteCnpj: '',
+  contratanteSite: '',
   contratanteEndereco: '',
   contratanteEmail: '',
   contratanteTelefone: '',

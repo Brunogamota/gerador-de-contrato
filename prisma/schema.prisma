@@ -16,6 +16,7 @@ model Contract {
   // Contratante
   contratanteNome      String
   contratanteCnpj      String
+  contratanteSite      String @default("")
   contratanteEndereco  String
   contratanteEmail     String
   contratanteTelefone  String
@@ -79,6 +80,7 @@ model Proposal {
   // Contratante
   contratanteNome      String
   contratanteCnpj      String
+  contratanteSite      String @default("")
   contratanteEndereco  String
   contratanteEmail     String
   contratanteTelefone  String
