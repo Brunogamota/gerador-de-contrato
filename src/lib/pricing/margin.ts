@@ -27,7 +27,7 @@ export function applyMargin(costTable: MDRMatrix, config: MarginConfig): MDRMatr
 
   for (const brand of BRANDS as BrandName[]) {
     for (const inst of INSTALLMENTS as unknown as InstallmentNumber[]) {
-      const entry = costTable[brand][inst];
+      const entry = costTable[brand]?.[inst];
       if (!entry?.mdrBase) continue;
 
       const cost = new Decimal(entry.mdrBase);
@@ -68,8 +68,8 @@ export function computeMarginBreakdown(
   brand: BrandName,
   inst: InstallmentNumber,
 ): MarginBreakdown | null {
-  const costEntry = costTable[brand][inst];
-  const finalEntry = finalTable[brand][inst];
+  const costEntry = costTable[brand]?.[inst];
+  const finalEntry = finalTable[brand]?.[inst];
   if (!costEntry?.mdrBase || !finalEntry?.mdrBase) return null;
 
   const cost = new Decimal(costEntry.finalMdr || costEntry.mdrBase);
