@@ -82,6 +82,8 @@ export const DEFAULT_PROPOSAL_DATA: ProposalData = {
   taxaChargeback: '65.00',
   prazoRecebimento: 'D0',
   valorMinimoMensal: '0.00',
+  lojas: '',
+  volumeAnualNegociado: '',
   mcc: '',
   tipoMercado: 'brasil' as const,
   validadeAte: '',

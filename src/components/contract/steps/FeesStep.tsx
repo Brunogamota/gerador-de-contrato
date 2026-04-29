@@ -113,6 +113,23 @@ export function FeesStep({ form }: FeesStepProps) {
       </div>
 
       <GroupSection title="Risco e Disputas" icon="⚠" fields={RISCO} register={register} />
+
+      {/* Volume anual negociado */}
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
+          <span className="text-base">📋</span>
+          <h3 className="text-sm font-semibold text-white">Condições Comerciais</h3>
+        </div>
+        <div className="p-5">
+          <Input
+            label="Volume Anual Negociado"
+            hint="As taxas são condicionadas a este volume. Aparece no contrato."
+            prefix="R$"
+            placeholder="1.000.000,00"
+            {...register('volumeAnualNegociado')}
+          />
+        </div>
+      </div>
     </div>
   );
 }

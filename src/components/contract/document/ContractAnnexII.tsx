@@ -154,9 +154,22 @@ export function ContractAnnexII({ d, mdrMatrix }: Props) {
         </tbody>
       </table>
 
-      {/* ── 3. Minimum monthly ── */}
+      {/* ── 3. Volume Condition ── */}
+      {d.volumeAnualNegociado && (
+        <div style={{ marginBottom: '24px', background: '#f0f4ff', border: '1px solid #c7d4f0', borderLeft: `3px solid #4a6cf7`, borderRadius: '4px', padding: '12px 16px' }}>
+          <p style={{ fontFamily: font, fontSize: '10.5pt', color: ink2, margin: 0, lineHeight: '1.7' }}>
+            <strong>Condição Comercial:</strong> As taxas e tarifas constantes neste Anexo II são condicionadas ao volume anual negociado de{' '}
+            <strong style={{ fontSize: '12pt', color: ink, fontWeight: 800 }}>
+              R$ {d.volumeAnualNegociado}
+            </strong>
+            . Em caso de descumprimento do volume mínimo acordado, a REBORN reserva-se o direito de revisar as condições comerciais mediante aviso prévio de 30 (trinta) dias.
+          </p>
+        </div>
+      )}
+
+      {/* ── 4. Minimum monthly ── */}
       <p style={{ fontFamily: font, fontSize: '11pt', fontWeight: 700, color: ink, marginBottom: '8px' }}>
-        3. Valor Mínimo Mensal
+        {d.volumeAnualNegociado ? '4.' : '3.'} Valor Mínimo Mensal
       </p>
       <div style={{ background: '#fff5f8', border: `1px solid ${brand}33`, borderLeft: `3px solid ${brand}`, borderRadius: '4px', padding: '12px 16px' }}>
         <p style={{ fontFamily: font, fontSize: '10.5pt', color: ink2, margin: 0, lineHeight: '1.7' }}>

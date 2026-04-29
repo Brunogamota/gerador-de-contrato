@@ -35,6 +35,9 @@ export const ContractDataSchema = z.object({
   taxaChargeback: z.string().default('65.00'),
   prazoRecebimento: z.string().default('D0'),
   valorMinimoMensal: z.string().default('0.00'),
+
+  lojas: z.string().default(''),
+  volumeAnualNegociado: z.string().default(''),
 });
 
 export type ContractData = z.infer<typeof ContractDataSchema>;
@@ -85,4 +88,7 @@ export const DEFAULT_CONTRACT_DATA: ContractData = {
   taxaChargeback: '65.00',
   prazoRecebimento: 'D0',
   valorMinimoMensal: '0.00',
+
+  lojas: '',
+  volumeAnualNegociado: '',
 };

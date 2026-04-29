@@ -163,6 +163,19 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
           error={errors.contratanteSite?.message}
           {...register('contratanteSite')}
         />
+
+        <div className="md:col-span-2">
+          <label className="block text-xs font-semibold text-white/60 uppercase tracking-wide mb-1.5">
+            Lojas / Estabelecimentos <span className="text-white/30 normal-case font-normal">(opcional)</span>
+          </label>
+          <textarea
+            className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 transition-all resize-none"
+            placeholder={"Loja Centro\nLoja Shopping Iguatemi\nLoja Online"}
+            rows={3}
+            {...register('lojas')}
+          />
+          <p className="text-xs text-white/30 mt-1">Uma loja por linha. Aparece no contrato como lista de estabelecimentos.</p>
+        </div>
       </div>
 
       {/* Representante Legal */}

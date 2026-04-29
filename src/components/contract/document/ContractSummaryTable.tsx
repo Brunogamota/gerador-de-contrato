@@ -27,6 +27,16 @@ export function ContractSummaryTable({ d, contractNumber }: Props) {
           <tr><td className={TH}>Data de Início</td><td className={TD}>{d.dataInicio}</td></tr>
           <tr><td className={TH}>Vigência</td><td className={TD}>{d.vigenciaMeses} meses, renovação automática</td></tr>
           <tr><td className={TH}>Foro</td><td className={TD}>Comarca de {d.foro}</td></tr>
+          {d.lojas && (
+            <tr>
+              <td className={TH}>Estabelecimentos</td>
+              <td className={TD}>
+                {d.lojas.split('\n').filter(Boolean).map((loja, i) => (
+                  <span key={i} style={{ display: 'block' }}>{loja.trim()}</span>
+                ))}
+              </td>
+            </tr>
+          )}
           {d.repLegalNome && (
             <tr>
               <td className={TH}>Representante Legal</td>
