@@ -8,7 +8,6 @@ import { MDRMatrix } from '@/types/pricing';
 import { validateMatrix } from '@/lib/calculations/validation';
 import { ClientInfoStep } from './steps/ClientInfoStep';
 import { MDRStep } from './steps/MDRStep';
-import { FeesStep } from './steps/FeesStep';
 import { STEPS, StepId } from './wizard/steps';
 import { WizardStepIndicator } from './wizard/WizardStepIndicator';
 import { WizardNavigation } from './wizard/WizardNavigation';
@@ -84,7 +83,6 @@ export function ContractEditWizard({
       <div className="bg-[#18181B] rounded-2xl border border-white/[0.06] shadow-card p-6 md:p-8">
         {currentStep === 'client'  && <ClientInfoStep form={form} />}
         {currentStep === 'mdr'     && <MDRStep matrix={mdrMatrix} onChange={setMdrMatrix} />}
-        {currentStep === 'fees'    && <FeesStep form={form} />}
         {currentStep === 'preview' && (
           <div className="flex flex-col gap-6">
             <div className="flex items-start justify-between gap-4 flex-wrap">

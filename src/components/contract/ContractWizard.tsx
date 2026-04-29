@@ -10,7 +10,6 @@ import { validateMatrix } from '@/lib/calculations/validation';
 import { generateContractNumber } from '@/lib/utils';
 import { ClientInfoStep } from './steps/ClientInfoStep';
 import { MDRStep } from './steps/MDRStep';
-import { FeesStep } from './steps/FeesStep';
 import { PreviewStep } from './steps/PreviewStep';
 import { STEPS, StepId } from './wizard/steps';
 import { WizardStepIndicator } from './wizard/WizardStepIndicator';
@@ -72,7 +71,6 @@ export function ContractWizard() {
         {currentStep === 'mdr' && (
           <MDRStep matrix={mdrMatrix} onChange={setMdrMatrix} />
         )}
-        {currentStep === 'fees' && <FeesStep form={form} />}
         {currentStep === 'preview' && (
           <PreviewStep
             contractData={form.getValues()}

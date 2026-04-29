@@ -276,6 +276,98 @@ export function ClientInfoStep({ form }: ClientInfoStepProps) {
           {...register('foro')}
         />
       </div>
+
+      <hr className="border-white/[0.06]" />
+
+      {/* ── Taxas e Tarifas ─────────────────────────────────────────── */}
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-1">Taxas e Tarifas</h2>
+        <p className="text-sm text-white/50">Configure os valores cobrados — refletidos no Anexo II do contrato.</p>
+      </div>
+
+      {/* Operacionais */}
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
+          <span className="text-base">⚙</span>
+          <h3 className="text-sm font-semibold text-white">Operacionais</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
+          {[
+            { key: 'setup',          label: 'Setup',             hint: 'Valor único cobrado na assinatura',        prefix: 'R$' },
+            { key: 'feeTransacao',   label: 'Fee por Transação', hint: 'Por cada transação processada',            prefix: 'R$' },
+            { key: 'taxaAntifraude', label: 'Taxa Antifraude',   hint: 'Por transação verificada pelo antifraude', prefix: 'R$' },
+            { key: 'taxaPix',        label: 'Taxa PIX In',       hint: 'Por cada transação PIX recebida',          prefix: 'R$' },
+            { key: 'taxaPixOut',     label: 'Taxa PIX Out',      hint: 'Por cada PIX enviado',                     prefix: 'R$' },
+            { key: 'taxaSplit',      label: 'Taxa por Split',    hint: 'Por cada operação de split criada',        prefix: 'R$' },
+          ].map(({ key, label, hint, prefix }) => (
+            <Input key={key} label={label} hint={hint} prefix={prefix}
+              type="text" inputMode="decimal" placeholder="0.00"
+              {...register(key as keyof ContractData)} />
+          ))}
+        </div>
+      </div>
+
+      {/* Financeiras */}
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
+          <span className="text-base">📅</span>
+          <h3 className="text-sm font-semibold text-white">Financeiras</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
+          {[
+            { key: 'taxaAntecipacao',   label: 'Taxa de Antecipação',      hint: 'Quando solicitada pelo contratante',       suffix: '%' },
+            { key: 'limiteAntecipacao', label: 'Limite de Antecipação',    hint: 'Percentual máximo do volume antecipável',  suffix: '%' },
+            { key: 'taxa3ds',           label: 'Taxa de Autenticação 3DS', hint: 'Por tentativa de autenticação 3D Secure',  prefix: 'R$' },
+          ].map(({ key, label, hint, prefix, suffix }) => (
+            <Input key={key} label={label} hint={hint} prefix={prefix} suffix={suffix}
+              type="text" inputMode="decimal" placeholder="0.00"
+              {...register(key as keyof ContractData)} />
+          ))}
+          <Select label="Prazo de Recebimento" {...register('prazoRecebimento')}>
+            <option value="D0">D+0 (mesmo dia)</option>
+            <option value="D1">D+1 (1 dia útil)</option>
+            <option value="D2">D+2 (2 dias úteis)</option>
+            <option value="D30">D+30 (30 dias)</option>
+          </Select>
+        </div>
+      </div>
+
+      {/* Risco e Disputas */}
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
+          <span className="text-base">⚠</span>
+          <h3 className="text-sm font-semibold text-white">Risco e Disputas</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
+          {[
+            { key: 'taxaEstorno',       label: 'Taxa de Estorno',      hint: 'Por cada estorno solicitado',          prefix: 'R$' },
+            { key: 'taxaPreChargeback', label: 'Taxa Pré-Chargeback',  hint: 'Por cada pré-chargeback recebido',     prefix: 'R$' },
+            { key: 'taxaChargeback',    label: 'Taxa de Chargeback',   hint: 'Por cada chargeback gerado',           prefix: 'R$' },
+            { key: 'valorMinimoMensal', label: 'Valor Mínimo Mensal', hint: 'Cobrança mínima se o volume for baixo', prefix: 'R$' },
+          ].map(({ key, label, hint, prefix }) => (
+            <Input key={key} label={label} hint={hint} prefix={prefix}
+              type="text" inputMode="decimal" placeholder="0.00"
+              {...register(key as keyof ContractData)} />
+          ))}
+        </div>
+      </div>
+
+      {/* Condições Comerciais */}
+      <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-5 py-3.5 bg-white/[0.04] border-b border-white/[0.08]">
+          <span className="text-base">📋</span>
+          <h3 className="text-sm font-semibold text-white">Condições Comerciais</h3>
+        </div>
+        <div className="p-5">
+          <Input
+            label="Volume Anual Negociado"
+            hint="As taxas são condicionadas a este volume. Aparece no contrato."
+            prefix="R$"
+            placeholder="1.000.000,00"
+            {...register('volumeAnualNegociado')}
+          />
+        </div>
+      </div>
     </div>
   );
 }
