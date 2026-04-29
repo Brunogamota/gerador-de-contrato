@@ -58,6 +58,8 @@ export default async function ContractDetailPage({ params }: { params: { id: str
     taxaChargeback:    contract.taxaChargeback,
     prazoRecebimento:  contract.prazoRecebimento,
     valorMinimoMensal: contract.valorMinimoMensal,
+    lojas:                raw.lojas                ?? '',
+    volumeAnualNegociado: raw.volumeAnualNegociado ?? '',
   };
 
   const mdrMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');

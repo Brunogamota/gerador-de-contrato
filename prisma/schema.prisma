@@ -42,6 +42,9 @@ model Contract {
   prazoRecebimento   String @default("D0")
   valorMinimoMensal  String @default("0.00")
 
+  lojas                String @default("")
+  volumeAnualNegociado String @default("")
+
   // Representante legal (opcional)
   repLegalNome     String? @default("")
   repLegalCpf      String? @default("")
@@ -108,6 +111,9 @@ model Proposal {
   taxaChargeback     String @default("65.00")
   prazoRecebimento   String @default("D0")
   valorMinimoMensal  String @default("0.00")
+
+  lojas                String @default("")
+  volumeAnualNegociado String @default("")
 
   // MCC do cliente
   mcc String? @default("")

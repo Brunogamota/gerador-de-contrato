@@ -159,6 +159,8 @@ export default function ProposalDetailPage() {
     taxaChargeback:      proposal.taxaChargeback,
     prazoRecebimento:    proposal.prazoRecebimento,
     valorMinimoMensal:   proposal.valorMinimoMensal,
+    lojas:               (proposal as unknown as Record<string, string>).lojas                ?? '',
+    volumeAnualNegociado:(proposal as unknown as Record<string, string>).volumeAnualNegociado ?? '',
     mcc:                 proposal.mcc          ?? '',
     tipoMercado:         (proposal.tipoMercado as 'brasil' | 'intl' | 'both') ?? 'brasil',
     validadeAte:         proposal.validadeAte,

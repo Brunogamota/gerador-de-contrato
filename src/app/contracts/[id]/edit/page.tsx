@@ -46,6 +46,8 @@ export default async function ContractEditPage({ params }: { params: { id: strin
     taxaChargeback:      contract.taxaChargeback,
     prazoRecebimento:    contract.prazoRecebimento,
     valorMinimoMensal:   contract.valorMinimoMensal,
+    lojas:                raw.lojas                ?? '',
+    volumeAnualNegociado: raw.volumeAnualNegociado ?? '',
   };
 
   const initialMatrix: MDRMatrix = JSON.parse(contract.mdrMatrix || '{}');
