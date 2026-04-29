@@ -112,14 +112,12 @@ export default async function ProposalsPage() {
                             Contrato
                           </Link>
                         )}
-                        {!p.contractId && (
-                          <Link
-                            href={`/proposals/${p.id}/edit`}
-                            className="text-sky-400 hover:text-sky-300 text-xs font-medium transition-colors"
-                          >
-                            Editar
-                          </Link>
-                        )}
+                        <Link
+                          href={`/proposals/${p.id}/edit`}
+                          className="text-sky-400 hover:text-sky-300 text-xs font-medium transition-colors"
+                        >
+                          Editar
+                        </Link>
                         <Link
                           href={`/proposals/${p.id}`}
                           className="text-brand hover:text-brand-400 text-sm font-medium transition-colors"
