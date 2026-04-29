@@ -21,6 +21,7 @@ import { ProposalNavigation } from './wizard/ProposalNavigation';
 import { useProposalSave } from './wizard/useProposalSave';
 import { ContractData } from '@/types/contract';
 import { UseFormReturn } from 'react-hook-form';
+import { ProposalImportBanner } from '@/components/contract/ProposalImportBanner';
 
 export interface ProposalInitialData {
   formData: ProposalData;
@@ -139,6 +140,14 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
   const contractForm = form as unknown as UseFormReturn<ContractData>;
   const mccValue = form.watch('mcc') ?? '';
   const clientNameValue = form.watch('contratanteNome') ?? '';
+
+  function handleProposalImport(data: ContractData, matrix: MDRMatrix) {
+    const validadeAte = form.getValues('validadeAte');
+    const observacoes = form.getValues('observacoes');
+    form.reset({ ...data, validadeAte, observacoes } as ProposalData);
+    setFinalMatrix(matrix);
+    setCostTable(createEmptyMatrix());
+  }
   const clientName = clientNameValue;
   const statusLabel = editId ? 'Rascunho' : 'Nova';
 
@@ -199,6 +208,11 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
       )}
 
       <div className="flex-1 py-6">
+        {currentStep === 'info' && (
+          <div className="mb-4">
+            <ProposalImportBanner onImport={handleProposalImport} />
+          </div>
+        )}
         {currentStep === 'info' && <ProposalInfoStep form={form} />}
         {currentStep === 'cost' && (
           <CostStep
