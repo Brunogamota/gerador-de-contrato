@@ -15,6 +15,7 @@ import { STEPS, StepId } from './wizard/steps';
 import { WizardStepIndicator } from './wizard/WizardStepIndicator';
 import { WizardNavigation } from './wizard/WizardNavigation';
 import { useContractSave } from './wizard/useContractSave';
+import { ProposalImportBanner } from './ProposalImportBanner';
 
 export function ContractWizard() {
   const [currentStep, setCurrentStep] = useState<StepId>('client');
@@ -58,8 +59,15 @@ export function ContractWizard() {
     if (prevIdx >= 0) setCurrentStep(STEPS[prevIdx].id);
   }
 
+  function handleProposalImport(data: ContractData, matrix: MDRMatrix) {
+    form.reset(data);
+    setMdrMatrix(matrix);
+  }
+
   return (
     <div className="flex flex-col gap-6 min-h-screen pb-12">
+      <ProposalImportBanner onImport={handleProposalImport} />
+
       <WizardStepIndicator
         currentStep={currentStep}
         stepIndex={stepIndex}

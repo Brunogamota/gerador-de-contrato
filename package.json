@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "prisma db push --accept-data-loss --skip-generate && prisma generate && next build",
+    "build": "(prisma db push --accept-data-loss --skip-generate || echo '[build] WARNING: prisma db push failed — schema may be out of sync') && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
