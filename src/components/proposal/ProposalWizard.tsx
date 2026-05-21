@@ -73,10 +73,21 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
     try {
       const res = await fetch('/api/cost-profiles');
       if (!res.ok) return;
-      const profiles: Array<{ name: string; mcc: string; mdrMatrix: string; isDefault: boolean }> = await res.json();
+      const profiles: Array<{ name: string; mcc: string; mdrMatrix: string; isDefault: boolean; profileType?: string }> = await res.json();
 
-      const exact = profiles.find((p) => p.mcc === mcc);
-      const fallback = profiles.find((p) => p.isDefault);
+      // Brasil proposals should only use Brasil-type profiles
+      const brasilProfiles = profiles.filter((p) => p.profileType !== 'intl');
+
+      // MCC may be "4816/8999" — try each part individually
+      const mccParts = mcc.split('/').map((s) => s.trim()).filter(Boolean);
+
+      const exact = mccParts.reduce<typeof profiles[0] | undefined>(
+        (found, part) => found ?? brasilProfiles.find((p) => p.mcc === part),
+        undefined,
+      );
+
+      // Fallback: brasil-type default, then any-type default
+      const fallback = brasilProfiles.find((p) => p.isDefault) ?? profiles.find((p) => p.isDefault);
       const match = exact ?? fallback;
 
       if (match) {
@@ -85,7 +96,7 @@ export function ProposalWizard({ initialData, editId, defaultTipoMercado }: Prop
         setFinalMatrix(applyMargin(parsed, marginConfig));
         setProfileBanner(
           exact
-            ? `Perfil carregado: "${match.name}" (MCC ${mcc})`
+            ? `Perfil carregado: "${match.name}" (MCC ${match.mcc})`
             : `Perfil padrão carregado: "${match.name}"`,
         );
         setTimeout(() => setProfileBanner(null), 4000);
